@@ -1,3 +1,7 @@
+#!/usr/bin/env perl
+
+
+# imports
 use warnings;
 use strict;
 use feature 'say';
@@ -9,6 +13,8 @@ use Getopt::Long qw(:config no_ignore_case);
 #use Statistics::Descriptive;
 #use PointEstimation;
 
+
+# global variables
 my $coord_system = 'toplevel';
 #my $dbname = 'caenorhabditis_elegans_core_101_269';
 #my $dbname = 'homo_sapiens_core_101_38';
@@ -19,24 +25,27 @@ my $dbname = 'mus_musculus_core_101_38';
 #my $dbname = 'eptatretus_burgeri_core_101_32';
 
 my $user = 'ensro';
-my $host   = 'mysql-ens-vertannot-staging';
-my $port   = 4573;
+my $host = 'mysql-ens-vertannot-staging';
+my $port = 4573;
 my $pass;
 
-my $options = GetOptions ("user|dbuser|u=s"      => \$user,
-                          "host|dbhost|h=s"      => \$host,
-                          "port|dbport|P=i"      => \$port,
-                          "dbname|db|D=s"    => \$dbname,
+
+# process command line arguments
+my $options = GetOptions ("user|dbuser|u=s" => \$user,
+                          "host|dbhost|h=s" => \$host,
+                          "port|dbport|P=i" => \$port,
+                          "dbname|db|D=s"   => \$dbname,
                           "dbpass|pass|p=s" => \$pass);
 
 
-
+# create a database adaptor
 my $db = new Bio::EnsEMBL::DBSQL::DBAdaptor(
-  -port    => $port,
-  -user    => $user,
-  -host    => $host,
-  -dbname  => $dbname,
-  -pass    => $pass);
+  -port   => $port,
+  -user   => $user,
+  -host   => $host,
+  -dbname => $dbname,
+  -pass   => $pass);
+
 
 # If we need to use non core dbs, the commented out code below and be used
 #my $dna_dbname = 'leanne_asterias_rubens_core_101';
@@ -56,11 +65,13 @@ my $db = new Bio::EnsEMBL::DBSQL::DBAdaptor(
 #  $db->dnadb($dna_db);
 #}
 
+
 my $slice_adaptor = $db->get_SliceAdaptor();
 my $slices = $slice_adaptor->fetch_all('toplevel');
 my $gene_adaptor = $db->get_GeneAdaptor();
 my $meta_adaptor = $db->get_MetaContainer();
 my $production_name = $meta_adaptor->get_production_name;
+
 
 foreach my $slice (@$slices) {
   # Just for testing, this only looks at chromosome 4
@@ -75,7 +86,6 @@ foreach my $slice (@$slices) {
     unless($biotype eq 'protein_coding') {
       next;
     }
-
 
     my $display_xref = $gene->display_xref();
     unless($display_xref) {
@@ -94,5 +104,8 @@ foreach my $slice (@$slices) {
 
     say ">".$display_xref->display_id()."::".$display_xref->db_display_name()."::".$production_name."::".$cds_exon_count."::".$cds_length;
     say $protein_seq;
+
+    # dp
+    exit;
   }
 }
