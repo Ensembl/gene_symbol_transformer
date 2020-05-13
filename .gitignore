@@ -1,0 +1,25 @@
+# .gitignore
+
+# William Dimitrios Paraschas (paraschas@gmail.com)
+
+
+# Vim swap files
+*.swp
+
+# Python byte code files
+*.pyc
+
+# PDF files
+*.pdf
+
+# zip files
+*.zip
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints
+
+# virtual environment directory
+.venv
+
+# PNG images
+*.png
