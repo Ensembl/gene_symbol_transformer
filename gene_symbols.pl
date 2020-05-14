@@ -15,10 +15,11 @@ use Getopt::Long qw(:config no_ignore_case);
 
 
 # global variables
+my $DEBUG = 0;
 my $coord_system = 'toplevel';
 #my $dbname = 'caenorhabditis_elegans_core_101_269';
-#my $dbname = 'homo_sapiens_core_101_38';
-my $dbname = 'mus_musculus_core_101_38';
+my $dbname = 'homo_sapiens_core_101_38';
+#my $dbname = 'mus_musculus_core_101_38';
 #my $dbname = 'pan_paniscus_core_101_1';
 #my $dbname = 'sus_scrofa_core_101_111';
 #my $dbname = 'bos_indicus_hybrid_core_101_1';
@@ -35,7 +36,8 @@ my $options = GetOptions ("user|dbuser|u=s" => \$user,
                           "host|dbhost|h=s" => \$host,
                           "port|dbport|P=i" => \$port,
                           "dbname|db|D=s"   => \$dbname,
-                          "dbpass|pass|p=s" => \$pass);
+                          "dbpass|pass|p=s" => \$pass,
+                          "DEBUG=i" => \$DEBUG);
 
 
 # create a database adaptor
@@ -71,21 +73,28 @@ my $gene_adaptor = $db->get_GeneAdaptor();
 my $meta_adaptor = $db->get_MetaContainer();
 
 # fetch all slices from the "toplevel" coordinate system alias
-my $slices = $slice_adaptor->fetch_all('toplevel');
+my $slices = $slice_adaptor->fetch_all($coord_system);
 # get the species name as a string
 my $production_name = $meta_adaptor->get_production_name;
 
 
+# DEBUG variable
+my $counter = 0;
+
 foreach my $slice (@$slices) {
-  # testing: skip chromosomes other than 4
-  unless ($slice->seq_region_name =~ /^\d+$/ && $slice->seq_region_name eq '4') {
-    next;
+  if ($DEBUG) {
+    # testing: skip chromosomes other than 4
+    unless ($slice->seq_region_name =~ /^\d+$/ && $slice->seq_region_name eq '4') {
+      next;
+    }
   }
 
   # get all genes that overlap this slice
   my $genes = $slice->get_all_Genes();
 
-  say "Processing: ".$slice->seq_region_name." (".scalar(@$genes)." genes)";
+  if ($DEBUG) {
+    say "Processing: ".$slice->seq_region_name." (".scalar(@$genes)." genes)";
+  }
 
   foreach my $gene (@$genes) {
     # skip non-protein coding genes
@@ -118,5 +127,12 @@ foreach my $slice (@$slices) {
 
     say ">".$display_xref->display_id()."::".$display_xref->db_display_name()."::".$production_name."::".$cds_exon_count."::".$cds_length;
     say $protein_seq;
+
+    if ($DEBUG) {
+      $counter = $counter + 1;
+      if ($counter == 2) {
+        exit;
+      }
+    }
   }
 }
