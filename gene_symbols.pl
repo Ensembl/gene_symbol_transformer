@@ -67,45 +67,56 @@ my $db = new Bio::EnsEMBL::DBSQL::DBAdaptor(
 
 
 my $slice_adaptor = $db->get_SliceAdaptor();
-my $slices = $slice_adaptor->fetch_all('toplevel');
 my $gene_adaptor = $db->get_GeneAdaptor();
 my $meta_adaptor = $db->get_MetaContainer();
+
+# fetch all slices from the "toplevel" coordinate system alias
+my $slices = $slice_adaptor->fetch_all('toplevel');
+# get the species name as a string
 my $production_name = $meta_adaptor->get_production_name;
 
 
 foreach my $slice (@$slices) {
-  # Just for testing, this only looks at chromosome 4
-  unless($slice->seq_region_name =~ /^\d+$/ && $slice->seq_region_name eq '4') {
+  # testing: skip chromosomes other than 4
+  unless ($slice->seq_region_name =~ /^\d+$/ && $slice->seq_region_name eq '4') {
     next;
   }
 
+  # get all genes that overlap this slice
   my $genes = $slice->get_all_Genes();
+
   say "Processing: ".$slice->seq_region_name." (".scalar(@$genes)." genes)";
+
   foreach my $gene (@$genes) {
+    # skip non-protein coding genes
     my $biotype = $gene->biotype;
-    unless($biotype eq 'protein_coding') {
+    unless ($biotype eq 'protein_coding') {
       next;
     }
 
+    # skip genes without a display_xref
     my $display_xref = $gene->display_xref();
-    unless($display_xref) {
+    unless ($display_xref) {
       next;
     }
 
+    # get the canonical transcript of the gene;
+    # exit if a gene without a canonical transcript is encountered
     my $transcript = $gene->canonical_transcript;
-    unless($transcript) {
+    unless ($transcript) {
       die "Didn't find a canonical";
     }
 
+    # get the number of exons of the transcript
     my $cds_exons = $transcript->get_all_CDS();
-    my $cds_exon_count =  scalar(@$cds_exons);
+    my $cds_exon_count = scalar(@$cds_exons);
+
+    # retrieve the protein sequence
     my $protein_seq = $transcript->translate->seq;
+
     my $cds_length = length($protein_seq) * 3;
 
     say ">".$display_xref->display_id()."::".$display_xref->db_display_name()."::".$production_name."::".$cds_exon_count."::".$cds_length;
     say $protein_seq;
-
-    # dp
-    exit;
   }
 }
