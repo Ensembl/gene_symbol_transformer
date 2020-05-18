@@ -14,8 +14,8 @@ db="data/blast_databases/homo_sapiens_core_101_38"
 # -out <File_Out>
 #   Output file name
 #   Default = `-'
-out=""
-#out="results.txt"
+#out="-"
+out="data/results.txt"
 
 # -evalue <Real>
 #   Expectation value (E) threshold for saving hits
@@ -43,6 +43,6 @@ word_size="3"
 #    10 = Comma-separated values,
 #    11 = BLAST archive format (ASN.1)
 #    12 = JSON Seqalign output
-outfmt="0"
+outfmt="7"
 
-blastp -db $db -query $query -evalue $evalue -word_size $word_size -outfmt $outfmt
+blastp -query $query -db $db -out=$out -evalue $evalue -word_size $word_size -outfmt $outfmt
