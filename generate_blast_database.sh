@@ -1,9 +1,8 @@
 #!/bin/bash
 
 
-#gene_database="homo_sapiens_core_101_38"
+gene_database="homo_sapiens_core_101_38"
 #gene_database="mus_musculus_core_101_38"
-gene_database="pan_paniscus_core_101_1"
 
 
 input_file_path="data/$gene_database.fasta"
@@ -28,6 +27,6 @@ in="$input_file_path"
 #   Name of BLAST database to be created
 #   Default = input file name provided to -in argumentRequired if multiple
 #   file(s)/database(s) are provided as input
-out="databases/$gene_database"
+out="data/blast_databases/$gene_database"
 
 makeblastdb -dbtype $dbtype -in $in -out $out
