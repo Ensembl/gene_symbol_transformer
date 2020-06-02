@@ -6,6 +6,8 @@ authors = ["Dimitrios Paraschas <dimitrios@ebi.ac.uk>"]
 
 [tool.poetry.dependencies]
 python = "^3.8"
+pandas = "^1.0.4"
+biopython = "^1.77"
 
 [tool.poetry.dev-dependencies]
 
