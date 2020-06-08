@@ -17,8 +17,9 @@ use Getopt::Long qw(:config no_ignore_case);
 # global variables
 my $DEBUG = 0;
 my $coord_system = 'toplevel';
+my $dbname;
 #my $dbname = 'caenorhabditis_elegans_core_101_269';
-my $dbname = 'homo_sapiens_core_101_38';
+#my $dbname = 'homo_sapiens_core_101_38';
 #my $dbname = 'mus_musculus_core_101_38';
 #my $dbname = 'pan_paniscus_core_101_1';
 #my $dbname = 'sus_scrofa_core_101_111';
@@ -81,6 +82,10 @@ my $production_name = $meta_adaptor->get_production_name;
 # DEBUG variable
 my $counter = 0;
 
+# Write the sequence with the stable id as a header to a fasta file
+# Write a separate file with meta info about the sequence (including the gene symbol) with the stable id as the first column to link
+open(SEQOUT,">".$production_name.".fa");
+open(METAOUT,">".$production_name.".csv");
 foreach my $slice (@$slices) {
   if ($DEBUG) {
     # testing: skip chromosomes other than 4
@@ -116,6 +121,9 @@ foreach my $slice (@$slices) {
       die "Didn't find a canonical";
     }
 
+    # The transcript stable id will act as the unique key for each row, will be saved in both the seq file and csv file
+    my $stable_id = $transcript->stable_id;
+
     # get the number of exons of the transcript
     my $cds_exons = $transcript->get_all_CDS();
     my $cds_exon_count = scalar(@$cds_exons);
@@ -123,10 +131,22 @@ foreach my $slice (@$slices) {
     # retrieve the protein sequence
     my $protein_seq = $transcript->translate->seq;
 
+    # Get the genomic span and length of the cds
+    my $cds_span;
+    if($transcript->strand() == 1) {
+      $cds_span = ${$cds_exons}[$#$cds_exons]->end() - ${$cds_exons}[0]->start() + 1;
+    } else {
+      $cds_span = ${$cds_exons}[0]->end() - ${$cds_exons}[$#$cds_exons]->start() + 1;
+    }
+
     my $cds_length = length($protein_seq) * 3;
 
-    say ">".$display_xref->display_id()."::".$display_xref->db_display_name()."::".$production_name."::".$cds_exon_count."::".$cds_length;
-    say $protein_seq;
+    say SEQOUT ">".$stable_id;
+    say SEQOUT $protein_seq;
+
+    say METAOUT $stable_id."\t".$production_name."\t".$display_xref->display_id()."\t".$display_xref->db_display_name()."\t".
+                $cds_exon_count."\t".$cds_span."\t".$cds_length;
+
 
     if ($DEBUG) {
       $counter = $counter + 1;
@@ -136,3 +156,8 @@ foreach my $slice (@$slices) {
     }
   }
 }
+
+close SEQOUT;
+close METAOUT;
+
+exit;
