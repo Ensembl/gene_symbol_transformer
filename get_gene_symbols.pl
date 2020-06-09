@@ -84,8 +84,8 @@ my $counter = 0;
 
 # Write the sequence with the stable id as a header to a fasta file
 # Write a separate file with meta info about the sequence (including the gene symbol) with the stable id as the first column to link
-open(SEQOUT,">".$production_name.".fa");
-open(METAOUT,">".$production_name.".csv");
+open(SEQOUT, ">".$production_name.".fa");
+open(METAOUT, ">".$production_name.".csv");
 foreach my $slice (@$slices) {
   if ($DEBUG) {
     # testing: skip chromosomes other than 4
@@ -144,9 +144,9 @@ foreach my $slice (@$slices) {
     say SEQOUT ">".$stable_id;
     say SEQOUT $protein_seq;
 
-    say METAOUT $stable_id."\t".$production_name."\t".$display_xref->display_id()."\t".$display_xref->db_display_name()."\t".
-                $cds_exon_count."\t".$cds_span."\t".$cds_length;
-
+    # write csv header row
+    #say METAOUT "stable_id\tproduction_name\tdisplay_xref.display_id\tdisplay_xref.db_display_name\tcds_exon_count\tcds_span\tcds_length";
+    say METAOUT $stable_id."\t".$production_name."\t".$display_xref->display_id()."\t".$display_xref->db_display_name()."\t".$cds_exon_count."\t".$cds_span."\t".$cds_length;
 
     if ($DEBUG) {
       $counter = $counter + 1;
