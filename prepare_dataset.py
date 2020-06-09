@@ -47,6 +47,14 @@ def merge_sequences_and_metadata():
     """
     data_directory = pathlib.Path("data")
 
+    merged_data_filename = "all_species_metadata_sequences.csv"
+    merged_data_path = data_directory / merged_data_filename
+
+    # exit the function if the merged file has already been generated
+    if merged_data_path.is_file():
+        print("the merged file has already been generated, exiting")
+        return
+
     metadata_csv_filename = "all_species.csv"
     sequences_fasta_filename = "all_species.fa"
 
@@ -76,25 +84,22 @@ def merge_sequences_and_metadata():
     assert sequences["description"].nunique() == len(sequences)
 
     # merge the two dataframes to a single one
-    combined_data = pd.merge(left=metadata, right=sequences, left_on="stable_id", right_on="description")
+    merged_data = pd.merge(left=metadata, right=sequences, left_on="stable_id", right_on="description")
     if DEBUG:
-        print(combined_data.head())
+        print(merged_data.head())
         print()
-        combined_data.info()
+        merged_data.info()
         print()
-    assert combined_data["stable_id"].nunique() == combined_data["description"].nunique() == len(combined_data)
+    assert merged_data["stable_id"].nunique() == merged_data["description"].nunique() == len(merged_data)
 
     # remove duplicate description column
-    combined_data.drop(columns=["description"], inplace=True)
+    merged_data.drop(columns=["description"], inplace=True)
     if DEBUG:
-        combined_data.info()
+        merged_data.info()
         print()
 
     # save merged dataframe as CSV file
-    combined_data_filename = "all_species_metadata_sequences.csv"
-    combined_data_path = data_directory / combined_data_filename
-    # if not combined_data_path.is_file():
-    combined_data.to_csv(combined_data_path, sep="\t", index=False)
+    merged_data.to_csv(merged_data_path, sep="\t", index=False)
 
 
 def main():
