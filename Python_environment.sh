@@ -1,7 +1,8 @@
 #!/bin/bash
 
 
-# load with source <file_path>
+# load with `source <file_path>`
+# i.e. `source Python_environment.sh`
 
 
 # required for importing torch
