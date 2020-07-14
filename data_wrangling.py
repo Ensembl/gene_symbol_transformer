@@ -41,25 +41,21 @@ def fasta_to_dataframe(fasta_path):
     return records_dataframe
 
 
-def merge_sequences_and_metadata():
+def merge_metadata_sequences():
     """
-    Merge the sequences FASTA file and the metadata CSV file to a single CSV file.
+    Merge the metadata CSV file and the sequences FASTA file in a single CSV file.
     """
     data_directory = pathlib.Path("data")
 
-    merged_data_filename = "all_species_metadata_sequences.csv"
-    merged_data_path = data_directory / merged_data_filename
+    merged_data_path = data_directory / "all_species_metadata_sequences.csv"
 
     # exit the function if the merged file has already been generated
     if merged_data_path.is_file():
         print("the merged file has already been generated, exiting")
         return
 
-    metadata_csv_filename = "all_species.csv"
-    sequences_fasta_filename = "all_species.fa"
-
-    metadata_csv_path = data_directory / metadata_csv_filename
-    sequences_fasta_path = data_directory / sequences_fasta_filename
+    metadata_csv_path = data_directory / "all_species.csv"
+    sequences_fasta_path = data_directory / "all_species.fa"
 
     # read the metadata csv file to a pandas dataframe
     metadata = pd.read_csv(metadata_csv_path, sep="\t")
@@ -83,7 +79,7 @@ def merge_sequences_and_metadata():
         print()
     assert sequences["description"].nunique() == len(sequences)
 
-    # merge the two dataframes to a single one
+    # merge the two dataframes in a single one
     merged_data = pd.merge(left=metadata, right=sequences, left_on="stable_id", right_on="description")
     if DEBUG:
         print(merged_data.head())
@@ -106,7 +102,7 @@ def main():
     """
     main function
     """
-    merge_sequences_and_metadata()
+    merge_metadata_sequences()
 
 
 if __name__ == "__main__":
