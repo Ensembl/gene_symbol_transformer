@@ -24,6 +24,8 @@ from Bio import SeqIO
 # DEBUG = True
 DEBUG = False
 
+data_directory = pathlib.Path("data")
+
 
 def fasta_to_dataframe(fasta_path):
     """
@@ -45,8 +47,6 @@ def merge_metadata_sequences():
     """
     Merge the metadata CSV file and the sequences FASTA file in a single CSV file.
     """
-    data_directory = pathlib.Path("data")
-
     merged_data_path = data_directory / "all_species_metadata_sequences.csv"
 
     # exit the function if the merged file has already been generated
@@ -98,11 +98,34 @@ def merge_metadata_sequences():
     merged_data.to_csv(merged_data_path, sep="\t", index=False)
 
 
+def data_wrangling():
+    """
+    - simplify a couple of column names
+    - ignore capitalization of symbol names
+    """
+    csv_path = data_directory / "all_species_metadata_sequences.csv"
+    data = pd.read_csv(csv_path, sep="\t")
+
+    metadata_sequences_path = data_directory / "metadata_sequences.csv"
+
+    # simplify a couple of column names
+    if "display_xref.display_id" in data:
+        data = data.rename(columns={"display_xref.display_id": "symbol", "display_xref.db_display_name": "db_display_name"})
+
+    # ignore capitalization of symbol names
+    if "symbol_lower" not in data:
+        data.insert(loc=3, column="symbol_lower", value=data["symbol"].str.lower())
+
+    data.to_csv(metadata_sequences_path, sep="\t", index=False)
+
+
 def main():
     """
     main function
     """
-    merge_metadata_sequences()
+    # merge_metadata_sequences()
+
+    data_wrangling()
 
 
 if __name__ == "__main__":
