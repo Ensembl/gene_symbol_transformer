@@ -25,3 +25,8 @@ open_bsub_shell.sh
 ## data wrangling
 
 `data_wrangling.py`
+
+
+## log
+
+The metadata file `all_species.csv` and the sequences file `all_species.fa` were merged into the CSV file `all_species_metadata_sequences.csv` containing all information.
