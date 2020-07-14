@@ -49,9 +49,8 @@ def merge_metadata_sequences():
     """
     merged_data_path = data_directory / "all_species_metadata_sequences.csv"
 
-    # exit the function if the merged file has already been generated
+    # exit function if the output merged file exists
     if merged_data_path.is_file():
-        print("the merged file has already been generated, exiting")
         return
 
     metadata_csv_path = data_directory / "all_species.csv"
@@ -123,7 +122,7 @@ def main():
     """
     main function
     """
-    # merge_metadata_sequences()
+    merge_metadata_sequences()
 
     data_wrangling()
 
