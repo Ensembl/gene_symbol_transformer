@@ -24,9 +24,19 @@ open_bsub_shell.sh
 
 ## data wrangling
 
-`data_wrangling.py`
+Merge the metadata file `all_species.csv` and the sequences file `all_species.fa` in the file `all_species_metadata_sequences.csv`.
 
+### `data_wrangling()` function in `data_wrangling.py`, results saved in `metadata_sequences.csv`
 
-## log
+- simplify a couple of column names
+```
+"display_xref.display_id" to "symbol"
+"display_xref.db_display_name" to "db_display_name"
+```
 
-The metadata file `all_species.csv` and the sequences file `all_species.fa` were merged into the CSV file `all_species_metadata_sequences.csv` containing all information.
+- ignore capitalization of symbol names
+```
+267536 unique symbols with original names
+233824 unique symbols after removing capitalization
+12.6% reduction in unique symbols
+```
