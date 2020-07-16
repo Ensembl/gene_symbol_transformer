@@ -29,10 +29,10 @@ def dataframe_to_fasta(dataframe, fasta_path):
     print("generating FASTA file from dataframe...")
     with open(fasta_path, "w+") as fasta_file:
         for entry in dataframe.itertuples():
-            symbol = entry[3]
+            symbol = entry[4]
             stable_id = entry[1]
             sequence = entry[9]
-            fasta_file.write(f">{symbol};{stable_id}\n{sequence}\n")
+            fasta_file.write(f">{stable_id};{symbol}\n{sequence}\n")
     print(f"FASTA file saved at {fasta_path}")
 
 
