@@ -5,7 +5,7 @@
 
 
 """
-Gene symbol classifier data exploration code.
+Data wrangling.
 """
 
 
@@ -102,20 +102,22 @@ def data_wrangling():
     - simplify a couple of column names
     - ignore capitalization of symbol names
     """
-    csv_path = data_directory / "all_species_metadata_sequences.csv"
-    data = pd.read_csv(csv_path, sep="\t")
+    original_csv_path = data_directory / "all_species_metadata_sequences.csv"
+    data = pd.read_csv(original_csv_path, sep="\t")
 
-    metadata_sequences_path = data_directory / "metadata_sequences.csv"
+    data_csv_path = data_directory / "data.csv"
 
     # simplify a couple of column names
     if "display_xref.display_id" in data:
-        data = data.rename(columns={"display_xref.display_id": "symbol", "display_xref.db_display_name": "db_display_name"})
+        print("renaming dataframe columns...")
+        data = data.rename(columns={"display_xref.display_id": "symbol_original", "display_xref.db_display_name": "db_display_name"})
 
     # ignore capitalization of symbol names
-    if "symbol_lower" not in data:
-        data.insert(loc=3, column="symbol_lower", value=data["symbol"].str.lower())
+    if "symbol" not in data:
+        print("generating lower case symbol column...")
+        data.insert(loc=3, column="symbol", value=data["symbol_original"].str.lower())
 
-    data.to_csv(metadata_sequences_path, sep="\t", index=False)
+    data.to_csv(data_csv_path, sep="\t", index=False)
 
 
 def main():
