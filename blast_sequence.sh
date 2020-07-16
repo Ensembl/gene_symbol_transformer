@@ -4,18 +4,18 @@
 # -query <File_In>
 #   Input file name
 #   Default = `-'
-query="data/query.fasta"
+query="query.fasta"
 
 # -db <String>
 #   BLAST database name
 #    * Incompatible with:  subject, subject_loc
-db="data/blast_databases/homo_sapiens_core_101_38"
+db="data/blast_database/all_species"
 
 # -out <File_Out>
 #   Output file name
 #   Default = `-'
 #out="-"
-out="data/results.txt"
+out="results.txt"
 
 # -evalue <Real>
 #   Expectation value (E) threshold for saving hits
