@@ -9,7 +9,8 @@ query="query.fasta"
 # -db <String>
 #   BLAST database name
 #    * Incompatible with:  subject, subject_loc
-db="data/blast_databases/all_species"
+#db="data/blast_databases/all_species/all_species"
+db="data/blast_databases/most_frequent_100/most_frequent_100"
 
 # -out <File_Out>
 #   Output file name
