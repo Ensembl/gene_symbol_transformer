@@ -11,6 +11,7 @@ BLAST pipeline and wrapper.
 
 # standard library imports
 import pathlib
+import shelve
 import subprocess
 import sys
 
@@ -81,8 +82,9 @@ def generate_blast_features():
     db = data_directory / "blast_databases/most_frequent_100/most_frequent_100"
 
     fasta_path = data_directory / "most_frequent_100.fasta"
+    shelve_db_path = data_directory / "blast_results.db"
 
-    with open(fasta_path) as fasta_file:
+    with open(fasta_path) as fasta_file, shelve.open(str(shelve_db_path), flag="c") as blast_results:
         for fasta_record in SeqIO.FastaIO.SimpleFastaParser(fasta_file):
             description = fasta_record[0]
             sequence = fasta_record[1]
@@ -91,11 +93,10 @@ def generate_blast_features():
             # evalue = "10"
             # evalue = "1e-1"
             evalue = "1e-3"
-            output = blast_sequence(fasta_sequence, db=db, evalue=evalue)
-            print(output)
-            print(output.count("\n"))
+            blast_output = blast_sequence(fasta_sequence, db=db, evalue=evalue)
 
-            sys.exit()
+            blast_results[fasta_sequence] = blast_output
+            print(description)
 
 
 def main():
