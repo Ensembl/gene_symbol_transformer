@@ -46,4 +46,4 @@ word_size="3"
 #    12 = JSON Seqalign output
 outfmt="7"
 
-blastp -query $query -db $db -out=$out -evalue $evalue -word_size $word_size -outfmt $outfmt
+blastp -query $query -db $db -out $out -evalue $evalue -word_size $word_size -outfmt $outfmt
