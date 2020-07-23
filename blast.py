@@ -10,15 +10,25 @@ BLAST pipeline and wrapper.
 
 
 # standard library imports
+import pathlib
 import subprocess
+import sys
 
 # third party imports
+from Bio import SeqIO
 
 # project imports
 
 
+data_directory = pathlib.Path("data")
+
+
 def blast_sequence(fasta_sequence, db, evalue="1e-3", word_size="3", outfmt="7"):
     """
+    BLAST a FASTA sequence using the specified BLAST database db.
+
+    Documentation of BLAST arguments used:
+
     -db <String>
       BLAST database name
        * Incompatible with:  subject, subject_loc
@@ -64,19 +74,35 @@ def blast_sequence(fasta_sequence, db, evalue="1e-3", word_size="3", outfmt="7")
     return output
 
 
-fasta_sequence = """>ENST00000225792;ddx5
-MSGYSSDRDRGRDRGFGAPRFGGSRAGPLSGKKFGNPGEKLVKKKWNLDELPKFEKNFYQEHPDLARRTAQEVETYRRSKEITVRGHNCPKPVLNFYEANFPANVMDVIARQNFTEPTAIQAQGWPVALSGLDMVGVAQTGSGKTLSYLLPAIVHINHQPFLERGDGPICLVLAPTRELAQQVQQVAAEYCRACRLKSTCIYGGAPKGPQIRDLERGVEICIATPGRLIDFLECGKTNLRRTTYLVLDEADRMLDMGFEPQIRKIVDQIRPDRQTLMWSATWPKEVRQLAEDFLKDYIHINIGALELSANHNILQIVDVCHDVEKDEKLIRLMEEIMSEKENKTIVFVETKRRCDELTRKMRRDGWPAMGIHGDKSQQERDWVLNEFKHGKAPILIATDVASRGLDVEDVKFVINYDYPNSSEDYIHRIGRTARSTKTGTAYTFFTPNNIKQVSDLISVLREANQAINPKLLQLVEDRGSGRSRGRGGMKDDRRDRYSAGKRGGFNTFRDRENYDRGYSSLLKRDFGAKTQNGVYSAANYTNGSFGSNFVSAGIQTSFRTGNPTGTYQNGYDSTQQYGSNVPNMHNGMNQQAYAYPATAAAPMIGYPMPTGYSQ
-"""
+def generate_blast_features():
+    """
+    Generate a database with the BLAST results of all sequences.
+    """
+    db = data_directory / "blast_databases/most_frequent_100/most_frequent_100"
+
+    fasta_path = data_directory / "most_frequent_100.fasta"
+
+    with open(fasta_path) as fasta_file:
+        for fasta_record in SeqIO.FastaIO.SimpleFastaParser(fasta_file):
+            description = fasta_record[0]
+            sequence = fasta_record[1]
+            fasta_sequence = (f">{description}\n{sequence}\n")
+
+            # evalue = "10"
+            # evalue = "1e-1"
+            evalue = "1e-3"
+            output = blast_sequence(fasta_sequence, db=db, evalue=evalue)
+            print(output)
+            print(output.count("\n"))
+
+            sys.exit()
+
 
 def main():
     """
     main function
     """
-    db = "data/blast_databases/most_frequent_100/most_frequent_100"
-    # evalue = "1e-1"
-    # evalue = "1e-3"
-    output = blast_sequence(fasta_sequence, db=db)
-    print(output)
+    generate_blast_features()
 
 
 if __name__ == "__main__":
