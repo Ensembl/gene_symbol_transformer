@@ -11,26 +11,17 @@ BLAST pipeline and wrapper.
 
 # standard library imports
 import subprocess
-import sys
 
 # third party imports
 
 # project imports
 
 
-def blast_sequence(query, db, out, evalue="1e-3", word_size="3", outfmt="7"):
+def blast_sequence(fasta_sequence, db, evalue="1e-3", word_size="3", outfmt="7"):
     """
-    -query <File_In>
-      Input file name
-      Default = `-'
-
     -db <String>
       BLAST database name
        * Incompatible with:  subject, subject_loc
-
-    -out <File_Out>
-      Output file name
-      Default = `-'
 
     -evalue <Real>
       Expectation value (E) threshold for saving hits
@@ -58,12 +49,8 @@ def blast_sequence(query, db, out, evalue="1e-3", word_size="3", outfmt="7"):
     """
     arguments = [
         "blastp",
-        "-query",
-        query,
         "-db",
         db,
-        "-out",
-        out,
         "-evalue",
         evalue,
         "-word_size",
@@ -71,23 +58,24 @@ def blast_sequence(query, db, out, evalue="1e-3", word_size="3", outfmt="7"):
         "-outfmt",
         outfmt,
     ]
-    completed_process = subprocess.run(arguments, capture_output=True)
-    output = completed_process.stdout.decode("utf-8")
+    completed_process = subprocess.run(arguments, input=fasta_sequence, capture_output=True, text=True)
+    output = completed_process.stdout
 
     return output
 
+
+fasta_sequence = """>ENST00000225792;ddx5
+MSGYSSDRDRGRDRGFGAPRFGGSRAGPLSGKKFGNPGEKLVKKKWNLDELPKFEKNFYQEHPDLARRTAQEVETYRRSKEITVRGHNCPKPVLNFYEANFPANVMDVIARQNFTEPTAIQAQGWPVALSGLDMVGVAQTGSGKTLSYLLPAIVHINHQPFLERGDGPICLVLAPTRELAQQVQQVAAEYCRACRLKSTCIYGGAPKGPQIRDLERGVEICIATPGRLIDFLECGKTNLRRTTYLVLDEADRMLDMGFEPQIRKIVDQIRPDRQTLMWSATWPKEVRQLAEDFLKDYIHINIGALELSANHNILQIVDVCHDVEKDEKLIRLMEEIMSEKENKTIVFVETKRRCDELTRKMRRDGWPAMGIHGDKSQQERDWVLNEFKHGKAPILIATDVASRGLDVEDVKFVINYDYPNSSEDYIHRIGRTARSTKTGTAYTFFTPNNIKQVSDLISVLREANQAINPKLLQLVEDRGSGRSRGRGGMKDDRRDRYSAGKRGGFNTFRDRENYDRGYSSLLKRDFGAKTQNGVYSAANYTNGSFGSNFVSAGIQTSFRTGNPTGTYQNGYDSTQQYGSNVPNMHNGMNQQAYAYPATAAAPMIGYPMPTGYSQ
+"""
 
 def main():
     """
     main function
     """
-    query = "query.fasta"
     db = "data/blast_databases/most_frequent_100/most_frequent_100"
-    # out = "results.txt"
-    out = "-"
     # evalue = "1e-1"
     # evalue = "1e-3"
-    output = blast_sequence(query=query, db=db, out=out)
+    output = blast_sequence(fasta_sequence, db=db)
     print(output)
 
 
