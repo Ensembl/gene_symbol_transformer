@@ -36,7 +36,9 @@ def fasta_to_dataframe(fasta_path):
     records = []
     with open(fasta_path) as fasta_file:
         for fasta_record in SeqIO.FastaIO.SimpleFastaParser(fasta_file):
-            records.append({"description": fasta_record[0], "sequence": fasta_record[1]})
+            records.append(
+                {"description": fasta_record[0], "sequence": fasta_record[1]}
+            )
 
     records_dataframe = pd.DataFrame(records)
 
@@ -79,13 +81,19 @@ def merge_metadata_sequences():
     assert sequences["description"].nunique() == len(sequences)
 
     # merge the two dataframes in a single one
-    merged_data = pd.merge(left=metadata, right=sequences, left_on="stable_id", right_on="description")
+    merged_data = pd.merge(
+        left=metadata, right=sequences, left_on="stable_id", right_on="description"
+    )
     if DEBUG:
         print(merged_data.head())
         print()
         merged_data.info()
         print()
-    assert merged_data["stable_id"].nunique() == merged_data["description"].nunique() == len(merged_data)
+    assert (
+        merged_data["stable_id"].nunique()
+        == merged_data["description"].nunique()
+        == len(merged_data)
+    )
 
     # remove duplicate description column
     merged_data.drop(columns=["description"], inplace=True)
@@ -110,7 +118,12 @@ def data_wrangling():
     # simplify a couple of column names
     if "display_xref.display_id" in data:
         print("renaming dataframe columns...")
-        data = data.rename(columns={"display_xref.display_id": "symbol_original", "display_xref.db_display_name": "db_display_name"})
+        data = data.rename(
+            columns={
+                "display_xref.display_id": "symbol_original",
+                "display_xref.db_display_name": "db_display_name",
+            }
+        )
 
     # ignore capitalization of symbol names
     if "symbol" not in data:
