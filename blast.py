@@ -83,10 +83,12 @@ def generate_blast_results():
     db = data_directory / "blast_databases/most_frequent_100/most_frequent_100"
 
     fasta_path = data_directory / "most_frequent_100.fasta"
-    shelve_db_path = data_directory / "blast_results.db"
+    shelve_db_path = data_directory / "most_frequent_100-blast_results.db"
+
+    total = 30907
 
     with open(fasta_path) as fasta_file, shelve.open(str(shelve_db_path), flag="c") as blast_results:
-        for fasta_record in SeqIO.FastaIO.SimpleFastaParser(fasta_file):
+        for counter, fasta_record in enumerate(SeqIO.FastaIO.SimpleFastaParser(fasta_file), start=1):
             description = fasta_record[0]
             sequence = fasta_record[1]
             fasta_sequence = (f">{description}\n{sequence}\n")
@@ -97,7 +99,7 @@ def generate_blast_results():
             blast_output = blast_sequence(fasta_sequence, db=db, evalue=evalue)
 
             blast_results[fasta_sequence] = blast_output
-            print(description)
+            print(f"{description} : {counter} out of {total}")
 
 
 def main():
