@@ -10,6 +10,7 @@ BLAST pipeline and wrapper.
 
 
 # standard library imports
+import argparse
 import pathlib
 import shelve
 import subprocess
@@ -75,7 +76,7 @@ def blast_sequence(fasta_sequence, db, evalue="1e-3", word_size="3", outfmt="7")
     return output
 
 
-def generate_blast_features():
+def generate_blast_results():
     """
     Generate a database with the BLAST results of all sequences.
     """
@@ -103,7 +104,13 @@ def main():
     """
     main function
     """
-    generate_blast_features()
+    argument_parser = argparse.ArgumentParser()
+    argument_parser.add_argument("--generate_blast_results", action="store_true")
+
+    args = argument_parser.parse_args()
+
+    if args.generate_blast_results:
+        generate_blast_results()
 
 
 if __name__ == "__main__":
