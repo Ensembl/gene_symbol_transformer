@@ -16,7 +16,7 @@ db="data/blast_databases/most_frequent_100/most_frequent_100"
 #   Output file name
 #   Default = `-'
 #out="-"
-out="results.txt"
+out="results.csv"
 
 # -evalue <Real>
 #   Expectation value (E) threshold for saving hits
@@ -44,6 +44,6 @@ word_size="3"
 #    10 = Comma-separated values,
 #    11 = BLAST archive format (ASN.1)
 #    12 = JSON Seqalign output
-outfmt="7"
+outfmt="6"
 
 blastp -query $query -db $db -out $out -evalue $evalue -word_size $word_size -outfmt $outfmt

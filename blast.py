@@ -25,7 +25,7 @@ from Bio import SeqIO
 data_directory = pathlib.Path("data")
 
 
-def blast_sequence(fasta_sequence, db, evalue="1e-3", word_size="3", outfmt="7"):
+def blast_sequence(fasta_sequence, db, evalue="1e-3", word_size="3", outfmt="6"):
     """
     BLAST a FASTA sequence using the specified BLAST database db.
 
