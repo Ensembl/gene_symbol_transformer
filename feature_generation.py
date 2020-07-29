@@ -40,12 +40,10 @@ def select_to_fasta():
     """
     Save a subset of the sequences to a FASTA file.
     """
-    data_csv_path = data_directory / "data.csv"
-    print("loading data CSV...")
-    data = pd.read_csv(data_csv_path, sep="\t")
-    print("data CSV loaded")
-
-    data_csv_path = data_directory / "data.csv"
+    data_pickle_path = data_directory / "data.pickle"
+    print("loading data file...")
+    data = pd.read_pickle(data_pickle_path)
+    print("data file loaded")
 
     symbol_counts = data["symbol"].value_counts()
 
