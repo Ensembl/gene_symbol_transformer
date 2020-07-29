@@ -63,8 +63,19 @@ def parse_blast_results(blast_results):
     # open blast_results string as a file for easy consumption by csv.reader
     with io.StringIO(blast_results) as file_object:
         fieldnames = [
-                "query_id", "subject_id", "percent_identity", "alignment_length", "mismatches", "gap_opens", "query_start", "query_end", "subject_start", "subject_end", "evalue", "bit_score"
-                ]
+            "query_id",
+            "subject_id",
+            "percent_identity",
+            "alignment_length",
+            "mismatches",
+            "gap_opens",
+            "query_start",
+            "query_end",
+            "subject_start",
+            "subject_end",
+            "evalue",
+            "bit_score",
+        ]
         for row in csv.DictReader(file_object, fieldnames=fieldnames, delimiter="\t"):
             print(row)
             break
