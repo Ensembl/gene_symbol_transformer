@@ -62,7 +62,7 @@ def parse_blast_results(blast_results):
     """
     # open blast_results string as a file for easy consumption by csv.reader
     with io.StringIO(blast_results) as file_object:
-        fieldnames = [
+        column_names = [
             "query_id",
             "subject_id",
             "percent_identity",
@@ -76,9 +76,13 @@ def parse_blast_results(blast_results):
             "evalue",
             "bit_score",
         ]
-        for row in csv.DictReader(file_object, fieldnames=fieldnames, delimiter="\t"):
+        for row in csv.DictReader(file_object, fieldnames=column_names, delimiter="\t"):
             print(row)
             break
+
+        df = pd.read_csv(file_object, delimiter="\t", names=column_names)
+        # print(df.head())
+        print(df)
 
 
 def split_fasta_sequence(fasta_sequence):
