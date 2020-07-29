@@ -10,7 +10,6 @@ pandas = "^1.0.4"
 biopython = "^1.77"
 torch = "^1.5.0"
 matplotlib = "^3.2.2"
-tables = "^3.6.1"
 
 [tool.poetry.dev-dependencies]
 jupyterlab = "^2.1.4"
