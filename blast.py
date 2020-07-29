@@ -102,30 +102,6 @@ def generate_blast_results():
             print(f"{description} : {counter} out of {total}")
 
 
-def generate_blast_features():
-    """
-    Parse raw BLAST results and generate a dictionary with important values.
-    """
-    shelve_db_path = data_directory / "most_frequent_100-blast_results.db"
-
-    with shelve.open(str(shelve_db_path)) as blast_results:
-        print("loading blast_results database...")
-        print()
-
-        for fasta_sequence, blast_output in blast_results.items():
-            print(fasta_sequence)
-            print()
-            print(fasta_sequence.split())
-            print()
-            description = fasta_sequence.split()[0].replace(">", "")
-            sequence = fasta_sequence.split()[1]
-            print(description)
-            print()
-            print(sequence)
-            print()
-            break
-
-
 def main():
     """
     main function
@@ -138,7 +114,7 @@ def main():
     if args.generate_blast_results:
         generate_blast_results()
     else:
-        generate_blast_features()
+        print("nothing to do")
 
 
 if __name__ == "__main__":
