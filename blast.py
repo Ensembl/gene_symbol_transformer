@@ -70,7 +70,9 @@ def blast_sequence(fasta_sequence, db, evalue="1e-3", word_size="3", outfmt="6")
         "-outfmt",
         outfmt,
     ]
-    completed_process = subprocess.run(arguments, input=fasta_sequence, capture_output=True, text=True)
+    completed_process = subprocess.run(
+        arguments, input=fasta_sequence, capture_output=True, text=True
+    )
     output = completed_process.stdout
 
     return output
@@ -87,11 +89,15 @@ def generate_blast_results():
 
     total = 30907
 
-    with open(fasta_path) as fasta_file, shelve.open(str(shelve_db_path), flag="c") as blast_results:
-        for counter, fasta_record in enumerate(SeqIO.FastaIO.SimpleFastaParser(fasta_file), start=1):
+    with open(fasta_path) as fasta_file, shelve.open(
+        str(shelve_db_path), flag="c"
+    ) as blast_results:
+        for counter, fasta_record in enumerate(
+            SeqIO.FastaIO.SimpleFastaParser(fasta_file), start=1
+        ):
             description = fasta_record[0]
             sequence = fasta_record[1]
-            fasta_sequence = (f">{description}\n{sequence}\n")
+            fasta_sequence = f">{description}\n{sequence}\n"
 
             # evalue = "10"
             # evalue = "1e-1"
