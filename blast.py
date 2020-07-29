@@ -90,7 +90,7 @@ def generate_blast_results():
     total = 30907
 
     with open(fasta_path) as fasta_file, shelve.open(
-        str(shelve_db_path), flag="c"
+        str(shelve_db_path)
     ) as blast_results:
         for counter, fasta_record in enumerate(
             SeqIO.FastaIO.SimpleFastaParser(fasta_file), start=1
