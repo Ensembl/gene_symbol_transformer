@@ -49,14 +49,15 @@ def merge_metadata_sequences():
     """
     Merge the metadata CSV file and the sequences FASTA file in a single CSV file.
     """
-    merged_data_path = data_directory / "all_species_metadata_sequences.csv"
+    all_data_pickle_path = data_directory / "all_species_metadata_sequences.pickle"
 
-    # exit function if the output merged file exists
-    if merged_data_path.is_file():
+    # exit function if the output file exists
+    if all_data_pickle_path.is_file():
+        print(f"{all_data_pickle_path} file already exists")
         return
 
-    metadata_csv_path = data_directory / "all_species.csv"
-    sequences_fasta_path = data_directory / "all_species.fa"
+    metadata_csv_path = data_directory / "original" / "all_species.csv"
+    sequences_fasta_path = data_directory / "original" / "all_species.fa"
 
     # read the metadata csv file to a pandas dataframe
     metadata = pd.read_csv(metadata_csv_path, sep="\t")
@@ -101,8 +102,8 @@ def merge_metadata_sequences():
         merged_data.info()
         print()
 
-    # save merged dataframe as CSV file
-    merged_data.to_csv(merged_data_path, sep="\t", index=False)
+    # save the merged dataframe to a pickle file
+    merged_data.to_pickle(all_data_pickle_path)
 
 
 def data_wrangling():
@@ -110,10 +111,9 @@ def data_wrangling():
     - simplify a couple of column names
     - ignore capitalization of symbol names
     """
-    original_csv_path = data_directory / "all_species_metadata_sequences.csv"
-    data = pd.read_csv(original_csv_path, sep="\t")
-
-    data_csv_path = data_directory / "data.csv"
+    # load the original data file
+    all_data_pickle_path = data_directory / "all_species_metadata_sequences.pickle"
+    data = pd.read_pickle(all_data_pickle_path)
 
     # simplify a couple of column names
     if "display_xref.display_id" in data:
@@ -130,14 +130,16 @@ def data_wrangling():
         print("generating lower case symbol column...")
         data.insert(loc=3, column="symbol", value=data["symbol_original"].str.lower())
 
-    data.to_csv(data_csv_path, sep="\t", index=False)
+    # save the dataframe to a new data file
+    data_pickle_path = data_directory / "data.pickle"
+    data.to_pickle(data_pickle_path)
 
 
 def main():
     """
     main function
     """
-    merge_metadata_sequences()
+    # merge_metadata_sequences()
 
     data_wrangling()
 
