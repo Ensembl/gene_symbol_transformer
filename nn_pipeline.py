@@ -26,4 +26,9 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except KeyboardInterrupt:
+        print()
+        print("Interrupted with CTRL-C, exiting...")
+        sys.exit()
