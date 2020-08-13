@@ -104,12 +104,27 @@ def generate_blast_features():
         print("loading blast_results database...")
         print()
 
-        for fasta_sequence, blast_output in blast_results.items():
-            description, sequence = split_fasta_sequence(fasta_sequence)
-            print(description)
-            print()
-            blast_features = parse_blast_results(blast_output)
-            break
+        columns = ["fasta_sequence", "blast_output"]
+        blast_results_dataframe = pd.DataFrame(blast_results.items(), columns=columns)
+
+    blast_results = blast_results_dataframe
+    # print(blast_results)
+
+    get_description = lambda x: split_fasta_sequence(x)[0]
+    get_sequence = lambda x: split_fasta_sequence(x)[1]
+
+    blast_results["description"] = blast_results["fasta_sequence"].apply(get_description)
+    blast_results["sequence"] = blast_results["fasta_sequence"].apply(get_sequence)
+    del blast_results["fasta_sequence"]
+
+    blast_results["stable_id"], blast_results["symbol"] = blast_results["description"].str.split(";", 1).str
+
+    columns = ["description", "stable_id", "symbol", "sequence", "blast_output"]
+    blast_results = blast_results.reindex(columns=columns)
+
+    pd.options.display.max_columns = None
+    pd.options.display.max_rows = None
+    print(blast_results)
 
 
 def main():
