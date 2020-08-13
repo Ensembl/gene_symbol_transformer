@@ -117,7 +117,7 @@ def generate_blast_features():
     blast_results["sequence"] = blast_results["fasta_sequence"].apply(get_sequence)
     del blast_results["fasta_sequence"]
 
-    blast_results["stable_id"], blast_results["symbol"] = blast_results["description"].str.split(";", 1).str
+    blast_results[["stable_id", "symbol"]] = blast_results["description"].str.split(";", expand=True)
 
     columns = ["description", "stable_id", "symbol", "sequence", "blast_output"]
     blast_results = blast_results.reindex(columns=columns)
