@@ -11,7 +11,6 @@ Feature generation.
 
 # standard library imports
 import argparse
-import csv
 import io
 import pathlib
 import shelve
@@ -60,7 +59,7 @@ def select_to_fasta():
 def parse_blast_results(blast_results):
     """
     """
-    # open blast_results string as a file for easy consumption by csv.reader
+    # open blast_results string as a file
     with io.StringIO(blast_results) as file_object:
         column_names = [
             "query_id",
@@ -76,13 +75,17 @@ def parse_blast_results(blast_results):
             "evalue",
             "bit_score",
         ]
-        for row in csv.DictReader(file_object, fieldnames=column_names, delimiter="\t"):
-            print(row)
-            break
-
         df = pd.read_csv(file_object, delimiter="\t", names=column_names)
-        # print(df.head())
-        print(df)
+
+    # verify existence of the sequence itself and remove it from the BLAST results
+    assert df.loc[0]["query_id"] == df.loc[0]["subject_id"]
+    df.drop(labels=0, inplace=True)
+
+    df[["stable_id", "label"]] = df["subject_id"].str.split(";", expand=True)
+
+    print(df.head())
+
+    return df
 
 
 def split_fasta_sequence(fasta_sequence):
@@ -108,23 +111,25 @@ def generate_blast_features():
         blast_results_dataframe = pd.DataFrame(blast_results.items(), columns=columns)
 
     blast_results = blast_results_dataframe
-    # print(blast_results)
 
     get_description = lambda x: split_fasta_sequence(x)[0]
     get_sequence = lambda x: split_fasta_sequence(x)[1]
 
     blast_results["description"] = blast_results["fasta_sequence"].apply(get_description)
     blast_results["sequence"] = blast_results["fasta_sequence"].apply(get_sequence)
-    del blast_results["fasta_sequence"]
+
+    blast_results.drop(columns=["fasta_sequence"], inplace=True)
 
     blast_results[["stable_id", "symbol"]] = blast_results["description"].str.split(";", expand=True)
 
     columns = ["description", "stable_id", "symbol", "sequence", "blast_output"]
     blast_results = blast_results.reindex(columns=columns)
 
+    blast_features = parse_blast_results(blast_results.loc[0]["blast_output"])
+
     pd.options.display.max_columns = None
     pd.options.display.max_rows = None
-    print(blast_results)
+    # print(blast_features)
 
 
 def main():
