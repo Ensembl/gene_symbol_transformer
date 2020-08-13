@@ -21,12 +21,17 @@ out="results.csv"
 # -evalue <Real>
 #   Expectation value (E) threshold for saving hits
 #   Default = `10'
+evalue="10"
+# Ensembl default
 #evalue="1e-1"
-evalue="1e-3"
+#evalue="1e-3"
 
 # -word_size <Integer, >=2>
 #   Word size for wordfinder algorithm
+# Ensembl default
 word_size="3"
+# NCBI default
+#word_size="6"
 
 # *** Formatting options
 # -outfmt <String>
@@ -45,5 +50,7 @@ word_size="3"
 #    11 = BLAST archive format (ASN.1)
 #    12 = JSON Seqalign output
 outfmt="6"
+#outfmt="7"
 
-blastp -query $query -db $db -out $out -evalue $evalue -word_size $word_size -outfmt $outfmt
+#blastp -query $query -db $db -out $out -evalue $evalue -word_size $word_size -outfmt $outfmt
+blastp -query $query -db $db -out $out -outfmt $outfmt

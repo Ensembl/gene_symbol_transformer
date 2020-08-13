@@ -25,7 +25,7 @@ from Bio import SeqIO
 data_directory = pathlib.Path("data")
 
 
-def blast_sequence(fasta_sequence, db, evalue="1e-3", word_size="3", outfmt="6"):
+def blast_sequence(fasta_sequence, db, evalue=None, word_size=None, outfmt="6"):
     """
     BLAST a FASTA sequence using the specified BLAST database db.
 
@@ -63,13 +63,14 @@ def blast_sequence(fasta_sequence, db, evalue="1e-3", word_size="3", outfmt="6")
         "blastp",
         "-db",
         db,
-        "-evalue",
-        evalue,
-        "-word_size",
-        word_size,
         "-outfmt",
         outfmt,
     ]
+    if evalue is not None:
+        arguments.extend(["-evalue", evalue])
+    if word_size is not None:
+        arguments.extend(["-word_size", word_size])
+
     completed_process = subprocess.run(
         arguments, input=fasta_sequence, capture_output=True, text=True
     )
@@ -99,10 +100,7 @@ def generate_blast_results():
             sequence = fasta_record[1]
             fasta_sequence = f">{description}\n{sequence}\n"
 
-            # evalue = "10"
-            # evalue = "1e-1"
-            evalue = "1e-3"
-            blast_output = blast_sequence(fasta_sequence, db=db, evalue=evalue)
+            blast_output = blast_sequence(fasta_sequence, db=db)
 
             blast_results[fasta_sequence] = blast_output
             print(f"{description} : {counter} out of {total}")
