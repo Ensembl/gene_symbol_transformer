@@ -83,12 +83,12 @@ def generate_blast_results():
     """
     Generate a database with the BLAST results of all sequences.
     """
-    db = data_directory / "blast_databases/most_frequent_100/most_frequent_100"
+    db = data_directory / "blast_databases/most_frequent_101/most_frequent_101"
 
-    fasta_path = data_directory / "most_frequent_100.fasta"
-    shelve_db_path = data_directory / "most_frequent_100-blast_results.db"
+    fasta_path = data_directory / "most_frequent_101.fasta"
+    shelve_db_path = data_directory / "most_frequent_101-blast_results.db"
 
-    total = 30907
+    total = 31204
 
     with open(fasta_path) as fasta_file, shelve.open(
         str(shelve_db_path)
@@ -102,7 +102,7 @@ def generate_blast_results():
 
             blast_output = blast_sequence(fasta_sequence, db=db)
 
-            blast_results[fasta_sequence] = blast_output
+            blast_results[description] = blast_output
             print(f"{description} : {counter} out of {total}")
 
 

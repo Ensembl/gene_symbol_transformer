@@ -5,7 +5,7 @@
 #input_file_path="data/$gene_database.fa"
 
 
-gene_database="most_frequent_100"
+gene_database="most_frequent_101"
 input_file_path="data/$gene_database.fasta"
 
 

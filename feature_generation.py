@@ -43,24 +43,26 @@ def dataframe_to_fasta(dataframe, fasta_path):
     print(f"FASTA file saved at {fasta_path}")
 
 
-def save_100_most_frequent():
+def save_101_most_frequent():
     """
-    Save the examples of the 100 most frequent symbols to a pickled dataframe and
+    Save the examples of the 101 most frequent symbols to a pickled dataframe and
     a FASTA file.
     """
     data = dataset_generation.load_data()
 
     symbol_counts = data["symbol"].value_counts()
 
-    most_frequent_100 = data[data["symbol"].isin(symbol_counts[:100].index)]
+    assert all(symbol_counts[:101] == symbol_counts[symbol_counts >= 297])
+
+    most_frequent_101 = data[data["symbol"].isin(symbol_counts[:101].index)]
 
     # save dataframe to a pickle file
-    pickle_path = data_directory / "most_frequent_100.pickle"
-    most_frequent_100.to_pickle(pickle_path)
+    pickle_path = data_directory / "most_frequent_101.pickle"
+    most_frequent_101.to_pickle(pickle_path)
 
     # save sequences to a FASTA file
-    fasta_path = data_directory / "most_frequent_100.fasta"
-    dataframe_to_fasta(most_frequent_100, fasta_path)
+    fasta_path = data_directory / "most_frequent_101.fasta"
+    dataframe_to_fasta(most_frequent_101, fasta_path)
 
 
 def parse_blast_results(blast_results):
@@ -107,7 +109,7 @@ def generate_blast_features():
     """
     Parse raw BLAST results and generate a dictionary with important values.
     """
-    # shelve_db_path = data_directory / "most_frequent_100-blast_results.db"
+    # shelve_db_path = data_directory / "most_frequent_101-blast_results.db"
     shelve_db_path = data_directory / "blast_results_sample.db"
 
     with shelve.open(str(shelve_db_path)) as blast_results:
@@ -148,12 +150,12 @@ def main():
     main function
     """
     argument_parser = argparse.ArgumentParser()
-    argument_parser.add_argument("--save_100_most_frequent", action="store_true")
+    argument_parser.add_argument("--save_101_most_frequent", action="store_true")
 
     args = argument_parser.parse_args()
 
-    if args.save_100_most_frequent:
-        save_100_most_frequent()
+    if args.save_101_most_frequent:
+        save_101_most_frequent()
     else:
         generate_blast_features()
 
