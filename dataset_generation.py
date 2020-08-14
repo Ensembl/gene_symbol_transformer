@@ -5,7 +5,7 @@
 
 
 """
-Data wrangling.
+Merge original data files, normalize, cleanup, and filter examples to a single pandas dataframe saved as a pickle file.
 """
 
 
@@ -30,9 +30,8 @@ data_directory = pathlib.Path("data")
 
 def fasta_to_dataframe(fasta_path):
     """
-    Generate a pandas dataframe from a FASTA file.
-
-    dataframe columns: description, sequence
+    Generate a pandas dataframe with columns "description" and "sequence" from
+    a FASTA file.
     """
     records = []
     with open(fasta_path) as fasta_file:

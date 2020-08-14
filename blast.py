@@ -5,7 +5,7 @@
 
 
 """
-BLAST pipeline and wrapper.
+Function and pipeline to BLAST specified sequences and save the raw results to a shelve database file.
 """
 
 

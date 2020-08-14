@@ -5,7 +5,7 @@
 
 
 """
-Feature generation.
+Generate BLAST and raw sequences features.
 """
 
 
@@ -28,7 +28,7 @@ data_directory = pathlib.Path("data")
 
 def dataframe_to_fasta(dataframe, fasta_path):
     """
-    Generate a FASTA file from a sequences dataframe.
+    Generate a FASTA file from a genes dataframe.
     """
     print("generating FASTA file from dataframe...")
     with open(fasta_path, "w+") as fasta_file:
