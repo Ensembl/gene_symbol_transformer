@@ -33,16 +33,20 @@ def dataframe_to_fasta(dataframe, fasta_path):
     print("generating FASTA file from dataframe...")
     with open(fasta_path, "w+") as fasta_file:
         for entry in dataframe.itertuples():
-            symbol = entry[4]
-            stable_id = entry[1]
-            sequence = entry[9]
+            entry_dict = entry._asdict()
+
+            symbol = entry_dict["symbol"]
+            stable_id = entry_dict["stable_id"]
+            sequence = entry_dict["sequence"]
+
             fasta_file.write(f">{stable_id};{symbol}\n{sequence}\n")
     print(f"FASTA file saved at {fasta_path}")
 
 
-def select_to_fasta():
+def save_100_most_frequent():
     """
-    Save a subset of the sequences to a FASTA file.
+    Save the examples of the 100 most frequent symbols to a pickled dataframe and
+    a FASTA file.
     """
     data = dataset_generation.load_data()
 
@@ -50,6 +54,11 @@ def select_to_fasta():
 
     most_frequent_100 = data[data["symbol"].isin(symbol_counts[:100].index)]
 
+    # save dataframe to a pickle file
+    pickle_path = data_directory / "most_frequent_100.pickle"
+    most_frequent_100.to_pickle(pickle_path)
+
+    # save sequences to a FASTA file
     fasta_path = data_directory / "most_frequent_100.fasta"
     dataframe_to_fasta(most_frequent_100, fasta_path)
 
@@ -139,12 +148,12 @@ def main():
     main function
     """
     argument_parser = argparse.ArgumentParser()
-    argument_parser.add_argument("--select_to_fasta", action="store_true")
+    argument_parser.add_argument("--save_100_most_frequent", action="store_true")
 
     args = argument_parser.parse_args()
 
-    if args.select_to_fasta:
-        select_to_fasta()
+    if args.save_100_most_frequent:
+        save_100_most_frequent()
     else:
         generate_blast_features()
 
