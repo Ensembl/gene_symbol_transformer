@@ -20,6 +20,7 @@ import sys
 import pandas as pd
 
 # project imports
+import dataset_generation
 
 
 data_directory = pathlib.Path("data")
@@ -43,10 +44,7 @@ def select_to_fasta():
     """
     Save a subset of the sequences to a FASTA file.
     """
-    data_pickle_path = data_directory / "data.pickle"
-    print("loading data file...")
-    data = pd.read_pickle(data_pickle_path)
-    print("data file loaded")
+    data = dataset_generation.load_data()
 
     symbol_counts = data["symbol"].value_counts()
 

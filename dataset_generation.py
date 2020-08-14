@@ -148,6 +148,21 @@ def data_wrangling():
     data.to_pickle(data_pickle_path)
 
 
+def load_data():
+    """
+    Load data dataframe, excluding filtered out examples.
+    """
+    data_pickle_path = data_directory / "data.pickle"
+    print("loading data...")
+    data = pd.read_pickle(data_pickle_path)
+    print("data loaded")
+
+    # exclude filtered out examples
+    data = data[data["include"] == True]
+
+    return data
+
+
 def main():
     """
     main function
