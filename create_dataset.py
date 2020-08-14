@@ -110,7 +110,10 @@ def merge_metadata_sequences():
 def data_wrangling():
     """
     - simplify some column names
-    - use symbol names in lower-case
+    - use symbol names in lower case
+    267536 unique original symbol names
+    233824 unique lower case symbol names
+    12.6% reduction
 
     - filter out "Clone-based (Ensembl) gene" examples
       No standard name exists for them. 4691 examples filtered out.
@@ -130,7 +133,7 @@ def data_wrangling():
         }
     )
 
-    # use symbol names in lower-case
+    # use symbol names in lower case
     print("generating lower case symbol column...")
     data["symbol"] = data["symbol_original"].str.lower()
 
