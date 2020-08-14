@@ -25,3 +25,8 @@
 *.png
 
 data
+more
+
+prototype.ipynb
+query.fasta
+results.csv
