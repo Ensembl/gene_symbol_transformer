@@ -115,12 +115,16 @@ def generate_blast_features():
     get_description = lambda x: split_fasta_sequence(x)[0]
     get_sequence = lambda x: split_fasta_sequence(x)[1]
 
-    blast_results["description"] = blast_results["fasta_sequence"].apply(get_description)
+    blast_results["description"] = blast_results["fasta_sequence"].apply(
+        get_description
+    )
     blast_results["sequence"] = blast_results["fasta_sequence"].apply(get_sequence)
 
     blast_results.drop(columns=["fasta_sequence"], inplace=True)
 
-    blast_results[["stable_id", "symbol"]] = blast_results["description"].str.split(";", expand=True)
+    blast_results[["stable_id", "symbol"]] = blast_results["description"].str.split(
+        ";", expand=True
+    )
 
     columns = ["description", "stable_id", "symbol", "sequence", "blast_output"]
     blast_results = blast_results.reindex(columns=columns)

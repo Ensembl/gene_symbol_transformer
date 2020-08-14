@@ -135,7 +135,9 @@ def data_wrangling():
     data["symbol"] = data["symbol_original"].str.lower()
 
     # filter out "Clone-based (Ensembl) gene" examples
-    print('creating "include" column and filtering out "Clone-based (Ensembl) gene" examples')
+    print(
+        'creating "include" column and filtering out "Clone-based (Ensembl) gene" examples'
+    )
     data["include"] = data["db_display_name"] != "Clone-based (Ensembl) gene"
 
     # save the dataframe to a new data file
