@@ -109,27 +109,34 @@ def merge_metadata_sequences():
 
 def data_wrangling():
     """
-    - simplify a couple of column names
-    - ignore capitalization of symbol names
+    - simplify some column names
+    - use symbol names in lower-case
+
+    - filter out "Clone-based (Ensembl) gene" examples
+      No standard name exists for them. 4691 examples filtered out.
     """
     # load the original data file
     all_data_pickle_path = data_directory / "all_species_metadata_sequences.pickle"
+    print(f"loading {all_data_pickle_path} file...")
     data = pd.read_pickle(all_data_pickle_path)
+    print(f"{all_data_pickle_path} file loaded")
 
-    # simplify a couple of column names
-    if "display_xref.display_id" in data:
-        print("renaming dataframe columns...")
-        data = data.rename(
-            columns={
-                "display_xref.display_id": "symbol_original",
-                "display_xref.db_display_name": "db_display_name",
-            }
-        )
+    # simplify some column names
+    print("renaming dataframe columns...")
+    data = data.rename(
+        columns={
+            "display_xref.display_id": "symbol_original",
+            "display_xref.db_display_name": "db_display_name",
+        }
+    )
 
-    # ignore capitalization of symbol names
-    if "symbol" not in data:
-        print("generating lower case symbol column...")
-        data.insert(loc=3, column="symbol", value=data["symbol_original"].str.lower())
+    # use symbol names in lower-case
+    print("generating lower case symbol column...")
+    data["symbol"] = data["symbol_original"].str.lower()
+
+    # filter out "Clone-based (Ensembl) gene" examples
+    print('creating "include" column and filtering out "Clone-based (Ensembl) gene" examples')
+    data["include"] = data["db_display_name"] != "Clone-based (Ensembl) gene"
 
     # save the dataframe to a new data file
     data_pickle_path = data_directory / "data.pickle"
