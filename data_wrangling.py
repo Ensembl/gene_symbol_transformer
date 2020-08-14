@@ -10,6 +10,7 @@ Data wrangling.
 
 
 # standard library imports
+import argparse
 import pathlib
 import sys
 
@@ -139,9 +140,15 @@ def main():
     """
     main function
     """
-    # merge_metadata_sequences()
+    argument_parser = argparse.ArgumentParser()
+    argument_parser.add_argument("--merge_metadata_sequences", action="store_true")
 
-    data_wrangling()
+    args = argument_parser.parse_args()
+
+    if args.merge_metadata_sequences:
+        merge_metadata_sequences()
+    else:
+        data_wrangling()
 
 
 if __name__ == "__main__":
