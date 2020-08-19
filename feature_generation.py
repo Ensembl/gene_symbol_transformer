@@ -17,11 +17,14 @@ import shelve
 import sys
 
 # third party imports
+import Bio
 import pandas as pd
 
 # project imports
 import dataset_generation
 
+
+USE_CACHE = True
 
 # DEBUG
 pd.options.display.max_columns = None
@@ -36,6 +39,32 @@ def split_fasta_sequence(fasta_sequence):
     sequence = parts[1]
 
     return description, sequence
+
+
+def get_protein_letters():
+    """
+    Generate and return a list of protein letters that occur in the dataset and
+    those that can potentially be used.
+    """
+    extended_IUPAC_protein_letters = Bio.Alphabet.IUPAC.ExtendedIUPACProtein.letters
+
+    # cache the following operation, as it's very expensive in time and space
+    if USE_CACHE:
+        extra_letters = ["*"]
+    else:
+        # generate a list of all protein letters that occur in the dataset
+        data = dataset_generation.load_data()
+        dataset_letters = set(data["sequence"].str.cat())
+        extra_letters = [
+            letter
+            for letter in dataset_letters
+            if letter not in extended_IUPAC_protein_letters
+        ]
+
+    protein_letters = list(extended_IUPAC_protein_letters) + extra_letters
+    assert len(protein_letters) == 27
+
+    return protein_letters
 
 
 def dataframe_to_fasta(dataframe, fasta_path):
@@ -144,6 +173,7 @@ def main():
     argument_parser = argparse.ArgumentParser()
     argument_parser.add_argument("--save_most_frequent_101", action="store_true")
     argument_parser.add_argument("--save_most_frequent_3", action="store_true")
+    argument_parser.add_argument("--generate_blast_features", action="store_true")
 
     args = argument_parser.parse_args()
 
@@ -151,8 +181,10 @@ def main():
         save_n_most_frequent(n=101, max_frequency=297)
     elif args.save_most_frequent_3:
         save_n_most_frequent(n=3, max_frequency=335)
-    else:
+    elif args.generate_blast_features:
         generate_blast_features()
+    else:
+        get_protein_letters()
 
 
 if __name__ == "__main__":
