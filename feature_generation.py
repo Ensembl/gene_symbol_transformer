@@ -43,26 +43,29 @@ def dataframe_to_fasta(dataframe, fasta_path):
     print(f"FASTA file saved at {fasta_path}")
 
 
-def save_101_most_frequent():
+def save_n_most_frequent(n, max_frequency=None):
     """
-    Save the examples of the 101 most frequent symbols to a pickled dataframe and
+    Save the examples of the n most frequent symbols to a pickled dataframe and
     a FASTA file.
+
+    Specify the max_frequency of the n symbols to run an extra validation check.
     """
     data = dataset_generation.load_data()
 
     symbol_counts = data["symbol"].value_counts()
 
-    assert all(symbol_counts[:101] == symbol_counts[symbol_counts >= 297])
+    if max_frequency is not None:
+        assert all(symbol_counts[:n] == symbol_counts[symbol_counts >= max_frequency])
 
-    most_frequent_101 = data[data["symbol"].isin(symbol_counts[:101].index)]
+    most_frequent_n = data[data["symbol"].isin(symbol_counts[:n].index)]
 
     # save dataframe to a pickle file
-    pickle_path = data_directory / "most_frequent_101.pickle"
-    most_frequent_101.to_pickle(pickle_path)
+    pickle_path = data_directory / f"most_frequent_{n}.pickle"
+    most_frequent_n.to_pickle(pickle_path)
 
     # save sequences to a FASTA file
-    fasta_path = data_directory / "most_frequent_101.fasta"
-    dataframe_to_fasta(most_frequent_101, fasta_path)
+    fasta_path = data_directory / f"most_frequent_{n}.fasta"
+    dataframe_to_fasta(most_frequent_n, fasta_path)
 
 
 def parse_blast_results(blast_results):
@@ -151,11 +154,14 @@ def main():
     """
     argument_parser = argparse.ArgumentParser()
     argument_parser.add_argument("--save_101_most_frequent", action="store_true")
+    argument_parser.add_argument("--save_3_most_frequent", action="store_true")
 
     args = argument_parser.parse_args()
 
     if args.save_101_most_frequent:
-        save_101_most_frequent()
+        save_n_most_frequent(n=101, max_frequency=297)
+    elif args.save_3_most_frequent:
+        save_n_most_frequent(n=3, max_frequency=335)
     else:
         generate_blast_features()
 
