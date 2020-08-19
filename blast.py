@@ -104,8 +104,12 @@ def main():
     main function
     """
     argument_parser = argparse.ArgumentParser()
-    argument_parser.add_argument("--generate_most_frequent_101_blast_results", action="store_true")
-    argument_parser.add_argument("--generate_most_frequent_3_blast_results", action="store_true")
+    argument_parser.add_argument(
+        "--generate_most_frequent_101_blast_results", action="store_true"
+    )
+    argument_parser.add_argument(
+        "--generate_most_frequent_3_blast_results", action="store_true"
+    )
 
     args = argument_parser.parse_args()
 
@@ -115,14 +119,18 @@ def main():
         fasta_path = data_directory / f"most_frequent_{n}.fasta"
         shelve_db_path = data_directory / f"most_frequent_{n}-blast_results.db"
         total = 31204
-        generate_blast_results(db=db, fasta_path=fasta_path, shelve_db_path=shelve_db_path, total=total)
+        generate_blast_results(
+            db=db, fasta_path=fasta_path, shelve_db_path=shelve_db_path, total=total
+        )
     elif args.generate_most_frequent_3_blast_results:
         n = 3
         db = data_directory / f"blast_databases/most_frequent_{n}/most_frequent_{n}"
         fasta_path = data_directory / f"most_frequent_{n}.fasta"
         shelve_db_path = data_directory / f"most_frequent_{n}-blast_results.db"
         total = 1052
-        generate_blast_results(db=db, fasta_path=fasta_path, shelve_db_path=shelve_db_path, total=total)
+        generate_blast_results(
+            db=db, fasta_path=fasta_path, shelve_db_path=shelve_db_path, total=total
+        )
     else:
         print("nothing to do")
 
