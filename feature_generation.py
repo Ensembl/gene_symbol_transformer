@@ -113,7 +113,7 @@ def generate_blast_features():
     Parse raw BLAST results and generate a dictionary with important values.
     """
     # shelve_db_path = data_directory / "most_frequent_101-blast_results.db"
-    shelve_db_path = data_directory / "blast_results_sample.db"
+    shelve_db_path = data_directory / "most_frequent_3-blast_results.db"
 
     with shelve.open(str(shelve_db_path)) as blast_results:
         print("loading blast_results database...")
@@ -153,14 +153,14 @@ def main():
     main function
     """
     argument_parser = argparse.ArgumentParser()
-    argument_parser.add_argument("--save_101_most_frequent", action="store_true")
-    argument_parser.add_argument("--save_3_most_frequent", action="store_true")
+    argument_parser.add_argument("--save_most_frequent_101", action="store_true")
+    argument_parser.add_argument("--save_most_frequent_3", action="store_true")
 
     args = argument_parser.parse_args()
 
-    if args.save_101_most_frequent:
+    if args.save_most_frequent_101:
         save_n_most_frequent(n=101, max_frequency=297)
-    elif args.save_3_most_frequent:
+    elif args.save_most_frequent_3:
         save_n_most_frequent(n=3, max_frequency=335)
     else:
         generate_blast_features()
