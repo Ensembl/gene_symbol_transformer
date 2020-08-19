@@ -79,17 +79,10 @@ def blast_sequence(fasta_sequence, db, evalue=None, word_size=None, outfmt="6"):
     return output
 
 
-def generate_blast_results():
+def generate_blast_results(db, fasta_path, shelve_db_path, total):
     """
-    Generate a database with the BLAST results of all sequences.
+    Generate a BLAST results database.
     """
-    db = data_directory / "blast_databases/most_frequent_101/most_frequent_101"
-
-    fasta_path = data_directory / "most_frequent_101.fasta"
-    shelve_db_path = data_directory / "most_frequent_101-blast_results.db"
-
-    total = 31204
-
     with open(fasta_path) as fasta_file, shelve.open(
         str(shelve_db_path)
     ) as blast_results:
@@ -111,12 +104,25 @@ def main():
     main function
     """
     argument_parser = argparse.ArgumentParser()
-    argument_parser.add_argument("--generate_blast_results", action="store_true")
+    argument_parser.add_argument("--generate_most_frequent_101_blast_results", action="store_true")
+    argument_parser.add_argument("--generate_most_frequent_3_blast_results", action="store_true")
 
     args = argument_parser.parse_args()
 
-    if args.generate_blast_results:
-        generate_blast_results()
+    if args.generate_most_frequent_101_blast_results:
+        n = 101
+        db = data_directory / f"blast_databases/most_frequent_{n}/most_frequent_{n}"
+        fasta_path = data_directory / f"most_frequent_{n}.fasta"
+        shelve_db_path = data_directory / f"most_frequent_{n}-blast_results.db"
+        total = 31204
+        generate_blast_results(db=db, fasta_path=fasta_path, shelve_db_path=shelve_db_path, total=total)
+    elif args.generate_most_frequent_3_blast_results:
+        n = 3
+        db = data_directory / f"blast_databases/most_frequent_{n}/most_frequent_{n}"
+        fasta_path = data_directory / f"most_frequent_{n}.fasta"
+        shelve_db_path = data_directory / f"most_frequent_{n}-blast_results.db"
+        total = 1052
+        generate_blast_results(db=db, fasta_path=fasta_path, shelve_db_path=shelve_db_path, total=total)
     else:
         print("nothing to do")
 
