@@ -23,7 +23,19 @@ import pandas as pd
 import dataset_generation
 
 
+# DEBUG
+pd.options.display.max_columns = None
+pd.options.display.max_rows = None
+
 data_directory = pathlib.Path("data")
+
+
+def split_fasta_sequence(fasta_sequence):
+    parts = fasta_sequence.split()
+    description = parts[0].replace(">", "")
+    sequence = parts[1]
+
+    return description, sequence
 
 
 def dataframe_to_fasta(dataframe, fasta_path):
@@ -95,17 +107,7 @@ def parse_blast_results(blast_results):
 
     df[["stable_id", "label"]] = df["subject_id"].str.split(";", expand=True)
 
-    print(df.head())
-
     return df
-
-
-def split_fasta_sequence(fasta_sequence):
-    parts = fasta_sequence.split()
-    description = parts[0].replace(">", "")
-    sequence = parts[1]
-
-    return description, sequence
 
 
 def generate_blast_features():
@@ -115,37 +117,24 @@ def generate_blast_features():
     # shelve_db_path = data_directory / "most_frequent_101-blast_results.db"
     shelve_db_path = data_directory / "most_frequent_3-blast_results.db"
 
-    with shelve.open(str(shelve_db_path)) as blast_results:
-        print("loading blast_results database...")
+    with shelve.open(str(shelve_db_path)) as blast_results_database:
+        print("loading blast results database...")
         print()
 
-        columns = ["fasta_sequence", "blast_output"]
-        blast_results_dataframe = pd.DataFrame(blast_results.items(), columns=columns)
-
-    blast_results = blast_results_dataframe
-
-    get_description = lambda x: split_fasta_sequence(x)[0]
-    get_sequence = lambda x: split_fasta_sequence(x)[1]
-
-    blast_results["description"] = blast_results["fasta_sequence"].apply(
-        get_description
-    )
-    blast_results["sequence"] = blast_results["fasta_sequence"].apply(get_sequence)
-
-    blast_results.drop(columns=["fasta_sequence"], inplace=True)
+        columns = ["description", "blast_output"]
+        blast_results = pd.DataFrame(blast_results_database.items(), columns=columns)
 
     blast_results[["stable_id", "symbol"]] = blast_results["description"].str.split(
         ";", expand=True
     )
 
-    columns = ["description", "stable_id", "symbol", "sequence", "blast_output"]
+    columns = ["description", "stable_id", "symbol", "blast_output"]
     blast_results = blast_results.reindex(columns=columns)
+    # print(blast_results.head())
+    # sys.exit()
 
     blast_features = parse_blast_results(blast_results.loc[0]["blast_output"])
-
-    pd.options.display.max_columns = None
-    pd.options.display.max_rows = None
-    # print(blast_features)
+    print(blast_features.head())
 
 
 def main():
