@@ -26,10 +26,6 @@ import dataset_generation
 
 USE_CACHE = True
 
-# DEBUG
-pd.options.display.max_columns = None
-pd.options.display.max_rows = None
-
 data_directory = pathlib.Path("data")
 
 
@@ -172,10 +168,13 @@ def main():
     """
     main function
     """
+    # DEBUG
+    pd.options.display.max_columns = None
+    pd.options.display.max_rows = None
+
     argument_parser = argparse.ArgumentParser()
     argument_parser.add_argument("--save_most_frequent_101", action="store_true")
     argument_parser.add_argument("--save_most_frequent_3", action="store_true")
-    argument_parser.add_argument("--generate_blast_features", action="store_true")
 
     args = argument_parser.parse_args()
 
@@ -183,10 +182,8 @@ def main():
         save_n_most_frequent(n=101, max_frequency=297)
     elif args.save_most_frequent_3:
         save_n_most_frequent(n=3, max_frequency=335)
-    elif args.generate_blast_features:
-        generate_blast_features()
     else:
-        get_protein_letters()
+        generate_blast_features()
 
 
 if __name__ == "__main__":
