@@ -52,9 +52,11 @@ def get_protein_letters():
     if USE_CACHE:
         extra_letters = ["*"]
     else:
-        # generate a list of all protein letters that occur in the dataset
         data = dataset_generation.load_data()
+
+        # generate a list of all protein letters that occur in the dataset
         dataset_letters = set(data["sequence"].str.cat())
+
         extra_letters = [
             letter
             for letter in dataset_letters
