@@ -61,7 +61,7 @@ def get_protein_letters():
         ]
 
     protein_letters = list(extended_IUPAC_protein_letters) + extra_letters
-    assert len(protein_letters) == 27
+    assert len(protein_letters) == 27, protein_letters
 
     return protein_letters
 
@@ -136,7 +136,7 @@ def parse_blast_output(query_id, blast_output_raw, sequence):
     # with itself, both of 100 percent identity.
     if query_id in df["subject_id"].values:
         df_index = df[df["subject_id"] == query_id].index
-        assert all(df.loc[df_index]["percent_identity"] == 100)
+        assert all(df.loc[df_index]["percent_identity"] == 100), query_id
         df.drop(labels=df_index, inplace=True)
     else:
         # A potential reason why the BLAST results doesn't contain a match of
