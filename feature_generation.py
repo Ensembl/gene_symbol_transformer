@@ -13,6 +13,7 @@ Generate BLAST and raw sequences features.
 import argparse
 import io
 import pathlib
+import pickle
 import shelve
 import sys
 
@@ -107,11 +108,11 @@ def save_n_most_frequent(n, max_frequency=None):
     dataframe_to_fasta(most_frequent_n, fasta_path)
 
 
-def parse_blast_results(blast_results):
+def parse_blast_output(query_id, blast_output_raw, sequence):
     """
     """
-    # open blast_results string as a file
-    with io.StringIO(blast_results) as file_object:
+    # open blast_output_raw string as a file
+    with io.StringIO(blast_output_raw) as file_object:
         column_names = [
             "query_id",
             "subject_id",
@@ -128,40 +129,79 @@ def parse_blast_results(blast_results):
         ]
         df = pd.read_csv(file_object, delimiter="\t", names=column_names)
 
-    # verify existence of the sequence itself and remove it from the BLAST results
-    assert df.loc[0]["query_id"] == df.loc[0]["subject_id"]
-    df.drop(labels=0, inplace=True)
+    # Remove the match(es) of the sequence with itself from the BLAST output.
+    # Counterintuitively, a sequence may have more than 1 matches with itself,
+    # potentially due to containing multiple ambiguous amino acids. One such case
+    # is the sequence with stable_id "ENSPVAT00000000880", that has two matches,
+    # with itself, both of 100 percent identity.
+    if query_id in df["subject_id"].values:
+        df_index = df[df["subject_id"] == query_id].index
+        assert all(df.loc[df_index]["percent_identity"] == 100)
+        df.drop(labels=df_index, inplace=True)
+    else:
+        # A potential reason why the BLAST results doesn't contain a match of
+        # the sequence itself, is that the sequence contains too many ambiguous
+        # amino acids, i.e. "X". One such case is the sequence with stable id
+        # "ENSTBET00000001003".
+        # From the BLAST help page:
+        # "The degenerate nucleotide codes [...] are treated as mismatches
+        # in nucleotide alignment. Too many such degenerate codes within an input
+        # nucleotide query will cause the BLAST webpage to reject the input."
+        # https://blast.ncbi.nlm.nih.gov/Blast.cgi?CMD=Web&PAGE_TYPE=BlastDocs&DOC_TYPE=BlastHelp
+        assert "X" * 1000 in sequence, sequence
 
-    df[["stable_id", "label"]] = df["subject_id"].str.split(";", expand=True)
+    df[["subject_stable_id", "subject_symbol"]] = df["subject_id"].str.split(";", expand=True)
 
     return df
 
 
 def generate_blast_features():
     """
-    Parse raw BLAST results and generate a dictionary with important values.
+    Parse the raw BLAST outputs and generate a dataframe with training features.
     """
-    # shelve_db_path = data_directory / "most_frequent_101-blast_results.db"
-    shelve_db_path = data_directory / "most_frequent_3-blast_results.db"
+    # n = 101
+    n = 3
 
+    data_pickle_path = data_directory / f"most_frequent_{n}.pickle"
+    data = pd.read_pickle(data_pickle_path)
+
+    blast_features = {}
+    shelve_db_path = data_directory / f"most_frequent_{n}-blast_results.db"
     with shelve.open(str(shelve_db_path)) as blast_results_database:
         print("loading blast results database...")
-        print()
 
-        columns = ["description", "blast_output"]
-        blast_results = pd.DataFrame(blast_results_database.items(), columns=columns)
+        for stable_id, symbol in zip(data["stable_id"], data["symbol"]):
+            query_id = f"{stable_id};{symbol}"
+            blast_output_raw = blast_results_database[query_id]
+            sequence = data[data["stable_id"] == stable_id]["sequence"].item()
 
-    blast_results[["stable_id", "symbol"]] = blast_results["description"].str.split(
-        ";", expand=True
-    )
+            blast_output = parse_blast_output(query_id, blast_output_raw, sequence)
 
-    columns = ["description", "stable_id", "symbol", "blast_output"]
-    blast_results = blast_results.reindex(columns=columns)
-    # print(blast_results.head())
-    # sys.exit()
+            # remove data not going to be used as training features
+            columns = [
+                "percent_identity",
+                "alignment_length",
+                "mismatches",
+                "gap_opens",
+                "query_start",
+                "query_end",
+                "subject_start",
+                "subject_end",
+                "evalue",
+                "bit_score",
+                "subject_symbol",
+            ]
+            blast_values = blast_output[columns]
 
-    blast_features = parse_blast_results(blast_results.loc[0]["blast_output"])
-    print(blast_features.head())
+            blast_features[stable_id] = {
+                "symbol": symbol,
+                "blast_values": blast_values,
+            }
+
+    # save dataframe to a pickle file
+    blast_features_pickle_path = data_directory / f"blast_features-most_frequent_{n}.pickle"
+    with open(blast_features_pickle_path, 'wb') as f:
+        pickle.dump(blast_features, f, protocol=pickle.HIGHEST_PROTOCOL)
 
 
 def main():
@@ -169,8 +209,8 @@ def main():
     main function
     """
     # DEBUG
-    pd.options.display.max_columns = None
-    pd.options.display.max_rows = None
+    # pd.options.display.max_columns = None
+    # pd.options.display.max_rows = None
 
     argument_parser = argparse.ArgumentParser()
     argument_parser.add_argument("--save_most_frequent_101", action="store_true")
