@@ -136,7 +136,11 @@ def parse_blast_output(query_id, blast_output_raw, sequence):
     # with itself, both of 100 percent identity.
     if query_id in df["subject_id"].values:
         df_index = df[df["subject_id"] == query_id].index
-        assert all(df.loc[df_index]["percent_identity"] == 100), query_id
+        # NOTE
+        # The following assertion isn't always true.
+        # It is possible for a sequence to have a non 100 percent identity match
+        # with itself if it contains too many ambiguous amino acids, i.e. "X".
+        # assert all(df.loc[df_index]["percent_identity"] == 100), query_id
         df.drop(labels=df_index, inplace=True)
     else:
         # A potential reason why the BLAST results doesn't contain a match of
@@ -148,9 +152,14 @@ def parse_blast_output(query_id, blast_output_raw, sequence):
         # in nucleotide alignment. Too many such degenerate codes within an input
         # nucleotide query will cause the BLAST webpage to reject the input."
         # https://blast.ncbi.nlm.nih.gov/Blast.cgi?CMD=Web&PAGE_TYPE=BlastDocs&DOC_TYPE=BlastHelp
-        assert "X" * 1000 in sequence, sequence
+        assert "X" * 10 in sequence, f"{query_id=}, {sequence=}"
 
-    df[["subject_stable_id", "subject_symbol"]] = df["subject_id"].str.split(";", expand=True)
+    if not df.empty:
+        df[["subject_stable_id", "subject_symbol"]] = df["subject_id"].str.split(";", expand=True)
+    # handle case where the match(es) with itself were the only matches for the sequence
+    else:
+        df["subject_stable_id"] = None
+        df["subject_symbol"] = None
 
     return df
 
@@ -159,8 +168,8 @@ def generate_blast_features():
     """
     Parse the raw BLAST outputs and generate a dataframe with training features.
     """
-    # n = 101
-    n = 3
+    n = 101
+    # n = 3
 
     data_pickle_path = data_directory / f"most_frequent_{n}.pickle"
     data = pd.read_pickle(data_pickle_path)
