@@ -83,7 +83,7 @@ def dataframe_to_fasta(dataframe, fasta_path):
     print(f"FASTA file saved at {fasta_path}")
 
 
-def save_n_most_frequent(n, max_frequency=None):
+def save_most_frequent_n(n, max_frequency=None):
     """
     Save the examples of the n most frequent symbols to a pickled dataframe and
     a FASTA file.
@@ -129,48 +129,41 @@ def parse_blast_output(query_id, blast_output_raw, sequence):
         ]
         df = pd.read_csv(file_object, delimiter="\t", names=column_names)
 
+    # A potential reason why the BLAST results doesn't contain a match of
+    # the sequence itself, is that the sequence contains too many ambiguous
+    # amino acids, i.e. "X".
+    # From the BLAST help page:
+    # "The degenerate nucleotide codes [...] are treated as mismatches
+    # in nucleotide alignment. Too many such degenerate codes within an input
+    # nucleotide query will cause the BLAST webpage to reject the input."
+    # https://blast.ncbi.nlm.nih.gov/Blast.cgi?CMD=Web&PAGE_TYPE=BlastDocs&DOC_TYPE=BlastHelp
+    assert query_id in df["subject_id"].values, f"{query_id=}, {sequence=}"
+
     # Remove the match(es) of the sequence with itself from the BLAST output.
     # Counterintuitively, a sequence may have more than 1 matches with itself,
     # potentially due to containing multiple ambiguous amino acids. One such case
-    # is the sequence with stable_id "ENSPVAT00000000880", that has two matches,
-    # with itself, both of 100 percent identity.
-    if query_id in df["subject_id"].values:
-        df_index = df[df["subject_id"] == query_id].index
-        # NOTE
-        # The following assertion isn't always true.
-        # It is possible for a sequence to have a non 100 percent identity match
-        # with itself if it contains too many ambiguous amino acids, i.e. "X".
-        # assert all(df.loc[df_index]["percent_identity"] == 100), query_id
-        df.drop(labels=df_index, inplace=True)
-    else:
-        # A potential reason why the BLAST results doesn't contain a match of
-        # the sequence itself, is that the sequence contains too many ambiguous
-        # amino acids, i.e. "X". One such case is the sequence with stable id
-        # "ENSTBET00000001003".
-        # From the BLAST help page:
-        # "The degenerate nucleotide codes [...] are treated as mismatches
-        # in nucleotide alignment. Too many such degenerate codes within an input
-        # nucleotide query will cause the BLAST webpage to reject the input."
-        # https://blast.ncbi.nlm.nih.gov/Blast.cgi?CMD=Web&PAGE_TYPE=BlastDocs&DOC_TYPE=BlastHelp
-        assert "X" * 10 in sequence, f"{query_id=}, {sequence=}"
+    # is the sequence with stable_id "ENSPVAT00000000880" and symbol "pla1a",
+    # that has two matches, with itself, both of 100 percent identity.
+    # Also counterintuitively, it is possible for a sequence to have a non 100 percent
+    # identity match with itself if it contains too many ambiguous amino acids, i.e. "X".
+    df_index = df[df["subject_id"] == query_id].index
+    df.drop(labels=df_index, inplace=True)
 
-    if not df.empty:
-        df[["subject_stable_id", "subject_symbol"]] = df["subject_id"].str.split(";", expand=True)
-    # handle case where the match(es) with itself were the only matches for the sequence
-    else:
+    # Handle the case where the match(es) with itself are the only matches for
+    # the sequence and at this point they have been removed.
+    if df.empty:
         df["subject_stable_id"] = None
         df["subject_symbol"] = None
+    else:
+        df[["subject_stable_id", "subject_symbol"]] = df["subject_id"].str.split(";", expand=True)
 
     return df
 
 
-def generate_blast_features():
+def generate_blast_features_most_frequent_n(n):
     """
     Parse the raw BLAST outputs and generate a dataframe with training features.
     """
-    n = 101
-    # n = 3
-
     data_pickle_path = data_directory / f"most_frequent_{n}.pickle"
     data = pd.read_pickle(data_pickle_path)
 
@@ -207,7 +200,7 @@ def generate_blast_features():
                 "blast_values": blast_values,
             }
 
-    # save dataframe to a pickle file
+    # save blast_features dictionary to a pickle file
     blast_features_pickle_path = data_directory / f"blast_features-most_frequent_{n}.pickle"
     with open(blast_features_pickle_path, 'wb') as f:
         pickle.dump(blast_features, f, protocol=pickle.HIGHEST_PROTOCOL)
@@ -224,15 +217,21 @@ def main():
     argument_parser = argparse.ArgumentParser()
     argument_parser.add_argument("--save_most_frequent_101", action="store_true")
     argument_parser.add_argument("--save_most_frequent_3", action="store_true")
+    argument_parser.add_argument("--generate_blast_features_most_frequent_101", action="store_true")
+    argument_parser.add_argument("--generate_blast_features_most_frequent_3", action="store_true")
 
     args = argument_parser.parse_args()
 
     if args.save_most_frequent_101:
-        save_n_most_frequent(n=101, max_frequency=297)
+        save_most_frequent_n(n=101, max_frequency=297)
     elif args.save_most_frequent_3:
-        save_n_most_frequent(n=3, max_frequency=335)
+        save_most_frequent_n(n=3, max_frequency=335)
+    elif args.generate_blast_features_most_frequent_101:
+        generate_blast_features_most_frequent_n(n=101)
+    elif args.generate_blast_features_most_frequent_3:
+        generate_blast_features_most_frequent_n(n=3)
     else:
-        generate_blast_features()
+        print("nothing to do")
 
 
 if __name__ == "__main__":
