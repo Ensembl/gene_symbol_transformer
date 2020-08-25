@@ -204,7 +204,7 @@ def generate_blast_features_most_frequent_n(n):
 
     # save blast_features dictionary to a pickle file
     blast_features_pickle_path = (
-        data_directory / f"blast_features-most_frequent_{n}.pickle"
+        data_directory / f"most_frequent_{n}-blast_features.pickle"
     )
     with open(blast_features_pickle_path, "wb") as f:
         pickle.dump(blast_features, f, protocol=pickle.HIGHEST_PROTOCOL)

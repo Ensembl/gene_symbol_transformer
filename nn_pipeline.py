@@ -31,7 +31,7 @@ def train_model():
     # load features and labels
     print("Loading features and labels...")
     blast_features_pickle_path = (
-        data_directory / f"blast_features-most_frequent_{n}.pickle"
+        data_directory / f"most_frequent_{n}-blast_features.pickle"
     )
     with open(blast_features_pickle_path, "rb") as f:
         blast_features = pickle.load(f)
