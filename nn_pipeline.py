@@ -44,10 +44,8 @@ def train_model():
         blast_features = pickle.load(f)
 
     # split features and labels
-    features = [value["blast_values"] for value in blast_features.values()]
-    labels = [value["symbol"] for value in blast_features.values()]
-    # num_items = 1
-    num_items = 3
+    features = [value["blast_values"].to_numpy() for value in blast_features.values()]
+    labels = [value["one_hot_symbol"] for value in blast_features.values()]
 
     # shuffle examples
     features, labels = sklearn.utils.shuffle(features, labels, random_state=RANDOM_STATE)
@@ -60,7 +58,6 @@ def train_model():
     num_train = len(train_features)
     num_test = len(test_features)
     print(f"dataset split to {num_train} training and {num_test} test samples")
-    print()
 
 
 def main():
