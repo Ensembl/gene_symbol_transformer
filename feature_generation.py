@@ -19,6 +19,7 @@ import sys
 
 # third party imports
 import Bio
+import numpy as np
 import pandas as pd
 
 # project imports
@@ -169,6 +170,11 @@ def generate_blast_features_most_frequent_n(n):
     data_pickle_path = data_directory / f"most_frequent_{n}.pickle"
     data = pd.read_pickle(data_pickle_path)
 
+    # generate a list of unique labels (symbols) to use for one-hot encoding
+    labels = data["symbol"].unique().tolist()
+    labels.sort()
+    num_labels = len(labels)
+
     blast_features = {}
     shelve_db_path = data_directory / f"most_frequent_{n}-blast_results.db"
     with shelve.open(str(shelve_db_path)) as blast_results_database:
@@ -180,6 +186,9 @@ def generate_blast_features_most_frequent_n(n):
             sequence = data[data["stable_id"] == stable_id]["sequence"].item()
 
             blast_output = parse_blast_output(query_id, blast_output_raw, sequence)
+
+            # generate an one-hot encoding representation of the subject symbol
+            blast_output["one_hot_subject_symbol"] = blast_output["subject_symbol"].apply(lambda x: np.identity(num_labels)[labels.index(x)])
 
             # remove data not going to be used as training features
             columns = [
@@ -193,12 +202,13 @@ def generate_blast_features_most_frequent_n(n):
                 "subject_end",
                 "evalue",
                 "bit_score",
-                "subject_symbol",
+                "one_hot_subject_symbol",
             ]
             blast_values = blast_output[columns]
 
             blast_features[stable_id] = {
                 "symbol": symbol,
+                "one_hot_symbol": np.identity(num_labels)[labels.index(symbol)],
                 "blast_values": blast_values,
             }
 
