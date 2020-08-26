@@ -23,7 +23,10 @@
 
 #MIN_TASKS=8
 #MIN_TASKS=16
+
 MEM_LIMIT=16384
+#MEM_LIMIT=32768
+#MEM_LIMIT=65536
 
 #bsub -Is -tty -n $MIN_TASKS -M $MEM_LIMIT -R"select[mem>$MEM_LIMIT] rusage[mem=$MEM_LIMIT] span[hosts=1]" $SHELL
 bsub -Is -tty -M $MEM_LIMIT -R"select[mem>$MEM_LIMIT] rusage[mem=$MEM_LIMIT] span[hosts=1]" $SHELL
