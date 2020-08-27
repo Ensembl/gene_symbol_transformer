@@ -170,10 +170,11 @@ def generate_blast_features_most_frequent_n(n):
     data_pickle_path = data_directory / f"most_frequent_{n}.pickle"
     data = pd.read_pickle(data_pickle_path)
 
-    # generate a list of unique labels (symbols) to use for one-hot encoding
+    # generate a categorical data type from the list of unique labels (symbols)
+    # to use for one-hot encoding
     labels = data["symbol"].unique().tolist()
     labels.sort()
-    num_labels = len(labels)
+    symbol_categorical_datatype = pd.CategoricalDtype(categories=labels, ordered=True)
 
     blast_features = {}
     shelve_db_path = data_directory / f"most_frequent_{n}-blast_results.db"
@@ -187,28 +188,29 @@ def generate_blast_features_most_frequent_n(n):
 
             blast_output = parse_blast_output(query_id, blast_output_raw, sequence)
 
-            # generate an one-hot encoding representation of the subject symbol
-            blast_output["one_hot_subject_symbol"] = blast_output["subject_symbol"].apply(lambda x: np.identity(num_labels)[labels.index(x)])
+            # generate an one-hot encoding of the subject_symbol
+            subject_symbol_categorical = blast_output["subject_symbol"].astype(symbol_categorical_datatype)
+            one_hot_subject_symbol = pd.get_dummies(subject_symbol_categorical, prefix="subject_symbol")
+
+            # merge the dataframes
+            blast_values = pd.concat([blast_output, one_hot_subject_symbol], axis=1)
 
             # remove data not going to be used as training features
             columns = [
-                "percent_identity",
-                "alignment_length",
-                "mismatches",
-                "gap_opens",
-                "query_start",
-                "query_end",
-                "subject_start",
-                "subject_end",
-                "evalue",
-                "bit_score",
-                "one_hot_subject_symbol",
+                "query_id",
+                "subject_id",
+                "subject_stable_id",
+                "subject_symbol",
             ]
-            blast_values = blast_output[columns]
+            blast_values.drop(columns=columns, inplace=True)
+
+            # generate an one-hot encoding of the label (symbol)
+            symbol_categorical = pd.Series(symbol, dtype=symbol_categorical_datatype)
+            one_hot_symbol = pd.get_dummies(symbol_categorical, prefix="symbol")
 
             blast_features[stable_id] = {
                 "symbol": symbol,
-                "one_hot_symbol": np.identity(num_labels)[labels.index(symbol)],
+                "one_hot_symbol": one_hot_symbol,
                 "blast_values": blast_values,
             }
 
