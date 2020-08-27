@@ -15,9 +15,10 @@ import pickle
 import sys
 
 # third party imports
+import numpy as np
 import pandas as pd
-import torch
 import sklearn
+import torch
 
 from sklearn.model_selection import train_test_split
 
@@ -27,6 +28,31 @@ from sklearn.model_selection import train_test_split
 RANDOM_STATE = None
 
 data_directory = pathlib.Path("data")
+
+
+class BlastFeaturesDataset(torch.utils.data.Dataset):
+    """
+    Custom Dataset for BLAST features.
+    """
+    def __init__(self, features, labels):
+        """
+        The features data type is NumPy object, due to the different sizes of
+        its containing blast_values arrays. A way to deal with this is to use
+        a batch of size one and convert the NumPy arrays to PyTorch tensors one at a time.
+        """
+        self.features = features
+        self.labels = torch.from_numpy(labels)
+
+        assert len(self.features) == len(self.labels)
+
+    def __len__(self):
+        return len(self.features)
+
+    def __getitem__(self, index):
+        assert isinstance(index, int), f"{index=}, {type(index)=}"
+
+        sample = {"features": torch.from_numpy(self.features[index]), "labels": self.labels[index]}
+        return sample
 
 
 def train_model():
@@ -45,7 +71,11 @@ def train_model():
 
     # split features and labels
     features = [value["blast_values"].to_numpy() for value in blast_features.values()]
-    labels = [value["one_hot_symbol"] for value in blast_features.values()]
+    labels = [value["one_hot_symbol"].to_numpy()[0] for value in blast_features.values()]
+
+    # convert lists to NumPy arrays
+    features = np.asarray(features)
+    labels = np.asarray(labels)
 
     # shuffle examples
     features, labels = sklearn.utils.shuffle(features, labels, random_state=RANDOM_STATE)
@@ -58,6 +88,9 @@ def train_model():
     num_train = len(train_features)
     num_test = len(test_features)
     print(f"dataset split to {num_train} training and {num_test} test samples")
+
+    train_set = BlastFeaturesDataset(train_features, train_labels)
+    test_set = BlastFeaturesDataset(test_features, test_labels)
 
 
 def main():
