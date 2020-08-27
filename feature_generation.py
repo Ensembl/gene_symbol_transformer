@@ -19,7 +19,6 @@ import sys
 
 # third party imports
 import Bio
-import numpy as np
 import pandas as pd
 
 # project imports
@@ -178,7 +177,7 @@ def generate_blast_features_most_frequent_n(n):
 
     blast_features = {}
     shelve_db_path = data_directory / f"most_frequent_{n}-blast_results.db"
-    with shelve.open(str(shelve_db_path)) as blast_results_database:
+    with shelve.open(str(shelve_db_path), flag="r") as blast_results_database:
         print("loading blast results database...")
 
         for stable_id, symbol in zip(data["stable_id"], data["symbol"]):
@@ -220,6 +219,7 @@ def generate_blast_features_most_frequent_n(n):
     )
     with open(blast_features_pickle_path, "wb") as f:
         pickle.dump(blast_features, f, protocol=pickle.HIGHEST_PROTOCOL)
+    print(f"BLAST features file saved at {blast_features_pickle_path}")
 
 
 def main():
