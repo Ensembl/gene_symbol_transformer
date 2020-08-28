@@ -37,8 +37,8 @@ class BlastFeaturesDataset(torch.utils.data.Dataset):
     def __init__(self, features, labels):
         """
         The features data type is NumPy object, due to the different sizes of
-        its containing blast_values arrays. A way to deal with this is to use
-        a batch of size one and convert the NumPy arrays to PyTorch tensors one at a time.
+        its contained blast_values arrays. A way to deal with this is to use a batch
+        of size one and convert the NumPy arrays to PyTorch tensors one at a time.
         """
         self.features = features
         self.labels = torch.from_numpy(labels)
