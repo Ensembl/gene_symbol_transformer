@@ -26,6 +26,7 @@ from sklearn.model_selection import train_test_split
 
 
 RANDOM_STATE = None
+# RANDOM_STATE = 5
 
 data_directory = pathlib.Path("data")
 
@@ -135,11 +136,16 @@ def train_model():
     num_test = len(test_features)
     print(f"dataset split to {num_train} training, {num_validation} and {num_test} test samples")
 
-    sys.exit()
-
     train_set = BlastFeaturesDataset(train_features, train_labels)
     validation_set = BlastFeaturesDataset(validation_features, validation_labels)
     test_set = BlastFeaturesDataset(test_features, test_labels)
+
+    # batch_size = 1
+    batch_size = 5
+    # https://pytorch.org/docs/stable/data.html#torch.utils.data.DataLoader
+    train_loader = torch.utils.data.DataLoader(train_set, batch_size=batch_size, shuffle=True, drop_last=True)
+    validation_loader = torch.utils.data.DataLoader(validation_set, batch_size=batch_size, shuffle=True, drop_last=True)
+    test_loader = torch.utils.data.DataLoader(test_set, batch_size=batch_size, shuffle=False, drop_last=True)
 
 
 def main():
@@ -149,6 +155,9 @@ def main():
     # DEBUG
     # pd.options.display.max_columns = None
     # pd.options.display.max_rows = None
+
+    if RANDOM_STATE is not None:
+        torch.manual_seed(RANDOM_STATE)
 
     train_model()
 
