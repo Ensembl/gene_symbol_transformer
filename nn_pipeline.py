@@ -108,22 +108,37 @@ def train_model():
     num_hits = 100
     features = pad_truncate_blast_features(features, num_hits)
 
-    print(f"{features.shape=}")
-    print(f"{labels.shape=}")
-
     # shuffle examples
     features, labels = sklearn.utils.shuffle(features, labels, random_state=RANDOM_STATE)
 
-    # split examples to training and test sets
-    train_features, test_features, train_labels, test_labels = train_test_split(
-        features, labels, test_size=0.3, random_state=RANDOM_STATE
+    # split examples into train, validation, and test sets
+    test_size = 0.2
+    # validation_size: 0.25 of the train_validation set
+    validation_size = 0.2 / (1 - test_size)
+    train_validation_features, test_features, train_validation_labels, test_labels = train_test_split(features, labels, test_size=test_size, random_state=RANDOM_STATE)
+    train_features, validation_features, train_labels, validation_labels = train_test_split(
+        train_validation_features,
+        train_validation_labels,
+        test_size=validation_size,
+        random_state=RANDOM_STATE,
     )
 
+    # print(f"{train_features.shape=}")
+    # print(f"{train_labels.shape=}")
+    # print(f"{validation_features.shape=}")
+    # print(f"{validation_labels.shape=}")
+    # print(f"{test_features.shape=}")
+    # print(f"{test_labels.shape=}")
+
     num_train = len(train_features)
+    num_validation = len(validation_features)
     num_test = len(test_features)
-    print(f"dataset split to {num_train} training and {num_test} test samples")
+    print(f"dataset split to {num_train} training, {num_validation} and {num_test} test samples")
+
+    sys.exit()
 
     train_set = BlastFeaturesDataset(train_features, train_labels)
+    validation_set = BlastFeaturesDataset(validation_features, validation_labels)
     test_set = BlastFeaturesDataset(test_features, test_labels)
 
 
