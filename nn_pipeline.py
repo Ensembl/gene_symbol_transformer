@@ -55,6 +55,33 @@ class BlastFeaturesDataset(torch.utils.data.Dataset):
         return sample
 
 
+def pad_truncate_blast_features(original_features, num_hits):
+    """
+    Pad each sequence's BLAST features that have fewer than num_hits hits with zeros,
+    and truncate to num_hits those that have more hits than that.
+    """
+    num_columns = original_features[0].shape[1]
+
+    equisized_features = []
+    for example_features in original_features:
+        num_example_hits = len(example_features)
+        if num_example_hits < num_hits:
+            num_rows = num_hits - num_example_hits
+            padding = np.zeros((num_rows, num_columns))
+            equisized_example_features = np.vstack((example_features, padding))
+        elif num_example_hits > num_hits:
+            equisized_example_features = example_features[:num_hits]
+        # num_example_hits == num_hits
+        else:
+            equisized_example_features = example_features
+
+        equisized_features.append(equisized_example_features)
+
+    equisized_features = np.array(equisized_features)
+
+    return equisized_features
+
+
 def train_model():
     """
     """
@@ -76,6 +103,13 @@ def train_model():
     # convert lists to NumPy arrays
     features = np.asarray(features)
     labels = np.asarray(labels)
+
+    # number of BLAST hits to pad to or truncate to existing BLAST features
+    num_hits = 100
+    features = pad_truncate_blast_features(features, num_hits)
+
+    print(f"{features.shape=}")
+    print(f"{labels.shape=}")
 
     # shuffle examples
     features, labels = sklearn.utils.shuffle(features, labels, random_state=RANDOM_STATE)
