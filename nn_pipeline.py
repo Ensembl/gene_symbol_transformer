@@ -21,6 +21,7 @@ import sklearn
 import torch
 
 from sklearn.model_selection import train_test_split
+from torch.utils.data import DataLoader, Dataset, TensorDataset
 
 # project imports
 
@@ -31,16 +32,23 @@ RANDOM_STATE = None
 data_directory = pathlib.Path("data")
 
 
-class BlastFeaturesDataset(torch.utils.data.Dataset):
+class BlastFeaturesDataset(Dataset):
     """
     Custom Dataset for BLAST features.
+
+    https://pytorch.org/docs/stable/data.html#torch.utils.data.Dataset
     """
     def __init__(self, features, labels):
         """
-        The features data type is NumPy object, due to the different sizes of
-        its contained blast_values arrays. A way to deal with this is to use a batch
-        of size one and convert the NumPy arrays to PyTorch tensors one at a time.
+        If the `blast_values` arrays contained in `features` are non uniform,
+        i.e. of different sizes, the `features` data type will be NumPy object.
+        A way to deal with this is to use a batch of size one and convert
+        the NumPy arrays to PyTorch tensors one at a time.
         """
+        # non uniform example features
+        # self.features = features
+
+        # uniform example features
         self.features = features
         self.labels = torch.from_numpy(labels)
 
@@ -52,7 +60,11 @@ class BlastFeaturesDataset(torch.utils.data.Dataset):
     def __getitem__(self, index):
         assert isinstance(index, int), f"{index=}, {type(index)=}"
 
-        sample = {"features": torch.from_numpy(self.features[index]), "labels": self.labels[index]}
+        # non uniform example features
+        # sample = {"features": torch.from_numpy(self.features[index]), "labels": self.labels[index]}
+
+        # uniform example features
+        sample = {"features": self.features[index], "labels": self.labels[index]}
         return sample
 
 
@@ -143,9 +155,9 @@ def train_model():
     # batch_size = 1
     batch_size = 5
     # https://pytorch.org/docs/stable/data.html#torch.utils.data.DataLoader
-    train_loader = torch.utils.data.DataLoader(train_set, batch_size=batch_size, shuffle=True, drop_last=True)
-    validation_loader = torch.utils.data.DataLoader(validation_set, batch_size=batch_size, shuffle=True, drop_last=True)
-    test_loader = torch.utils.data.DataLoader(test_set, batch_size=batch_size, shuffle=False, drop_last=True)
+    train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True, drop_last=True)
+    validation_loader = DataLoader(validation_set, batch_size=batch_size, shuffle=True, drop_last=True)
+    test_loader = DataLoader(test_set, batch_size=batch_size, shuffle=False, drop_last=True)
 
 
 def main():
