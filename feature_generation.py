@@ -188,8 +188,12 @@ def generate_blast_features_most_frequent_n(n):
             blast_output = parse_blast_output(query_id, blast_output_raw, sequence)
 
             # generate an one-hot encoding of the subject_symbol
-            subject_symbol_categorical = blast_output["subject_symbol"].astype(symbol_categorical_datatype)
-            one_hot_subject_symbol = pd.get_dummies(subject_symbol_categorical, prefix="subject_symbol")
+            subject_symbol_categorical = blast_output["subject_symbol"].astype(
+                symbol_categorical_datatype
+            )
+            one_hot_subject_symbol = pd.get_dummies(
+                subject_symbol_categorical, prefix="subject_symbol"
+            )
 
             # merge the dataframes
             blast_values = pd.concat([blast_output, one_hot_subject_symbol], axis=1)

@@ -36,9 +36,7 @@ def fasta_to_dataframe(fasta_path):
     records = []
     with open(fasta_path) as fasta_file:
         for fasta_record in SeqIO.FastaIO.SimpleFastaParser(fasta_file):
-            records.append(
-                {"description": fasta_record[0], "sequence": fasta_record[1]}
-            )
+            records.append({"description": fasta_record[0], "sequence": fasta_record[1]})
 
     records_dataframe = pd.DataFrame(records)
 
