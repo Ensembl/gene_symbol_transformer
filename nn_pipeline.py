@@ -38,6 +38,7 @@ class BlastFeaturesDataset(Dataset):
 
     https://pytorch.org/docs/stable/data.html#torch.utils.data.Dataset
     """
+
     def __init__(self, features, labels):
         """
         If the `blast_values` arrays contained in `features` are non uniform,
@@ -128,8 +129,18 @@ def train_model():
     test_size = 0.2
     # validation_size: 0.25 of the train_validation set
     validation_size = 0.2 / (1 - test_size)
-    train_validation_features, test_features, train_validation_labels, test_labels = train_test_split(features, labels, test_size=test_size, random_state=RANDOM_STATE)
-    train_features, validation_features, train_labels, validation_labels = train_test_split(
+    (
+        train_validation_features,
+        test_features,
+        train_validation_labels,
+        test_labels,
+    ) = train_test_split(features, labels, test_size=test_size, random_state=RANDOM_STATE)
+    (
+        train_features,
+        validation_features,
+        train_labels,
+        validation_labels,
+    ) = train_test_split(
         train_validation_features,
         train_validation_labels,
         test_size=validation_size,
@@ -146,7 +157,9 @@ def train_model():
     num_train = len(train_features)
     num_validation = len(validation_features)
     num_test = len(test_features)
-    print(f"dataset split to {num_train} training, {num_validation} and {num_test} test samples")
+    print(
+        f"dataset split to {num_train} training, {num_validation} and {num_test} test samples"
+    )
 
     train_set = BlastFeaturesDataset(train_features, train_labels)
     validation_set = BlastFeaturesDataset(validation_features, validation_labels)
@@ -155,9 +168,15 @@ def train_model():
     # batch_size = 1
     batch_size = 5
     # https://pytorch.org/docs/stable/data.html#torch.utils.data.DataLoader
-    train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True, drop_last=True)
-    validation_loader = DataLoader(validation_set, batch_size=batch_size, shuffle=True, drop_last=True)
-    test_loader = DataLoader(test_set, batch_size=batch_size, shuffle=False, drop_last=True)
+    train_loader = DataLoader(
+        train_set, batch_size=batch_size, shuffle=True, drop_last=True
+    )
+    validation_loader = DataLoader(
+        validation_set, batch_size=batch_size, shuffle=True, drop_last=True
+    )
+    test_loader = DataLoader(
+        test_set, batch_size=batch_size, shuffle=False, drop_last=True
+    )
 
 
 def main():
