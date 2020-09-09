@@ -26,6 +26,9 @@ from torch.utils.data import DataLoader, Dataset, TensorDataset
 # project imports
 
 
+# DEBUG = True
+DEBUG = False
+
 RANDOM_STATE = None
 # RANDOM_STATE = 5
 
@@ -62,11 +65,12 @@ class BlastFeaturesDataset(Dataset):
         assert isinstance(index, int), f"{index=}, {type(index)=}"
 
         # non uniform example features
-        # sample = {"features": torch.from_numpy(self.features[index]), "labels": self.labels[index]}
+        # item = torch.from_numpy(self.features[index]), self.labels[index]
 
         # uniform example features
-        sample = {"features": self.features[index], "labels": self.labels[index]}
-        return sample
+        item = self.features[index], self.labels[index]
+
+        return item
 
 
 def pad_truncate_blast_features(original_features, num_hits):
@@ -103,12 +107,14 @@ def train_model():
     n = 3
 
     # load features and labels
-    print("Loading features and labels...")
+    print("Loading features and labels...", end="")
     blast_features_pickle_path = (
         data_directory / f"most_frequent_{n}-blast_features.pickle"
     )
     with open(blast_features_pickle_path, "rb") as f:
         blast_features = pickle.load(f)
+    print(" Done.")
+    print()
 
     # split features and labels
     features = [value["blast_values"].to_numpy() for value in blast_features.values()]
@@ -147,12 +153,14 @@ def train_model():
         random_state=RANDOM_STATE,
     )
 
-    # print(f"{train_features.shape=}")
-    # print(f"{train_labels.shape=}")
-    # print(f"{validation_features.shape=}")
-    # print(f"{validation_labels.shape=}")
-    # print(f"{test_features.shape=}")
-    # print(f"{test_labels.shape=}")
+    if DEBUG:
+        print(f"{train_features.shape=}")
+        print(f"{train_labels.shape=}")
+        print(f"{validation_features.shape=}")
+        print(f"{validation_labels.shape=}")
+        print(f"{test_features.shape=}")
+        print(f"{test_labels.shape=}")
+        print()
 
     num_train = len(train_features)
     num_validation = len(validation_features)
@@ -160,6 +168,7 @@ def train_model():
     print(
         f"dataset split to {num_train} training, {num_validation} and {num_test} test samples"
     )
+    print()
 
     train_set = BlastFeaturesDataset(train_features, train_labels)
     validation_set = BlastFeaturesDataset(validation_features, validation_labels)
@@ -177,6 +186,14 @@ def train_model():
     test_loader = DataLoader(
         test_set, batch_size=batch_size, shuffle=False, drop_last=True
     )
+
+    if DEBUG:
+        # check one batch of training data
+        dataiter = iter(train_loader)
+        sample_features, sample_labels = dataiter.next()
+        print(f"{sample_features.size()=}")
+        print(f"{sample_labels.size()=}")
+        print()
 
 
 def main():
