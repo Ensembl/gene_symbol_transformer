@@ -19,6 +19,7 @@ import numpy as np
 import pandas as pd
 import sklearn
 import torch
+import torch.nn as nn
 
 from sklearn.model_selection import train_test_split
 from torch.utils.data import DataLoader, Dataset, TensorDataset
@@ -71,6 +72,109 @@ class BlastFeaturesDataset(Dataset):
         item = self.features[index], self.labels[index]
 
         return item
+
+
+class LSTM_Alpha(nn.Module):
+    """
+    An LSTM neural network for gene classification using BLAST features.
+    """
+
+    def __init__(
+        self,
+        num_features,
+        output_size,
+        hidden_size,
+        num_layers,
+        lstm_dropout_probability,
+        final_dropout_probability,
+        batch_first=True,
+    ):
+        """
+        Initialize the model by setting up the layers.
+
+        input_size: The number of expected features in the input x
+        hidden_size: The number of features in the hidden state h
+        num_layers: Number of recurrent layers.
+        batch_first: If True, then the input and output tensors are provided as
+        (batch, seq, feature).
+        lstm_dropout_probability: If non-zero, introduces a Dropout layer on
+        the outputs of each LSTM layer except the last layer, with dropout probability
+        equal to dropout.
+        final_dropout_probability: Probability of an element in the dropout layer
+        to be zeroed.
+        """
+        super().__init__()
+
+        self.hidden_size = hidden_size
+        self.num_layers = num_layers
+
+        # https://pytorch.org/docs/stable/generated/torch.nn.LSTM.html
+        self.lstm = nn.LSTM(
+            input_size=num_features,
+            hidden_size=self.hidden_size,
+            num_layers=self.num_layers,
+            batch_first=batch_first,
+            dropout=lstm_dropout_probability,
+        )
+
+        # https://pytorch.org/docs/stable/generated/torch.nn.Dropout.html
+        self.final_dropout = nn.Dropout(final_dropout_probability)
+
+        self.linear = nn.Linear(self.hidden_size, output_size)
+        self.sigmoid = nn.Sigmoid()
+
+    def forward(self, x, hidden_state):
+        """
+        Perform a forward pass of our model on some input and hidden state.
+        """
+        print(f"{x.size()=}")
+        # (batch_size, seq_length)
+        for h in hidden_state:
+            print(f"{h.size()=}")
+            # (num_layers, batch_size, hidden_size)
+
+        lstm_output, hidden_state = self.lstm(x, hidden_state)
+        print(f"{lstm_output.size()=}")
+        for h in hidden_state:
+            print(f"{h.size()=}")
+
+        # stack up LSTM output
+        # lstm_output = lstm_output.reshape(-1, self.hidden_size)
+        # print(f"{lstm_output.size()=}")
+
+        output = self.final_dropout(lstm_output)
+
+        output = self.linear(output)
+        sigmoid_output = self.sigmoid(output)
+        print(f"{sigmoid_output.size()=}")
+
+        # reshape to be batch_size first
+        # sigmoid_output = sigmoid_output.reshape(batch_size, -1)
+        # print(f"{sigmoid_output.size()=}")
+
+        # get last batch of labels
+        sigmoid_output = sigmoid_output[:, -1]
+        print(f"{sigmoid_output.size()=}")
+
+        # return last sigmoid output and hidden state
+        return sigmoid_output, hidden
+
+    def init_hidden(self, batch_size, gpu_available):
+        """
+        Initializes hidden state
+
+        Creates two new tensors with sizes num_layers x batch_size x hidden_size,
+        initialized to zero, for hidden state and cell state of LSTM
+        """
+        hidden = tuple(
+            torch.zeros(self.num_layers, batch_size, self.hidden_size)
+            for _count in range(2)
+        )
+
+        if gpu_available:
+            hidden = tuple(tensor.cuda() for tensor in hidden)
+
+        return hidden
 
 
 def pad_truncate_blast_features(original_features, num_hits):
@@ -187,13 +291,45 @@ def train_model():
         test_set, batch_size=batch_size, shuffle=False, drop_last=True
     )
 
-    if DEBUG:
-        # check one batch of training data
-        dataiter = iter(train_loader)
-        sample_features, sample_labels = dataiter.next()
-        print(f"{sample_features.size()=}")
-        print(f"{sample_labels.size()=}")
-        print()
+    gpu_available = torch.cuda.is_available()
+
+    if gpu_available:
+        print("Training on GPU.")
+    else:
+        print("No GPU available, training on CPU.")
+    print()
+
+    # model_name = "lstm_alpha"
+
+    # get features and labels batch dimensions
+    sample_dataiter = iter(train_loader)
+    sample_features, sample_labels = sample_dataiter.next()
+    # print(f"{sample_features.size()=}")
+    # print(f"{sample_labels.size()=}")
+
+    feature_batch_size = sample_features.size()
+    label_batch_size = sample_labels.size()
+
+    num_features = feature_batch_size[-1]
+    output_size = label_batch_size[-1]
+    # print(f"{num_features=}")
+    # print(f"{output_size=}")
+
+    hidden_size = 256
+    num_layers = 2
+    batch_first = True
+    lstm_dropout_probability = 1 / 3
+    final_dropout_probability = 1 / 5
+
+    net = LSTM_Alpha(
+        num_features=num_features,
+        output_size=output_size,
+        hidden_size=hidden_size,
+        num_layers=num_layers,
+        lstm_dropout_probability=lstm_dropout_probability,
+        final_dropout_probability=final_dropout_probability,
+    )
+    print(net)
 
 
 def main():
