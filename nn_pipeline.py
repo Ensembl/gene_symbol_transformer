@@ -121,7 +121,7 @@ class LSTM_Alpha(nn.Module):
         self.final_dropout = nn.Dropout(final_dropout_probability)
 
         self.linear = nn.Linear(self.hidden_size, output_size)
-        self.sigmoid = nn.Sigmoid()
+        self.softmax = nn.Softmax()
 
     def forward(self, x, hidden_state):
         """
@@ -145,19 +145,19 @@ class LSTM_Alpha(nn.Module):
         output = self.final_dropout(lstm_output)
 
         output = self.linear(output)
-        sigmoid_output = self.sigmoid(output)
-        print(f"{sigmoid_output.size()=}")
+        softmax_output = self.softmax(output)
+        print(f"{softmax_output.size()=}")
 
         # reshape to be batch_size first
-        # sigmoid_output = sigmoid_output.reshape(batch_size, -1)
-        # print(f"{sigmoid_output.size()=}")
+        # softmax_output = softmax_output.reshape(batch_size, -1)
+        # print(f"{softmax_output.size()=}")
 
         # get last batch of labels
-        sigmoid_output = sigmoid_output[:, -1]
-        print(f"{sigmoid_output.size()=}")
+        softmax_output = softmax_output[:, -1]
+        print(f"{softmax_output.size()=}")
 
-        # return last sigmoid output and hidden state
-        return sigmoid_output, hidden
+        # return last softmax output and hidden state
+        return softmax_output, hidden
 
     def init_hidden(self, batch_size, gpu_available):
         """
