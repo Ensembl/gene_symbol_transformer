@@ -120,7 +120,10 @@ class LSTM_Alpha(nn.Module):
         # https://pytorch.org/docs/stable/generated/torch.nn.Dropout.html
         self.final_dropout = nn.Dropout(final_dropout_probability)
 
+        # https://pytorch.org/docs/stable/generated/torch.nn.Linear.html
         self.linear = nn.Linear(self.hidden_size, output_size)
+
+        # https://pytorch.org/docs/stable/generated/torch.nn.Softmax.html
         self.softmax = nn.Softmax()
 
     def forward(self, x, hidden_state):
