@@ -380,7 +380,7 @@ def train_model():
 
     clip_max_norm = 5
 
-    statistics_output_delay = 10
+    statistics_output_delay = 1
 
     # move model to GPU, if available
     if gpu_available:
@@ -431,7 +431,7 @@ def train_model():
 
                 net.eval()
 
-                for inputs, labels in valid_loader:
+                for inputs, labels in validation_loader:
                     # create new variables for the hidden state
                     validation_h = tuple(tensor.data for tensor in validation_h)
 
@@ -444,7 +444,6 @@ def train_model():
                     validation_loss_list.append(validation_loss.item())
 
                 print(f"epoch {epoch} of {num_epochs}, step {batch_counter} loss: {loss.item():.4f}, validation loss: {np.mean(validation_loss_list):.4f}")
-                print()
 
                 net.train()
 
