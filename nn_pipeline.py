@@ -308,7 +308,6 @@ def train_model():
     test_set = BlastFeaturesDataset(test_features, test_labels)
 
     # batch_size = 1
-    # batch_size = 5
     batch_size = 64
     # https://pytorch.org/docs/stable/data.html#torch.utils.data.DataLoader
     train_loader = DataLoader(
@@ -374,7 +373,7 @@ def train_model():
 
     # optimization function
     # https://pytorch.org/docs/stable/optim.html#torch.optim.Adam
-    lr = 0.001
+    lr = 0.01
     optimizer = torch.optim.Adam(net.parameters(), lr=lr)
     # print(optimizer)
 
@@ -388,7 +387,7 @@ def train_model():
 
     # train for num_epochs
     net.train()
-    num_epochs = 4
+    num_epochs = 30
     for epoch in range(1, num_epochs + 1):
         # initialize hidden state
         h = net.init_hidden(batch_size, gpu_available)
