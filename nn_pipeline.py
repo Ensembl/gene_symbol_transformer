@@ -27,9 +27,6 @@ from torch.utils.data import DataLoader, Dataset, TensorDataset
 # project imports
 
 
-# DEBUG = True
-DEBUG = False
-
 RANDOM_STATE = None
 # RANDOM_STATE = 5
 
@@ -123,51 +120,63 @@ class LSTM_Alpha(nn.Module):
         # https://pytorch.org/docs/stable/generated/torch.nn.Linear.html
         self.linear = nn.Linear(self.hidden_size, output_size)
 
+        # final activation function
         # https://pytorch.org/docs/stable/generated/torch.nn.Softmax.html
-        self.softmax = nn.Softmax()
+        # self.softmax = nn.Softmax()
 
     def forward(self, x, hidden_state):
         """
         Perform a forward pass of our model on some input and hidden state.
         """
-        print(f"{x.size()=}")
-        # (batch_size, seq_length)
-        for h in hidden_state:
-            print(f"{h.size()=}")
-            # (num_layers, batch_size, hidden_size)
+        # # print(f"{x.size()=}")
+        # # (batch_size, num_hits, num_features)
+        # print(f"{x.type()=}")
+        # # x.type()='torch.FloatTensor'
+        # for h in hidden_state:
+        #     print(f"{h.size()=}")
+        #     # (num_layers, batch_size, hidden_size)
+        #     print(f"{h.type()=}")
+        #     # h.type()='torch.FloatTensor'
 
-        lstm_output, hidden_state = self.lstm(x, hidden_state)
-        print(f"{lstm_output.size()=}")
-        for h in hidden_state:
-            print(f"{h.size()=}")
+        output, hidden_state = self.lstm(x, hidden_state)
+        # print(f"{output.size()=}")
+        # output.size()=torch.Size([batch_size, num_hits, hidden_size])
+
+        # for h in hidden_state:
+        #     print(f"{h.size()=}")
+        #     # h.size()=torch.Size([num_layers, batch_size, hidden_size])
 
         # stack up LSTM output
-        # lstm_output = lstm_output.reshape(-1, self.hidden_size)
-        # print(f"{lstm_output.size()=}")
+        # output = output.reshape(-1, self.hidden_size)
+        # print(f"{output.size()=}")
 
-        output = self.final_dropout(lstm_output)
+        output = self.final_dropout(output)
 
         output = self.linear(output)
-        softmax_output = self.softmax(output)
-        print(f"{softmax_output.size()=}")
+
+        # "nn.CrossEntropyLoss expects raw logits, so you should not apply softmax on your outputs"
+        # https://discuss.pytorch.org/t/runtimeerror-multi-target-not-supported-newbie/10216/37
+        # The input is expected to contain raw, unnormalized scores for each class.
+        # output = self.softmax(output)
+        # print(f"{output.size()=}")
 
         # reshape to be batch_size first
-        # softmax_output = softmax_output.reshape(batch_size, -1)
-        # print(f"{softmax_output.size()=}")
+        # output = output.reshape(batch_size, -1)
+        # print(f"{output.size()=}")
 
         # get last batch of labels
-        softmax_output = softmax_output[:, -1]
-        print(f"{softmax_output.size()=}")
+        # output = output[:, -1]
+        # print(f"{output.size()=}")
 
-        # return last softmax output and hidden state
-        return softmax_output, hidden
+        # return last output and hidden state
+        return output, hidden_state
 
     def init_hidden(self, batch_size, gpu_available):
         """
         Initializes hidden state
 
         Creates two new tensors with sizes num_layers x batch_size x hidden_size,
-        initialized to zero, for hidden state and cell state of LSTM
+        initialized to zero, for the hidden state and cell state of the LSTM
         """
         hidden = tuple(
             torch.zeros(self.num_layers, batch_size, self.hidden_size)
@@ -230,10 +239,28 @@ def train_model():
     # convert lists to NumPy arrays
     features = np.asarray(features)
     labels = np.asarray(labels)
+    # print(f"{features.dtype=}")
+    # features.dtype=dtype('O')
+    # print(f"{labels.dtype=}")
+    # labels.dtype=dtype('uint8')
 
     # number of BLAST hits to pad to or truncate to existing BLAST features
-    num_hits = 100
+    num_hits = 150
     features = pad_truncate_blast_features(features, num_hits)
+    # print(f"{features.dtype=}")
+    # features.dtype=dtype('float64')
+
+    # Cast the features array to `np.float32` data type, so that the PyTorch tensors
+    # will be generated with type `torch.FloatTensor`.
+    features = features.astype(np.float32)
+    # print(f"{features.dtype=}")
+    # features.dtype=dtype('float32')
+
+    # Cast the labels array to `np.long` data type, so that the PyTorch tensors
+    # will be generated with type `torch.LongTensor`.
+    labels = labels.astype(np.long)
+    # print(f"{labels.dtype=}")
+    # labels.dtype=dtype('int64')
 
     # shuffle examples
     features, labels = sklearn.utils.shuffle(features, labels, random_state=RANDOM_STATE)
@@ -260,14 +287,13 @@ def train_model():
         random_state=RANDOM_STATE,
     )
 
-    if DEBUG:
-        print(f"{train_features.shape=}")
-        print(f"{train_labels.shape=}")
-        print(f"{validation_features.shape=}")
-        print(f"{validation_labels.shape=}")
-        print(f"{test_features.shape=}")
-        print(f"{test_labels.shape=}")
-        print()
+    # print(f"{train_features.shape=}")
+    # print(f"{train_labels.shape=}")
+    # print(f"{validation_features.shape=}")
+    # print(f"{validation_labels.shape=}")
+    # print(f"{test_features.shape=}")
+    # print(f"{test_labels.shape=}")
+    # print()
 
     num_train = len(train_features)
     num_validation = len(validation_features)
@@ -282,7 +308,8 @@ def train_model():
     test_set = BlastFeaturesDataset(test_features, test_labels)
 
     # batch_size = 1
-    batch_size = 5
+    # batch_size = 5
+    batch_size = 64
     # https://pytorch.org/docs/stable/data.html#torch.utils.data.DataLoader
     train_loader = DataLoader(
         train_set, batch_size=batch_size, shuffle=True, drop_last=True
@@ -302,13 +329,15 @@ def train_model():
         print("No GPU available, training on CPU.")
     print()
 
-    # model_name = "lstm_alpha"
-
     # get features and labels batch dimensions
     sample_dataiter = iter(train_loader)
     sample_features, sample_labels = sample_dataiter.next()
     # print(f"{sample_features.size()=}")
     # print(f"{sample_labels.size()=}")
+    # print(f"{sample_features.type()=}")
+    # sample_features.type()='torch.FloatTensor'
+    # print(f"{sample_labels.type()=}")
+    # sample_labels.type()='torch.ByteTensor'
 
     feature_batch_size = sample_features.size()
     label_batch_size = sample_labels.size()
@@ -333,6 +362,91 @@ def train_model():
         final_dropout_probability=final_dropout_probability,
     )
     print(net)
+    print()
+
+    # training
+    print("training the neural network...")
+    print()
+
+    # loss function
+    # https://pytorch.org/docs/stable/generated/torch.nn.CrossEntropyLoss.html
+    criterion = nn.CrossEntropyLoss()
+
+    # optimization function
+    # https://pytorch.org/docs/stable/optim.html#torch.optim.Adam
+    lr = 0.001
+    optimizer = torch.optim.Adam(net.parameters(), lr=lr)
+    # print(optimizer)
+
+    clip_max_norm = 5
+
+    statistics_output_delay = 10
+
+    # move model to GPU, if available
+    if gpu_available:
+        net.cuda()
+
+    # train for num_epochs
+    net.train()
+    num_epochs = 4
+    for epoch in range(1, num_epochs + 1):
+        # initialize hidden state
+        h = net.init_hidden(batch_size, gpu_available)
+
+        # process batches
+        for batch_counter, (inputs, labels) in enumerate(train_loader, start=1):
+            # print(f"{batch_counter=}")
+            # print(f"{inputs.type()=}")
+            # print(f"{labels.type()=}")
+
+            if gpu_available:
+                inputs, labels = inputs.cuda(), labels.cuda()
+
+            # create new variables for the hidden state
+            h = tuple(tensor.data for tensor in h)
+
+            # zero accumulated gradients
+            net.zero_grad()
+
+            # get model output and hidden state
+            output, h = net(inputs, h)
+
+            # calculate the loss and perform back propagation
+            # print(f"{output.size()=}")
+            # output.size()=torch.Size([batch_size, n])
+            # print(f"{labels.size()=}")
+            # labels.size()=torch.Size([batch_size, n])
+            loss = criterion(output, labels)
+            loss.backward()
+            # prevent the exploding gradient problem
+            nn.utils.clip_grad_norm_(net.parameters(), clip_max_norm)
+            optimizer.step()
+
+            # print training statistics
+            if batch_counter % statistics_output_delay == 0:
+                validation_loss_list = []
+
+                # get validation loss
+                validation_h = net.init_hidden(batch_size, gpu_available)
+
+                net.eval()
+
+                for inputs, labels in valid_loader:
+                    # create new variables for the hidden state
+                    validation_h = tuple(tensor.data for tensor in validation_h)
+
+                    if gpu_available:
+                        inputs, labels = inputs.cuda(), labels.cuda()
+
+                    output, validation_h = net(inputs, validation_h)
+                    validation_loss = criterion(output, labels)
+
+                    validation_loss_list.append(validation_loss.item())
+
+                print(f"epoch {epoch} of {num_epochs}, step {batch_counter} loss: {loss.item():.4f}, validation loss: {np.mean(validation_loss_list):.4f}")
+                print()
+
+                net.train()
 
 
 def main():
