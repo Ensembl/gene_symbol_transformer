@@ -30,3 +30,5 @@ more
 prototype.ipynb
 query.fasta
 results.csv
+
+*.ipynb
