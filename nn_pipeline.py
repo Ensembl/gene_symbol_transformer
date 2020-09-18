@@ -455,6 +455,13 @@ def main():
     # pd.options.display.max_columns = None
     # pd.options.display.max_rows = None
 
+    # print version and environment information
+    print(f"{torch.__version__=}")
+    print(f"{torch.version.cuda=}")
+    print(f"{torch.backends.cudnn.enabled=}")
+    print(f"{torch.cuda.is_available()=}")
+    print()
+
     if RANDOM_STATE is not None:
         torch.manual_seed(RANDOM_STATE)
 
