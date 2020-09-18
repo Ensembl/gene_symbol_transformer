@@ -219,11 +219,11 @@ def pad_truncate_blast_features(original_features, num_hits):
 def train_model():
     """
     """
-    # n = 101
-    n = 3
+    n = 101
+    # n = 3
 
     # load features and labels
-    print("Loading features and labels...", end="")
+    print(f"Loading features and labels of {n} most frequent symbols sequences...", end="")
     blast_features_pickle_path = (
         data_directory / f"most_frequent_{n}-blast_features.pickle"
     )
@@ -323,9 +323,9 @@ def train_model():
     gpu_available = torch.cuda.is_available()
 
     if gpu_available:
-        print("Training on GPU.")
+        print("GPU is available, using it for training.")
     else:
-        print("No GPU available, training on CPU.")
+        print("No GPU is available, training on CPU.")
     print()
 
     # get features and labels batch dimensions
