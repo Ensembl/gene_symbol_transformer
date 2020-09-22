@@ -217,7 +217,7 @@ def pad_truncate_blast_features(original_features, num_hits):
     return equisized_features
 
 
-def train_network(n, batch_size, hidden_size, num_layers, lstm_dropout_probability, final_dropout_probability, lr, num_epochs):
+def train_network(n, batch_size, hidden_size, num_layers, lstm_dropout_probability, final_dropout_probability, lr, num_epochs, gpu_available):
     """
     """
     # load features and labels
@@ -317,8 +317,6 @@ def train_network(n, batch_size, hidden_size, num_layers, lstm_dropout_probabili
     test_loader = DataLoader(
         test_set, batch_size=batch_size, shuffle=False, drop_last=drop_last
     )
-
-    gpu_available = torch.cuda.is_available()
 
     if gpu_available:
         print("GPU is available, using it for training.")
@@ -445,12 +443,48 @@ def train_network(n, batch_size, hidden_size, num_layers, lstm_dropout_probabili
 
     # save trained network
     datetime_now = datetime.datetime.now().replace(microsecond=0).isoformat()
-    network_filename = f"LSTM_Alpha-hidden_size:{hidden_size}-num_layers:{num_layers}-batch_size:{batch_size}-lstm_dropout_probability:{lstm_dropout_probability:.2f}-final_dropout_probability:{final_dropout_probability:.2f}-lr:{lr}-{datetime_now}.net"
+    network_filename = f"LSTM_Alpha-num_features:{num_features}-output_size:{output_size}-hidden_size:{hidden_size}-num_layers:{num_layers}-batch_size:{batch_size}-lstm_dropout_probability:{lstm_dropout_probability:.2f}-final_dropout_probability:{final_dropout_probability:.2f}-lr:{lr}-{datetime_now}.net"
 
     network_path = data_directory / network_filename
 
     torch.save(net.state_dict(), network_path)
     print(f"trained neural network saved at {network_path}")
+
+    return net
+
+
+def load_network(
+        network_filename,
+        num_features,
+        output_size,
+        hidden_size,
+        num_layers,
+        lstm_dropout_probability,
+        final_dropout_probability,
+        gpu_available,
+    ):
+    """
+    load saved network
+    """
+    network_path = data_directory / network_filename
+
+    network = LSTM_Alpha(
+        num_features=num_features,
+        output_size=output_size,
+        hidden_size=hidden_size,
+        num_layers=num_layers,
+        lstm_dropout_probability=lstm_dropout_probability,
+        final_dropout_probability=final_dropout_probability,
+    )
+
+    if gpu_available:
+        network.cuda()
+        network.load_state_dict(torch.load(network_path))
+    else:
+        device = torch.device("cpu")
+        network.load_state_dict(torch.load(network_path, map_location=device))
+
+    return network
 
 
 def main():
@@ -488,7 +522,27 @@ def main():
     num_epochs = 10
     # num_epochs = 1000
 
-    train_network(n, batch_size, hidden_size, num_layers, lstm_dropout_probability, final_dropout_probability, lr, num_epochs)
+    gpu_available = torch.cuda.is_available()
+
+    # net = train_network(n, batch_size, hidden_size, num_layers, lstm_dropout_probability, final_dropout_probability, lr, num_epochs, gpu_available)
+
+    num_features = 13
+    output_size = n
+
+    # network_filename = "LSTM_Alpha-hidden_size:256-num_layers:2-batch_size:200-lstm_dropout_probability:0.3333333333333333-final_dropout_probability:0.2-lr:0.001-2020-09-22T17:15:12.net"
+    network_filename = "LSTM_Alpha-num_features:13-output_size:3-hidden_size:256-num_layers:2-batch_size:200-lstm_dropout_probability:0.33-final_dropout_probability:0.20-lr:0.001-2020-09-22T18:47:03.net"
+    net = load_network(
+        network_filename,
+        num_features,
+        output_size,
+        hidden_size,
+        num_layers,
+        lstm_dropout_probability,
+        final_dropout_probability,
+        gpu_available,
+    )
+    print("Loaded saved network:")
+    print(net)
 
 
 if __name__ == "__main__":
