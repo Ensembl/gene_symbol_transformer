@@ -10,6 +10,7 @@ Neural network pipeline.
 
 
 # standard library imports
+import datetime
 import pathlib
 import pickle
 import sys
@@ -87,7 +88,7 @@ class LSTM_Alpha(nn.Module):
         batch_first=True,
     ):
         """
-        Initialize the model by setting up the layers.
+        Initialize the network by setting up the layers.
 
         input_size: The number of expected features in the input x
         hidden_size: The number of features in the hidden state h
@@ -126,7 +127,7 @@ class LSTM_Alpha(nn.Module):
 
     def forward(self, x, hidden_state):
         """
-        Perform a forward pass of our model on some input and hidden state.
+        Perform a forward pass of our network on some input and hidden state.
         """
         # # print(f"{x.size()=}")
         # # (batch_size, num_hits, num_features)
@@ -216,12 +217,9 @@ def pad_truncate_blast_features(original_features, num_hits):
     return equisized_features
 
 
-def train_model():
+def train_network(n, batch_size, hidden_size, num_layers, lstm_dropout_probability, final_dropout_probability, lr, num_epochs):
     """
     """
-    n = 101
-    # n = 3
-
     # load features and labels
     print(f"Loading features and labels of {n} most frequent symbols sequences...", end="")
     blast_features_pickle_path = (
@@ -307,9 +305,6 @@ def train_model():
     validation_set = BlastFeaturesDataset(validation_features, validation_labels)
     test_set = BlastFeaturesDataset(test_features, test_labels)
 
-    # batch_size = 64
-    batch_size = 200
-    # batch_size = 256
     drop_last = True
     # drop_last = False
     # https://pytorch.org/docs/stable/data.html#torch.utils.data.DataLoader
@@ -349,12 +344,7 @@ def train_model():
     # print(f"{num_features=}")
     # print(f"{output_size=}")
 
-    hidden_size = 256
-    num_layers = 2
     batch_first = True
-    lstm_dropout_probability = 1 / 3
-    final_dropout_probability = 1 / 5
-
     net = LSTM_Alpha(
         num_features=num_features,
         output_size=output_size,
@@ -380,7 +370,6 @@ def train_model():
 
     # optimization function
     # https://pytorch.org/docs/stable/optim.html#torch.optim.Adam
-    lr = 0.001
     optimizer = torch.optim.Adam(net.parameters(), lr=lr)
     # print(optimizer)
 
@@ -388,19 +377,18 @@ def train_model():
 
     statistics_output_delay = 10
 
-    # move model to GPU, if available
+    # move network to GPU, if available
     if gpu_available:
         net.cuda()
 
     # train for num_epochs
     net.train()
     batch_counter = 0
-    num_epochs = 1000
     for epoch in range(1, num_epochs + 1):
         # initialize hidden state
         h = net.init_hidden(batch_size, gpu_available)
 
-        # process batches
+        # process training examples in batches
         for inputs, labels in train_loader:
             # print(f"{inputs.type()=}")
             # print(f"{labels.type()=}")
@@ -408,13 +396,14 @@ def train_model():
             if gpu_available:
                 inputs, labels = inputs.cuda(), labels.cuda()
 
-            # create new variables for the hidden state
+            # create new variables for the hidden state in order to not back propagate
+            # through the entire training history
             h = tuple(tensor.data for tensor in h)
 
             # zero accumulated gradients
             net.zero_grad()
 
-            # get model output and hidden state
+            # get network output and hidden state
             output, h = net(inputs, h)
 
             # calculate the loss and perform back propagation
@@ -453,7 +442,15 @@ def train_model():
                 print(f"epoch {epoch} of {num_epochs}, step {batch_counter} loss: {loss.item():.4f}, validation loss: {np.mean(validation_loss_list):.4f}")
 
                 net.train()
-    ############################################################################
+
+    # save trained network
+    datetime_now = datetime.datetime.now().replace(microsecond=0).isoformat()
+    network_filename = f"LSTM_Alpha-hidden_size:{hidden_size}-num_layers:{num_layers}-batch_size:{batch_size}-lstm_dropout_probability:{lstm_dropout_probability:.2f}-final_dropout_probability:{final_dropout_probability:.2f}-lr:{lr}-{datetime_now}.net"
+
+    network_path = data_directory / network_filename
+
+    torch.save(net.state_dict(), network_path)
+    print(f"trained neural network saved at {network_path}")
 
 
 def main():
@@ -474,7 +471,24 @@ def main():
     if RANDOM_STATE is not None:
         torch.manual_seed(RANDOM_STATE)
 
-    train_model()
+    # n = 101
+    n = 3
+
+    # batch_size = 64
+    batch_size = 200
+    # batch_size = 256
+
+    hidden_size = 256
+    num_layers = 2
+    lstm_dropout_probability = 1 / 3
+    final_dropout_probability = 1 / 5
+
+    lr = 0.001
+
+    num_epochs = 10
+    # num_epochs = 1000
+
+    train_network(n, batch_size, hidden_size, num_layers, lstm_dropout_probability, final_dropout_probability, lr, num_epochs)
 
 
 if __name__ == "__main__":
