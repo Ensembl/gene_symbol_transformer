@@ -244,7 +244,9 @@ def load_dataset(n, num_hits, test_size, validation_size, batch_size):
     """
     """
     # load features and labels
-    print(f"Loading features and labels of {n} most frequent symbols sequences...", end="")
+    print(
+        f"Loading features and labels of {n} most frequent symbols sequences...", end=""
+    )
     blast_features_pickle_path = (
         data_directory / f"most_frequent_{n}-blast_features.pickle"
     )
@@ -342,7 +344,18 @@ def load_dataset(n, num_hits, test_size, validation_size, batch_size):
     return train_loader, validation_loader, test_loader
 
 
-def train_network(train_loader, validation_loader, batch_size, hidden_size, num_layers, lstm_dropout_probability, final_dropout_probability, lr, num_epochs, gpu_available):
+def train_network(
+    train_loader,
+    validation_loader,
+    batch_size,
+    hidden_size,
+    num_layers,
+    lstm_dropout_probability,
+    final_dropout_probability,
+    lr,
+    num_epochs,
+    gpu_available,
+):
     """
     """
     if gpu_available:
@@ -445,7 +458,9 @@ def train_network(train_loader, validation_loader, batch_size, hidden_size, num_
 
                     validation_loss_list.append(validation_loss.item())
 
-                print(f"epoch {epoch} of {num_epochs}, step {batch_counter} loss: {loss.item():.4f}, validation loss: {np.mean(validation_loss_list):.4f}")
+                print(
+                    f"epoch {epoch} of {num_epochs}, step {batch_counter} loss: {loss.item():.4f}, validation loss: {np.mean(validation_loss_list):.4f}"
+                )
 
                 net.train()
 
@@ -462,15 +477,15 @@ def train_network(train_loader, validation_loader, batch_size, hidden_size, num_
 
 
 def load_network(
-        network_filename,
-        num_features,
-        output_size,
-        hidden_size,
-        num_layers,
-        lstm_dropout_probability,
-        final_dropout_probability,
-        gpu_available,
-    ):
+    network_filename,
+    num_features,
+    output_size,
+    hidden_size,
+    num_layers,
+    lstm_dropout_probability,
+    final_dropout_probability,
+    gpu_available,
+):
     """
     load saved network
     """
@@ -534,11 +549,24 @@ def main():
     num_hits = 150
     test_size = 0.2
     validation_size = 0.2
-    train_loader, validation_loader, test_loader = load_dataset(n, num_hits, test_size, validation_size, batch_size)
+    train_loader, validation_loader, test_loader = load_dataset(
+        n, num_hits, test_size, validation_size, batch_size
+    )
 
     gpu_available = torch.cuda.is_available()
 
-    net = train_network(train_loader, validation_loader, batch_size, hidden_size, num_layers, lstm_dropout_probability, final_dropout_probability, lr, num_epochs, gpu_available)
+    net = train_network(
+        train_loader,
+        validation_loader,
+        batch_size,
+        hidden_size,
+        num_layers,
+        lstm_dropout_probability,
+        final_dropout_probability,
+        lr,
+        num_epochs,
+        gpu_available,
+    )
 
     num_features, output_size = get_num_features_output_size(train_loader)
     network_filename = "LSTM_Alpha-num_features=13-output_size=3-hidden_size=256-num_layers=2-batch_size=200-lstm_dropout_probability=0.3333333333333333-final_dropout_probability=0.2-lr=0.001-2020-09-22T23:21:25.net"
