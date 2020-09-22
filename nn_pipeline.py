@@ -364,8 +364,6 @@ def train_network(train_loader, validation_loader, batch_size, hidden_size, num_
     print(net)
     print()
 
-    # training
-    ############################################################################
     print("training the neural network...")
     print()
 
@@ -529,7 +527,8 @@ def main():
 
     lr = 0.001
 
-    num_epochs = 10
+    # num_epochs = 10
+    num_epochs = 100
     # num_epochs = 1000
 
     num_hits = 150
@@ -542,7 +541,7 @@ def main():
     net = train_network(train_loader, validation_loader, batch_size, hidden_size, num_layers, lstm_dropout_probability, final_dropout_probability, lr, num_epochs, gpu_available)
 
     num_features, output_size = get_num_features_output_size(train_loader)
-    network_filename = "LSTM_Alpha-num_features=13-output_size=3-hidden_size=256-num_layers=2-batch_size=200-lstm_dropout_probability=0.3333333333333333-final_dropout_probability=0.2-lr=0.001-2020-09-22T23:07:01.net"
+    network_filename = "LSTM_Alpha-num_features=13-output_size=3-hidden_size=256-num_layers=2-batch_size=200-lstm_dropout_probability=0.3333333333333333-final_dropout_probability=0.2-lr=0.001-2020-09-22T23:21:25.net"
     net = load_network(
         network_filename,
         num_features,
@@ -553,8 +552,9 @@ def main():
         final_dropout_probability,
         gpu_available,
     )
-    print("Loaded saved network:")
+    print("Loaded network:")
     print(net)
+    print()
 
 
 if __name__ == "__main__":
