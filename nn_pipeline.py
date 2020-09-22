@@ -28,8 +28,8 @@ from torch.utils.data import DataLoader, Dataset, TensorDataset
 # project imports
 
 
-RANDOM_STATE = None
-# RANDOM_STATE = 5
+# RANDOM_STATE = None
+RANDOM_STATE = 5
 
 data_directory = pathlib.Path("data")
 
@@ -217,7 +217,30 @@ def pad_truncate_blast_features(original_features, num_hits):
     return equisized_features
 
 
-def train_network(n, batch_size, hidden_size, num_layers, lstm_dropout_probability, final_dropout_probability, lr, num_epochs, gpu_available):
+def get_num_features_output_size(train_loader):
+    """
+    """
+    sample_dataiter = iter(train_loader)
+    sample_features, sample_labels = sample_dataiter.next()
+    # print(f"{sample_features.size()=}")
+    # print(f"{sample_labels.size()=}")
+    # print(f"{sample_features.type()=}")
+    # sample_features.type()='torch.FloatTensor'
+    # print(f"{sample_labels.type()=}")
+    # sample_labels.type()='torch.ByteTensor'
+
+    feature_batch_size = sample_features.size()
+    label_batch_size = sample_labels.size()
+
+    num_features = feature_batch_size[-1]
+    output_size = label_batch_size[-1]
+    # print(f"{num_features=}")
+    # print(f"{output_size=}")
+
+    return num_features, output_size
+
+
+def load_dataset(n, num_hits, test_size, validation_size, batch_size):
     """
     """
     # load features and labels
@@ -243,7 +266,6 @@ def train_network(n, batch_size, hidden_size, num_layers, lstm_dropout_probabili
     # labels.dtype=dtype('uint8')
 
     # number of BLAST hits to pad to or truncate to existing BLAST features
-    num_hits = 150
     features = pad_truncate_blast_features(features, num_hits)
     # print(f"{features.dtype=}")
     # features.dtype=dtype('float64')
@@ -264,15 +286,14 @@ def train_network(n, batch_size, hidden_size, num_layers, lstm_dropout_probabili
     features, labels = sklearn.utils.shuffle(features, labels, random_state=RANDOM_STATE)
 
     # split examples into train, validation, and test sets
-    test_size = 0.2
-    # validation_size: 0.25 of the train_validation set
-    validation_size = 0.2 / (1 - test_size)
     (
         train_validation_features,
         test_features,
         train_validation_labels,
         test_labels,
     ) = train_test_split(features, labels, test_size=test_size, random_state=RANDOM_STATE)
+
+    validation_size = validation_size / (1 - test_size)
     (
         train_features,
         validation_features,
@@ -318,31 +339,20 @@ def train_network(n, batch_size, hidden_size, num_layers, lstm_dropout_probabili
         test_set, batch_size=batch_size, shuffle=False, drop_last=drop_last
     )
 
+    return train_loader, validation_loader, test_loader
+
+
+def train_network(train_loader, validation_loader, batch_size, hidden_size, num_layers, lstm_dropout_probability, final_dropout_probability, lr, num_epochs, gpu_available):
+    """
+    """
     if gpu_available:
-        print("GPU is available, using it for training.")
+        print("GPU available, training with CUDA.")
     else:
-        print("No GPU is available, training on CPU.")
+        print("No GPU available, training on CPU.")
     print()
 
-    # get features and labels batch dimensions
-    sample_dataiter = iter(train_loader)
-    sample_features, sample_labels = sample_dataiter.next()
-    # print(f"{sample_features.size()=}")
-    # print(f"{sample_labels.size()=}")
-    # print(f"{sample_features.type()=}")
-    # sample_features.type()='torch.FloatTensor'
-    # print(f"{sample_labels.type()=}")
-    # sample_labels.type()='torch.ByteTensor'
+    num_features, output_size = get_num_features_output_size(train_loader)
 
-    feature_batch_size = sample_features.size()
-    label_batch_size = sample_labels.size()
-
-    num_features = feature_batch_size[-1]
-    output_size = label_batch_size[-1]
-    # print(f"{num_features=}")
-    # print(f"{output_size=}")
-
-    batch_first = True
     net = LSTM_Alpha(
         num_features=num_features,
         output_size=output_size,
@@ -443,7 +453,7 @@ def train_network(n, batch_size, hidden_size, num_layers, lstm_dropout_probabili
 
     # save trained network
     datetime_now = datetime.datetime.now().replace(microsecond=0).isoformat()
-    network_filename = f"LSTM_Alpha-num_features:{num_features}-output_size:{output_size}-hidden_size:{hidden_size}-num_layers:{num_layers}-batch_size:{batch_size}-lstm_dropout_probability:{lstm_dropout_probability:.2f}-final_dropout_probability:{final_dropout_probability:.2f}-lr:{lr}-{datetime_now}.net"
+    network_filename = f"LSTM_Alpha-num_features={num_features}-output_size={output_size}-hidden_size={hidden_size}-num_layers={num_layers}-batch_size={batch_size}-lstm_dropout_probability={lstm_dropout_probability}-final_dropout_probability={final_dropout_probability}-lr={lr}-{datetime_now}.net"
 
     network_path = data_directory / network_filename
 
@@ -522,15 +532,17 @@ def main():
     num_epochs = 10
     # num_epochs = 1000
 
+    num_hits = 150
+    test_size = 0.2
+    validation_size = 0.2
+    train_loader, validation_loader, test_loader = load_dataset(n, num_hits, test_size, validation_size, batch_size)
+
     gpu_available = torch.cuda.is_available()
 
-    # net = train_network(n, batch_size, hidden_size, num_layers, lstm_dropout_probability, final_dropout_probability, lr, num_epochs, gpu_available)
+    net = train_network(train_loader, validation_loader, batch_size, hidden_size, num_layers, lstm_dropout_probability, final_dropout_probability, lr, num_epochs, gpu_available)
 
-    num_features = 13
-    output_size = n
-
-    # network_filename = "LSTM_Alpha-hidden_size:256-num_layers:2-batch_size:200-lstm_dropout_probability:0.3333333333333333-final_dropout_probability:0.2-lr:0.001-2020-09-22T17:15:12.net"
-    network_filename = "LSTM_Alpha-num_features:13-output_size:3-hidden_size:256-num_layers:2-batch_size:200-lstm_dropout_probability:0.33-final_dropout_probability:0.20-lr:0.001-2020-09-22T18:47:03.net"
+    num_features, output_size = get_num_features_output_size(train_loader)
+    network_filename = "LSTM_Alpha-num_features=13-output_size=3-hidden_size=256-num_layers=2-batch_size=200-lstm_dropout_probability=0.3333333333333333-final_dropout_probability=0.2-lr=0.001-2020-09-22T23:07:01.net"
     net = load_network(
         network_filename,
         num_features,
