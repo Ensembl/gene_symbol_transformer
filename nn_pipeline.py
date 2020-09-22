@@ -299,7 +299,7 @@ def train_model():
     num_validation = len(validation_features)
     num_test = len(test_features)
     print(
-        f"dataset split to {num_train} training, {num_validation} and {num_test} test samples"
+        f"dataset split to {num_train} training, {num_validation} validation, and {num_test} test samples"
     )
     print()
 
@@ -307,17 +307,20 @@ def train_model():
     validation_set = BlastFeaturesDataset(validation_features, validation_labels)
     test_set = BlastFeaturesDataset(test_features, test_labels)
 
-    # batch_size = 1
-    batch_size = 64
+    # batch_size = 64
+    batch_size = 200
+    # batch_size = 256
+    drop_last = True
+    # drop_last = False
     # https://pytorch.org/docs/stable/data.html#torch.utils.data.DataLoader
     train_loader = DataLoader(
-        train_set, batch_size=batch_size, shuffle=True, drop_last=True
+        train_set, batch_size=batch_size, shuffle=True, drop_last=drop_last
     )
     validation_loader = DataLoader(
-        validation_set, batch_size=batch_size, shuffle=True, drop_last=True
+        validation_set, batch_size=batch_size, shuffle=True, drop_last=drop_last
     )
     test_loader = DataLoader(
-        test_set, batch_size=batch_size, shuffle=False, drop_last=True
+        test_set, batch_size=batch_size, shuffle=False, drop_last=drop_last
     )
 
     gpu_available = torch.cuda.is_available()
@@ -364,7 +367,11 @@ def train_model():
     print()
 
     # training
+    ############################################################################
     print("training the neural network...")
+    print()
+
+    print(f"batch size: {batch_size}")
     print()
 
     # loss function
@@ -373,13 +380,13 @@ def train_model():
 
     # optimization function
     # https://pytorch.org/docs/stable/optim.html#torch.optim.Adam
-    lr = 0.01
+    lr = 0.001
     optimizer = torch.optim.Adam(net.parameters(), lr=lr)
     # print(optimizer)
 
     clip_max_norm = 5
 
-    statistics_output_delay = 1
+    statistics_output_delay = 10
 
     # move model to GPU, if available
     if gpu_available:
@@ -387,14 +394,14 @@ def train_model():
 
     # train for num_epochs
     net.train()
-    num_epochs = 30
+    batch_counter = 0
+    num_epochs = 1000
     for epoch in range(1, num_epochs + 1):
         # initialize hidden state
         h = net.init_hidden(batch_size, gpu_available)
 
         # process batches
-        for batch_counter, (inputs, labels) in enumerate(train_loader, start=1):
-            # print(f"{batch_counter=}")
+        for inputs, labels in train_loader:
             # print(f"{inputs.type()=}")
             # print(f"{labels.type()=}")
 
@@ -422,7 +429,8 @@ def train_model():
             optimizer.step()
 
             # print training statistics
-            if batch_counter % statistics_output_delay == 0:
+            batch_counter += 1
+            if batch_counter == 1 or batch_counter % statistics_output_delay == 0:
                 validation_loss_list = []
 
                 # get validation loss
@@ -445,6 +453,7 @@ def train_model():
                 print(f"epoch {epoch} of {num_epochs}, step {batch_counter} loss: {loss.item():.4f}, validation loss: {np.mean(validation_loss_list):.4f}")
 
                 net.train()
+    ############################################################################
 
 
 def main():
