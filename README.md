@@ -11,7 +11,10 @@ Symbol names sometimes vary in capitalization, and for this reason a lower case 
 
 There are a total of `31204` genes between the 101 most frequent gene symbols that have been saved along with their corresponding stable id and symbol in a FASTA file.
 
-A BLAST database have been generated from these sequences and the sequences have subsequently been BLASTed against this database.
+
+## BLAST features
+
+An experiment on choosing the optimal features for this task is to use the BLAST hits values of each sequence against a BLAST database of all sequences in the dataset.
 
 
 ## code structure
