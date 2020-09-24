@@ -23,7 +23,7 @@ import torch
 import torch.nn as nn
 
 from sklearn.model_selection import train_test_split
-from torch.utils.data import DataLoader, Dataset, TensorDataset
+from torch.utils.data import DataLoader, Dataset
 
 # project imports
 
@@ -72,7 +72,7 @@ class BlastFeaturesDataset(Dataset):
         return item
 
 
-class LSTM_Alpha(nn.Module):
+class LSTM_BLAST(nn.Module):
     """
     An LSTM neural network for gene classification using BLAST features.
     """
@@ -366,7 +366,7 @@ def train_network(
 
     num_features, output_size = get_num_features_output_size(train_loader)
 
-    net = LSTM_Alpha(
+    net = LSTM_BLAST(
         num_features=num_features,
         output_size=output_size,
         hidden_size=hidden_size,
@@ -466,7 +466,7 @@ def train_network(
 
     # save trained network
     datetime_now = datetime.datetime.now().replace(microsecond=0).isoformat()
-    network_filename = f"LSTM_Alpha-num_features={num_features}-output_size={output_size}-hidden_size={hidden_size}-num_layers={num_layers}-batch_size={batch_size}-lstm_dropout_probability={lstm_dropout_probability}-final_dropout_probability={final_dropout_probability}-lr={lr}-{datetime_now}.net"
+    network_filename = f"LSTM_BLAST-num_features={num_features}-output_size={output_size}-hidden_size={hidden_size}-num_layers={num_layers}-batch_size={batch_size}-lstm_dropout_probability={lstm_dropout_probability}-final_dropout_probability={final_dropout_probability}-lr={lr}-{datetime_now}.net"
 
     network_path = data_directory / network_filename
 
@@ -491,7 +491,7 @@ def load_network(
     """
     network_path = data_directory / network_filename
 
-    network = LSTM_Alpha(
+    network = LSTM_BLAST(
         num_features=num_features,
         output_size=output_size,
         hidden_size=hidden_size,
@@ -569,7 +569,7 @@ def main():
     )
 
     num_features, output_size = get_num_features_output_size(train_loader)
-    network_filename = "LSTM_Alpha-num_features=13-output_size=3-hidden_size=256-num_layers=2-batch_size=200-lstm_dropout_probability=0.3333333333333333-final_dropout_probability=0.2-lr=0.001-2020-09-22T23:21:25.net"
+    network_filename = "LSTM_BLAST-num_features=13-output_size=3-hidden_size=256-num_layers=2-batch_size=200-lstm_dropout_probability=0.3333333333333333-final_dropout_probability=0.2-lr=0.001-2020-09-22T23:21:25.net"
     net = load_network(
         network_filename,
         num_features,
