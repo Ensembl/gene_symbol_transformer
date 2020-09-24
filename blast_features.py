@@ -5,7 +5,9 @@
 
 
 """
-Generate BLAST and raw sequences features.
+Pipeline to BLAST specified sequences and save the raw results to a shelve database file.
+
+Generate BLAST features.
 """
 
 
@@ -15,17 +17,92 @@ import io
 import pathlib
 import pickle
 import shelve
+import subprocess
 import sys
 
 # third party imports
 import pandas as pd
 
+from Bio import SeqIO
+
 # project imports
 
 
-USE_CACHE = True
-
 data_directory = pathlib.Path("data")
+
+
+def blast_sequence(fasta_sequence, db, evalue=None, word_size=None, outfmt="6"):
+    """
+    BLAST a FASTA sequence using the specified BLAST database db.
+
+    Documentation of BLAST arguments used:
+
+    -db <String>
+      BLAST database name
+       * Incompatible with:  subject, subject_loc
+
+    -evalue <Real>
+      Expectation value (E) threshold for saving hits
+      Default = `10'
+
+    -word_size <Integer, >=2>
+      Word size for wordfinder algorithm
+
+    *** Formatting options
+    -outfmt <String>
+      alignment view options:
+        0 = pairwise,
+        1 = query-anchored showing identities,
+        2 = query-anchored no identities,
+        3 = flat query-anchored, show identities,
+        4 = flat query-anchored, no identities,
+        5 = XML Blast output,
+        6 = tabular,
+        7 = tabular with comment lines,
+        8 = Text ASN.1,
+        9 = Binary ASN.1,
+       10 = Comma-separated values,
+       11 = BLAST archive format (ASN.1)
+       12 = JSON Seqalign output
+    """
+    arguments = [
+        "blastp",
+        "-db",
+        db,
+        "-outfmt",
+        outfmt,
+    ]
+    if evalue is not None:
+        arguments.extend(["-evalue", evalue])
+    if word_size is not None:
+        arguments.extend(["-word_size", word_size])
+
+    completed_process = subprocess.run(
+        arguments, input=fasta_sequence, capture_output=True, text=True
+    )
+    output = completed_process.stdout
+
+    return output
+
+
+def generate_blast_results(db, fasta_path, shelve_db_path, total):
+    """
+    Generate a BLAST results database.
+    """
+    with open(fasta_path) as fasta_file, shelve.open(
+        str(shelve_db_path)
+    ) as blast_results:
+        for counter, fasta_record in enumerate(
+            SeqIO.FastaIO.SimpleFastaParser(fasta_file), start=1
+        ):
+            description = fasta_record[0]
+            sequence = fasta_record[1]
+            fasta_sequence = f">{description}\n{sequence}\n"
+
+            blast_output = blast_sequence(fasta_sequence, db=db)
+
+            blast_results[description] = blast_output
+            print(f"{description} : {counter} out of {total}")
 
 
 def parse_blast_output(query_id, blast_output_raw, sequence):
@@ -156,6 +233,12 @@ def main():
 
     argument_parser = argparse.ArgumentParser()
     argument_parser.add_argument(
+        "--generate_most_frequent_101_blast_results", action="store_true"
+    )
+    argument_parser.add_argument(
+        "--generate_most_frequent_3_blast_results", action="store_true"
+    )
+    argument_parser.add_argument(
         "--generate_blast_features_most_frequent_101", action="store_true"
     )
     argument_parser.add_argument(
@@ -164,6 +247,24 @@ def main():
 
     args = argument_parser.parse_args()
 
+    if args.generate_most_frequent_101_blast_results:
+        n = 101
+        db = data_directory / f"blast_databases/most_frequent_{n}/most_frequent_{n}"
+        fasta_path = data_directory / f"most_frequent_{n}.fasta"
+        shelve_db_path = data_directory / f"most_frequent_{n}-blast_results.db"
+        total = 31204
+        generate_blast_results(
+            db=db, fasta_path=fasta_path, shelve_db_path=shelve_db_path, total=total
+        )
+    elif args.generate_most_frequent_3_blast_results:
+        n = 3
+        db = data_directory / f"blast_databases/most_frequent_{n}/most_frequent_{n}"
+        fasta_path = data_directory / f"most_frequent_{n}.fasta"
+        shelve_db_path = data_directory / f"most_frequent_{n}-blast_results.db"
+        total = 1052
+        generate_blast_results(
+            db=db, fasta_path=fasta_path, shelve_db_path=shelve_db_path, total=total
+        )
     elif args.generate_blast_features_most_frequent_101:
         generate_blast_features_most_frequent_n(n=101)
     elif args.generate_blast_features_most_frequent_3:
