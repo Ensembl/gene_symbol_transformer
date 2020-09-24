@@ -26,6 +26,8 @@ from Bio import SeqIO
 # DEBUG = True
 DEBUG = False
 
+USE_CACHE = True
+
 data_directory = pathlib.Path("data")
 
 

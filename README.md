@@ -21,6 +21,4 @@ An experiment on choosing the optimal features for this task is using the BLAST 
 
 `dataset_generation.py` : merge original data files, normalize, cleanup, and filter examples to a single pandas dataframe saved as the pickle file `data.pickle`; create smaller development datasets of the 101 and 3 most frequent gene symbols
 
-`feature_generation.py` : generate BLAST and raw sequences features
-
-`blast.py` : function and pipeline to BLAST specified sequences and save the raw results to a shelve database file
+`blast_features.py` : pipeline to BLAST specified sequences and save the raw results to a shelve database file; generate BLAST features
