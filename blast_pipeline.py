@@ -284,9 +284,6 @@ def load_dataset(n, num_hits, test_size, validation_size, batch_size):
     # print(f"{labels.dtype=}")
     # labels.dtype=dtype('int64')
 
-    # shuffle examples
-    features, labels = sklearn.utils.shuffle(features, labels, random_state=RANDOM_STATE)
-
     # split examples into train, validation, and test sets
     (
         train_validation_features,
