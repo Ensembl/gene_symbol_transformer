@@ -5,7 +5,7 @@
 
 
 """
-Neural network pipeline.
+BLAST features neural network pipeline.
 """
 
 
