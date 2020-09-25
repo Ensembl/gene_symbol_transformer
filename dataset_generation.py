@@ -26,8 +26,6 @@ from Bio import SeqIO
 # DEBUG = True
 DEBUG = False
 
-USE_CACHE = True
-
 data_directory = pathlib.Path("data")
 
 
@@ -148,34 +146,6 @@ def data_wrangling():
     data.to_pickle(data_pickle_path)
 
 
-def get_protein_letters():
-    """
-    Generate and return a list of protein letters that occur in the dataset and
-    those that can potentially be used.
-    """
-    extended_IUPAC_protein_letters = Bio.Alphabet.IUPAC.ExtendedIUPACProtein.letters
-
-    # cache the following operation, as it's very expensive in time and space
-    if USE_CACHE:
-        extra_letters = ["*"]
-    else:
-        data = dataset_generation.load_data()
-
-        # generate a list of all protein letters that occur in the dataset
-        dataset_letters = set(data["sequence"].str.cat())
-
-        extra_letters = [
-            letter
-            for letter in dataset_letters
-            if letter not in extended_IUPAC_protein_letters
-        ]
-
-    protein_letters = list(extended_IUPAC_protein_letters) + extra_letters
-    assert len(protein_letters) == 27, protein_letters
-
-    return protein_letters
-
-
 def save_most_frequent_n(n, max_frequency=None):
     """
     Save the examples of the n most frequent symbols to a pickled dataframe and
@@ -183,7 +153,7 @@ def save_most_frequent_n(n, max_frequency=None):
 
     Specify the max_frequency of the n symbols to run an extra validation check.
     """
-    data = dataset_generation.load_data()
+    data = load_data()
 
     symbol_counts = data["symbol"].value_counts()
 
