@@ -23,7 +23,6 @@ import sklearn
 import torch
 import torch.nn as nn
 
-from sklearn.model_selection import train_test_split
 from torch.utils.data import DataLoader, Dataset, random_split
 
 # project imports
@@ -216,10 +215,8 @@ def main():
         generator = torch.default_generator
     else:
         generator = torch.Generator.manual_seed(RANDOM_STATE)
+    # https://pytorch.org/docs/stable/data.html#torch.utils.data.random_split
     train_dataset, validation_dataset, test_dataset = random_split(dataset, lengths=(train_size, validation_size, test_size), generator=generator)
-    # print(f"{len(train_dataset)=}")
-    # print(f"{len(validation_dataset)=}")
-    # print(f"{len(test_dataset)=}")
 
     num_train = len(train_dataset)
     num_validation = len(validation_dataset)
