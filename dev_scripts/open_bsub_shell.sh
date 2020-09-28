@@ -23,8 +23,8 @@
 # Runs the job on a host that meets the specified resource requirements.
 
 #JOB_TYPE=standard
-#JOB_TYPE=parallel
 JOB_TYPE=gpu
+#JOB_TYPE=parallel
 
 #QUEUE=research-rh74
 QUEUE=production-rh74
@@ -43,13 +43,13 @@ if [[ "$JOB_TYPE" = "standard" ]]; then
     bsub -Is -tty -M $MEM_LIMIT -R"select[mem>$MEM_LIMIT] rusage[mem=$MEM_LIMIT] span[hosts=1]" $SHELL
 fi
 
-# open a parallel jobs shell
-if [[ "$JOB_TYPE" = "parallel" ]]; then
-    bsub -Is -tty -n $MIN_TASKS -M $MEM_LIMIT -R"select[mem>$MEM_LIMIT] rusage[mem=$MEM_LIMIT] span[hosts=1]" $SHELL
-fi
-
 # open a shell on a GPU node
 # https://sysinf.ebi.ac.uk/doku.php?id=ebi_cluster_good_computing_guide#gpu_hosts
 if [[ "$JOB_TYPE" = "gpu" ]]; then
     bsub -q $QUEUE -P gpu -gpu - -Is -tty -M $MEM_LIMIT -R"select[mem>$MEM_LIMIT] rusage[mem=$MEM_LIMIT] span[hosts=1]" $SHELL
+fi
+
+# open a parallel jobs shell
+if [[ "$JOB_TYPE" = "parallel" ]]; then
+    bsub -Is -tty -n $MIN_TASKS -M $MEM_LIMIT -R"select[mem>$MEM_LIMIT] rusage[mem=$MEM_LIMIT] span[hosts=1]" $SHELL
 fi
