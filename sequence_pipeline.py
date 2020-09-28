@@ -259,10 +259,6 @@ def train_network(
     train_loader,
     validation_loader,
     batch_size,
-    hidden_size,
-    num_layers,
-    lstm_dropout_probability,
-    final_dropout_probability,
     lr,
     num_epochs,
     gpu_available,
@@ -338,21 +334,19 @@ def train_network(
                     validation_loss_list.append(validation_loss.item())
 
                 print(
-                    f"epoch {epoch} of {num_epochs}, step {batch_counter} loss: {loss.item():.4f}, validation loss: {np.mean(validation_loss_list):.4f}"
+                    f"epoch {epoch} of {num_epochs}, step {batch_counter} | loss: {loss.item():.4f}, validation loss: {np.mean(validation_loss_list):.4f}"
                 )
 
                 network.train()
 
     # save trained network
     datetime_now = datetime.datetime.now().replace(microsecond=0).isoformat()
-    network_filename = f"BLAST_LSTM-num_features={num_features}-output_size={output_size}-hidden_size={hidden_size}-num_layers={num_layers}-batch_size={batch_size}-lstm_dropout_probability={lstm_dropout_probability}-final_dropout_probability={final_dropout_probability}-lr={lr}-{datetime_now}.net"
 
+    network_filename = f"Sequence_LSTM-{datetime_now}.net"
     network_path = data_directory / network_filename
 
-    torch.save(network.state_dict(), network_path)
+    torch.save(network, network_path)
     print(f"trained neural network saved at {network_path}")
-
-    return network
 
 
 def main():
@@ -472,13 +466,13 @@ def main():
 
     # training
     ############################################################################
-    print(f"training neural network; batch_size: {batch_size}")
+    print(f"training neural network, batch_size: {batch_size}")
     print()
 
     lr = 0.001
 
-    # num_epochs = 10
-    num_epochs = 100
+    num_epochs = 10
+    # num_epochs = 100
     # num_epochs = 1000
 
     train_network(
@@ -486,10 +480,6 @@ def main():
         train_loader,
         validation_loader,
         batch_size,
-        hidden_size,
-        num_layers,
-        lstm_dropout_probability,
-        final_dropout_probability,
         lr,
         num_epochs,
         gpu_available,
