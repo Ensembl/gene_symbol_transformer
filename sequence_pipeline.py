@@ -19,7 +19,6 @@ import sys
 import Bio
 import numpy as np
 import pandas as pd
-import sklearn
 import torch
 import torch.nn as nn
 
@@ -29,8 +28,8 @@ from torch.utils.data import DataLoader, Dataset, random_split
 import dataset_generation
 
 
-RANDOM_STATE = None
-# RANDOM_STATE = 5
+# RANDOM_STATE = None
+RANDOM_STATE = 5
 # RANDOM_STATE = 7
 # RANDOM_STATE = 11
 
@@ -48,7 +47,7 @@ class SequencesDataset(Dataset):
 
     def __init__(self, n, sequence_length):
         print(
-            f"Loading the dataset for the {n} most frequent symbols sequences...", end=""
+            f"Loading dataset of the {n} most frequent symbols sequences...", end=""
         )
         data_pickle_path = data_directory / f"most_frequent_{n}.pickle"
         data = pd.read_pickle(data_pickle_path)
@@ -77,10 +76,10 @@ class SequencesDataset(Dataset):
         )
 
         # generate a categorical data type for protein letters
-        protein_letters = get_protein_letters()
-        protein_letters.sort()
+        self.protein_letters = get_protein_letters()
+        self.protein_letters.sort()
         self.protein_letters_categorical_datatype = pd.CategoricalDtype(
-            categories=protein_letters, ordered=True
+            categories=self.protein_letters, ordered=True
         )
 
     def __len__(self):
@@ -105,6 +104,11 @@ class SequencesDataset(Dataset):
         # convert features and labels to NumPy arrays
         one_hot_sequence = one_hot_sequence.to_numpy()
         one_hot_symbol = one_hot_symbol.to_numpy()
+
+        # cast the arrays to `np.float32` data type, so that the PyTorch tensors
+        # will be generated with type `torch.FloatTensor`.
+        one_hot_sequence = one_hot_sequence.astype(np.float32)
+        one_hot_symbol = one_hot_symbol.astype(np.float32)
 
         # remove extra dimension for a single example
         one_hot_symbol = np.squeeze(one_hot_symbol)
@@ -177,6 +181,180 @@ class SuppressSettingWithCopyWarning:
         pd.options.mode.chained_assignment = self.original_setting
 
 
+class Sequence_LSTM(nn.Module):
+    """
+    An LSTM neural network for gene classification using the protein letters of
+    the sequence as features.
+    """
+
+    def __init__(
+        self,
+        input_size,
+        output_size,
+        hidden_size,
+        num_layers,
+        lstm_dropout_probability,
+        final_dropout_probability,
+        batch_first=True,
+    ):
+        """
+        Initialize the neural network.
+        """
+        super().__init__()
+
+        self.hidden_size = hidden_size
+        self.num_layers = num_layers
+
+        self.lstm = nn.LSTM(
+            input_size=input_size,
+            hidden_size=self.hidden_size,
+            num_layers=self.num_layers,
+            batch_first=batch_first,
+            dropout=lstm_dropout_probability,
+        )
+
+        self.final_dropout = nn.Dropout(final_dropout_probability)
+
+        self.linear = nn.Linear(self.hidden_size, output_size)
+
+        # final activation function
+        self.activation = nn.LogSoftmax(dim=2)
+
+    def forward(self, x, hidden_state):
+        """
+        Perform a forward pass of our network on some input and hidden state.
+        """
+        output, hidden_state = self.lstm(x, hidden_state)
+
+        output = self.final_dropout(output)
+        output = self.linear(output)
+        output = self.activation(output)
+
+        # get the last set of output values
+        output = output[:, -1]
+
+        # return last output and hidden state
+        return output, hidden_state
+
+    def init_hidden(self, batch_size, gpu_available):
+        """
+        Initializes hidden state
+
+        Creates two new tensors with sizes num_layers x batch_size x hidden_size,
+        initialized to zero, for the hidden state and cell state of the LSTM
+        """
+        hidden = tuple(
+            torch.zeros(self.num_layers, batch_size, self.hidden_size)
+            for _count in range(2)
+        )
+
+        if gpu_available:
+            hidden = tuple(tensor.cuda() for tensor in hidden)
+
+        return hidden
+
+
+def train_network(
+    network,
+    train_loader,
+    validation_loader,
+    batch_size,
+    hidden_size,
+    num_layers,
+    lstm_dropout_probability,
+    final_dropout_probability,
+    lr,
+    num_epochs,
+    gpu_available,
+):
+    """
+    """
+    # loss function
+    criterion = nn.NLLLoss()
+
+    # optimization function
+    optimizer = torch.optim.Adam(network.parameters(), lr=lr)
+
+    clip_max_norm = 5
+
+    statistics_output_delay = 10
+
+    # train for num_epochs
+    network.train()
+    batch_counter = 0
+    for epoch in range(1, num_epochs + 1):
+        # initialize hidden state
+        h = network.init_hidden(batch_size, gpu_available)
+
+        # process training examples in batches
+        for inputs, labels in train_loader:
+            if gpu_available:
+                inputs, labels = inputs.cuda(), labels.cuda()
+
+            # generate new variables for the hidden state
+            h = tuple(tensor.data for tensor in h)
+
+            # zero accumulated gradients
+            network.zero_grad()
+
+            # get network output and hidden state
+            output, h = network(inputs, h)
+
+            with torch.no_grad():
+                # get class indexes from the labels one hot encoding
+                labels = torch.argmax(labels, dim=1)
+
+            # calculate the loss and perform back propagation
+            loss = criterion(output, labels)
+            # perform back propagation
+            loss.backward()
+            # prevent the exploding gradient problem
+            nn.utils.clip_grad_norm_(network.parameters(), clip_max_norm)
+            optimizer.step()
+
+            # print training statistics
+            batch_counter += 1
+            if batch_counter == 1 or batch_counter % statistics_output_delay == 0:
+                validation_loss_list = []
+
+                # get validation loss
+                validation_h = network.init_hidden(batch_size, gpu_available)
+
+                network.eval()
+
+                for inputs, labels in validation_loader:
+                    # create new variables for the hidden state
+                    validation_h = tuple(tensor.data for tensor in validation_h)
+
+                    if gpu_available:
+                        inputs, labels = inputs.cuda(), labels.cuda()
+
+                    output, validation_h = network(inputs, validation_h)
+
+                    labels = torch.argmax(labels, dim=1)
+
+                    validation_loss = criterion(output, labels)
+
+                    validation_loss_list.append(validation_loss.item())
+
+                print(
+                    f"epoch {epoch} of {num_epochs}, step {batch_counter} loss: {loss.item():.4f}, validation loss: {np.mean(validation_loss_list):.4f}"
+                )
+
+                network.train()
+
+    # save trained network
+    datetime_now = datetime.datetime.now().replace(microsecond=0).isoformat()
+    network_filename = f"BLAST_LSTM-num_features={num_features}-output_size={output_size}-hidden_size={hidden_size}-num_layers={num_layers}-batch_size={batch_size}-lstm_dropout_probability={lstm_dropout_probability}-final_dropout_probability={final_dropout_probability}-lr={lr}-{datetime_now}.net"
+
+    network_path = data_directory / network_filename
+
+    torch.save(network.state_dict(), network_path)
+    print(f"trained neural network saved at {network_path}")
+
+    return network
+
+
 def main():
     """
     main function
@@ -203,11 +381,13 @@ def main():
     validation_size = 0.2
 
     # batch_size = 1
-    batch_size = 4
-    # batch_size = 64
+    # batch_size = 4
+    batch_size = 64
     # batch_size = 200
     # batch_size = 256
 
+    # data loading
+    ############################################################################
     dataset = SequencesDataset(n, sequence_length)
     # print(f"{len(dataset)=}")
 
@@ -223,21 +403,19 @@ def main():
     test_size = int(test_ratio * len(dataset))
     train_size = len(dataset) - validation_size - test_size
 
-    if RANDOM_STATE is None:
-        generator = torch.default_generator
-    else:
-        generator = torch.Generator.manual_seed(RANDOM_STATE)
     # https://pytorch.org/docs/stable/data.html#torch.utils.data.random_split
     train_dataset, validation_dataset, test_dataset = random_split(
-        dataset, lengths=(train_size, validation_size, test_size), generator=generator
+        dataset, lengths=(train_size, validation_size, test_size)
     )
 
     num_train = len(train_dataset)
     num_validation = len(validation_dataset)
     num_test = len(test_dataset)
     print(
-        f"dataset split to train ({num_train}), validation ({num_validation}), and test ({num_test}) datasets"
+        f"dataset split to train ({num_train}), validation ({num_validation}), and"
+        "test ({num_test}) datasets"
     )
+    print()
 
     drop_last = True
     # drop_last = False
@@ -251,6 +429,72 @@ def main():
     test_loader = DataLoader(
         test_dataset, batch_size=batch_size, shuffle=False, drop_last=drop_last
     )
+    ############################################################################
+
+    # neural network instantiation
+    ############################################################################
+    num_protein_letters = len(dataset.protein_letters)
+    input_size = num_protein_letters
+
+    output_size = n
+
+    hidden_size = 128
+    # hidden_size = 256
+    # hidden_size = 512
+
+    num_layers = 1
+    # num_layers = 2
+
+    if num_layers == 1:
+        lstm_dropout_probability = 0
+    else:
+        lstm_dropout_probability = 1 / 3
+
+    final_dropout_probability = 1 / 5
+
+    network = Sequence_LSTM(
+        input_size=input_size,
+        output_size=output_size,
+        hidden_size=hidden_size,
+        num_layers=num_layers,
+        lstm_dropout_probability=lstm_dropout_probability,
+        final_dropout_probability=final_dropout_probability,
+    )
+    print(network)
+    print()
+    ############################################################################
+
+    gpu_available = torch.cuda.is_available()
+
+    # move network to GPU, if available
+    if gpu_available:
+        network.cuda()
+
+    # training
+    ############################################################################
+    print(f"training neural network; batch_size: {batch_size}")
+    print()
+
+    lr = 0.001
+
+    # num_epochs = 10
+    num_epochs = 100
+    # num_epochs = 1000
+
+    train_network(
+        network,
+        train_loader,
+        validation_loader,
+        batch_size,
+        hidden_size,
+        num_layers,
+        lstm_dropout_probability,
+        final_dropout_probability,
+        lr,
+        num_epochs,
+        gpu_available,
+    )
+    ############################################################################
 
 
 if __name__ == "__main__":
