@@ -45,6 +45,7 @@ class SequencesDataset(Dataset):
 
     https://pytorch.org/docs/stable/data.html#torch.utils.data.Dataset
     """
+
     def __init__(self, n, sequence_length):
         print(
             f"Loading the dataset for the {n} most frequent symbols sequences...", end=""
@@ -63,18 +64,24 @@ class SequencesDataset(Dataset):
         # pad or truncate all sequences to size `sequence_length`
         with SuppressSettingWithCopyWarning():
             # self.data["sequence"] = self.data["sequence"].map(lambda x: pad_or_truncate_sequence(x, sequence_length))
-            self.data["sequence"] = self.data["sequence"].str.pad(width=sequence_length, side="left", fillchar=" ")
+            self.data["sequence"] = self.data["sequence"].str.pad(
+                width=sequence_length, side="left", fillchar=" "
+            )
             self.data["sequence"] = self.data["sequence"].str.slice(stop=sequence_length)
 
         # generate a categorical data type for symbols
         labels = self.data["symbol"].unique().tolist()
         labels.sort()
-        self.symbol_categorical_datatype = pd.CategoricalDtype(categories=labels, ordered=True)
+        self.symbol_categorical_datatype = pd.CategoricalDtype(
+            categories=labels, ordered=True
+        )
 
         # generate a categorical data type for protein letters
         protein_letters = get_protein_letters()
         protein_letters.sort()
-        self.protein_letters_categorical_datatype = pd.CategoricalDtype(categories=protein_letters, ordered=True)
+        self.protein_letters_categorical_datatype = pd.CategoricalDtype(
+            categories=protein_letters, ordered=True
+        )
 
     def __len__(self):
         return len(self.data)
@@ -84,8 +91,12 @@ class SequencesDataset(Dataset):
         symbol = self.data.iloc[index]["symbol"]
 
         # generate one-hot encoding of the sequence
-        protein_letters_categorical = pd.Series(list(sequence), dtype=self.protein_letters_categorical_datatype)
-        one_hot_sequence = pd.get_dummies(protein_letters_categorical, prefix="protein_letter")
+        protein_letters_categorical = pd.Series(
+            list(sequence), dtype=self.protein_letters_categorical_datatype
+        )
+        one_hot_sequence = pd.get_dummies(
+            protein_letters_categorical, prefix="protein_letter"
+        )
 
         # generate one-hot encoding of the label (symbol)
         symbol_categorical = pd.Series(symbol, dtype=self.symbol_categorical_datatype)
@@ -153,6 +164,7 @@ class SuppressSettingWithCopyWarning:
     Suppress SettingWithCopyWarning warning.
     https://stackoverflow.com/a/53954986
     """
+
     def __init__(self):
         pass
 
@@ -216,12 +228,16 @@ def main():
     else:
         generator = torch.Generator.manual_seed(RANDOM_STATE)
     # https://pytorch.org/docs/stable/data.html#torch.utils.data.random_split
-    train_dataset, validation_dataset, test_dataset = random_split(dataset, lengths=(train_size, validation_size, test_size), generator=generator)
+    train_dataset, validation_dataset, test_dataset = random_split(
+        dataset, lengths=(train_size, validation_size, test_size), generator=generator
+    )
 
     num_train = len(train_dataset)
     num_validation = len(validation_dataset)
     num_test = len(test_dataset)
-    print(f"dataset split to train ({num_train}), validation ({num_validation}), and test ({num_test}) datasets")
+    print(
+        f"dataset split to train ({num_train}), validation ({num_validation}), and test ({num_test}) datasets"
+    )
 
     drop_last = True
     # drop_last = False
