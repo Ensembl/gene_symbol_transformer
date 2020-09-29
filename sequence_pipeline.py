@@ -10,6 +10,7 @@ Raw sequences neural network pipeline.
 
 
 # standard library imports
+import argparse
 import datetime
 import pathlib
 import pickle
@@ -361,10 +362,34 @@ def train_network(
     print(f"trained neural network saved at {network_path}")
 
 
+def load_network(
+    network_filename,
+    gpu_available,
+):
+    """
+    load saved network
+    """
+    network_path = data_directory / network_filename
+
+    if gpu_available:
+        network = torch.load(network_path)
+    else:
+        device = torch.device("cpu")
+        network = torch.load(network_path, map_location=device)
+
+    return network
+
+
 def main():
     """
     main function
     """
+    argument_parser = argparse.ArgumentParser()
+    argument_parser.add_argument("--train", action="store_true")
+    argument_parser.add_argument("--load")
+
+    args = argument_parser.parse_args()
+
     # DEBUG
     # pd.options.display.max_columns = None
     # pd.options.display.max_rows = None
@@ -418,8 +443,7 @@ def main():
     num_validation = len(validation_dataset)
     num_test = len(test_dataset)
     print(
-        f"dataset split to train ({num_train}), validation ({num_validation}), and"
-        "test ({num_test}) datasets"
+        f"dataset split to train ({num_train}), validation ({num_validation}), and test ({num_test}) datasets"
     )
     print()
 
@@ -466,8 +490,8 @@ def main():
         lstm_dropout_probability=lstm_dropout_probability,
         final_dropout_probability=final_dropout_probability,
     )
-    print(network)
-    print()
+    # print(network)
+    # print()
     ############################################################################
 
     gpu_available = torch.cuda.is_available()
@@ -477,26 +501,34 @@ def main():
         network.cuda()
 
     # training
-    ############################################################################
-    print(f"training neural network, batch_size: {batch_size}")
-    print()
+    if args.train:
+        print(f"training neural network, batch_size: {batch_size}")
+        print()
 
-    lr = 0.001
+        lr = 0.001
 
-    num_epochs = 10
-    # num_epochs = 100
-    # num_epochs = 1000
+        num_epochs = 10
+        # num_epochs = 100
+        # num_epochs = 1000
 
-    train_network(
-        network,
-        train_loader,
-        validation_loader,
-        batch_size,
-        lr,
-        num_epochs,
-        gpu_available,
-    )
-    ############################################################################
+        train_network(
+            network,
+            train_loader,
+            validation_loader,
+            batch_size,
+            lr,
+            num_epochs,
+            gpu_available,
+        )
+
+    # load trained network
+    if args.load:
+        network_filename = args.load
+        print(f'loading neural network "{network_filename}":')
+
+        network = load_network(network_filename, gpu_available)
+        print(network)
+        print()
 
 
 if __name__ == "__main__":
