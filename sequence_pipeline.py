@@ -444,8 +444,8 @@ def main():
     if RANDOM_STATE is not None:
         torch.manual_seed(RANDOM_STATE)
 
-    # n = 101
-    n = 3
+    n = 101
+    # n = 3
 
     sequence_length = 1000
     test_size = 0.2
@@ -454,18 +454,12 @@ def main():
     # batch_size = 1
     # batch_size = 4
     # batch_size = 64
-    batch_size = 200
-    # batch_size = 256
+    # batch_size = 200
+    batch_size = 256
 
-    # data loading
+    # load data, generate datasets
     ############################################################################
     dataset = SequencesDataset(n, sequence_length)
-    # print(f"{len(dataset)=}")
-
-    # sample_features, sample_labels = dataset[0]
-    # print(f"{sample_features=}")
-    # print(f"{sample_labels=}")
-    # print()
 
     # split dataset into train, validation, and test datasets
     validation_ratio = 0.2
@@ -509,19 +503,21 @@ def main():
     output_size = n
 
     # hidden_size = 128
-    hidden_size = 256
+    # hidden_size = 256
     # hidden_size = 512
+    hidden_size = 1024
 
-    num_layers = 1
-    # num_layers = 2
+    # num_layers = 1
+    num_layers = 2
 
     if num_layers == 1:
         lstm_dropout_probability = 0
     else:
-        # lstm_dropout_probability = 1 / 3
-        lstm_dropout_probability = 1 / 4
+        lstm_dropout_probability = 1 / 3
+        # lstm_dropout_probability = 1 / 4
 
-    final_dropout_probability = 1 / 5
+    final_dropout_probability = 1 / 4
+    # final_dropout_probability = 1 / 5
 
     network = Sequence_LSTM(
         input_size=input_size,
