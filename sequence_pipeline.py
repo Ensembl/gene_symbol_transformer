@@ -29,8 +29,8 @@ from torch.utils.data import DataLoader, Dataset, random_split
 import dataset_generation
 
 
-# RANDOM_STATE = None
-RANDOM_STATE = 5
+RANDOM_STATE = None
+# RANDOM_STATE = 5
 # RANDOM_STATE = 7
 # RANDOM_STATE = 11
 
@@ -270,6 +270,7 @@ def get_training_progress(epoch, num_epochs, batch_counter, loss, validation_los
 
 def train_network(
     network,
+    criterion,
     train_loader,
     validation_loader,
     batch_size,
@@ -279,9 +280,6 @@ def train_network(
 ):
     """
     """
-    # loss function
-    criterion = nn.NLLLoss()
-
     # optimization function
     optimizer = torch.optim.Adam(network.parameters(), lr=lr)
 
@@ -362,10 +360,7 @@ def train_network(
     print(f"trained neural network saved at {network_path}")
 
 
-def load_network(
-    network_filename,
-    gpu_available,
-):
+def load_network(network_filename, gpu_available):
     """
     load saved network
     """
@@ -380,6 +375,50 @@ def load_network(
     return network
 
 
+def test_network(network, criterion, test_loader, batch_size, gpu_available):
+    """
+    Calculate test loss and generate metrics.
+    """
+    # initialize hidden state
+    h = network.init_hidden(batch_size, gpu_available)
+
+    network.eval()
+
+    test_losses = []
+    num_correct_predictions = 0
+    for inputs, labels in test_loader:
+        if gpu_available:
+            inputs, labels = inputs.cuda(), labels.cuda()
+
+        # create new variables for the hidden state
+        h = tuple(tensor.data for tensor in h)
+
+        # get output values
+        output, h = network(inputs, h)
+
+        # get predicted labels from output
+        predicted_probabilities = torch.exp(output)
+        predictions = torch.argmax(predicted_probabilities, dim=1)
+
+        # get class indexes from one hot labels
+        labels = torch.argmax(labels, dim=1)
+
+        # calculate test loss
+        test_loss = criterion(output, labels)
+        test_losses.append(test_loss.item())
+
+        # predictions to ground truth comparison
+        predictions_correctness = predictions.eq(labels)
+        num_correct_predictions += torch.sum(predictions_correctness).item()
+
+    # print statistics
+    print("average test loss: {:.3f}".format(np.mean(test_losses)))
+
+    # test predictions accuracy
+    test_accuracy = num_correct_predictions / len(test_loader.dataset)
+    print("test accuracy: {:.3f}".format(test_accuracy))
+
+
 def main():
     """
     main function
@@ -387,6 +426,7 @@ def main():
     argument_parser = argparse.ArgumentParser()
     argument_parser.add_argument("--train", action="store_true")
     argument_parser.add_argument("--load")
+    argument_parser.add_argument("--test", action="store_true")
 
     args = argument_parser.parse_args()
 
@@ -413,8 +453,8 @@ def main():
 
     # batch_size = 1
     # batch_size = 4
-    batch_size = 64
-    # batch_size = 200
+    # batch_size = 64
+    batch_size = 200
     # batch_size = 256
 
     # data loading
@@ -468,8 +508,8 @@ def main():
 
     output_size = n
 
-    hidden_size = 128
-    # hidden_size = 256
+    # hidden_size = 128
+    hidden_size = 256
     # hidden_size = 512
 
     num_layers = 1
@@ -478,7 +518,8 @@ def main():
     if num_layers == 1:
         lstm_dropout_probability = 0
     else:
-        lstm_dropout_probability = 1 / 3
+        # lstm_dropout_probability = 1 / 3
+        lstm_dropout_probability = 1 / 4
 
     final_dropout_probability = 1 / 5
 
@@ -492,6 +533,9 @@ def main():
     )
     # print(network)
     # print()
+
+    # loss function
+    criterion = nn.NLLLoss()
     ############################################################################
 
     gpu_available = torch.cuda.is_available()
@@ -506,13 +550,15 @@ def main():
         print()
 
         lr = 0.001
+        # lr = 0.01
 
-        num_epochs = 10
-        # num_epochs = 100
+        # num_epochs = 10
+        num_epochs = 100
         # num_epochs = 1000
 
         train_network(
             network,
+            criterion,
             train_loader,
             validation_loader,
             batch_size,
@@ -524,11 +570,14 @@ def main():
     # load trained network
     if args.load:
         network_filename = args.load
-        print(f'loading neural network "{network_filename}":')
-
+        print(f'loading neural network "{network_filename}"')
         network = load_network(network_filename, gpu_available)
-        print(network)
+        # print(network)
         print()
+
+    # testing
+    if args.test:
+        test_network(network, criterion, test_loader, batch_size, gpu_available)
 
 
 if __name__ == "__main__":
