@@ -254,6 +254,19 @@ class Sequence_LSTM(nn.Module):
         return hidden
 
 
+def get_training_progress(epoch, num_epochs, batch_counter, loss, validation_loss_list):
+    """
+    """
+    loss_ = loss.item()
+    validation_loss = np.mean(validation_loss_list)
+
+    num_epochs_length = len(str(num_epochs))
+
+    training_progress = f"epoch {epoch:{num_epochs_length}} of {num_epochs}, step {batch_counter:3} | loss: {loss_:.3f}, validation loss: {validation_loss:.3f}"
+
+    return training_progress
+
+
 def train_network(
     network,
     train_loader,
@@ -333,9 +346,8 @@ def train_network(
 
                     validation_loss_list.append(validation_loss.item())
 
-                print(
-                    f"epoch {epoch} of {num_epochs}, step {batch_counter} | loss: {loss.item():.4f}, validation loss: {np.mean(validation_loss_list):.4f}"
-                )
+                training_progress = get_training_progress(epoch, num_epochs, batch_counter, loss, validation_loss_list)
+                print(training_progress)
 
                 network.train()
 
