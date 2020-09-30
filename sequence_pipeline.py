@@ -36,6 +36,8 @@ RANDOM_STATE = None
 
 USE_CACHE = True
 
+DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
 data_directory = pathlib.Path("data")
 
 
@@ -235,7 +237,7 @@ class Sequence_LSTM(nn.Module):
         # return last output and hidden state
         return output, hidden_state
 
-    def init_hidden(self, batch_size, gpu_available):
+    def init_hidden(self, batch_size):
         """
         Initializes hidden state
 
@@ -247,8 +249,7 @@ class Sequence_LSTM(nn.Module):
             for _count in range(2)
         )
 
-        if gpu_available:
-            hidden = tuple(tensor.cuda() for tensor in hidden)
+        hidden = tuple(tensor.to(DEVICE) for tensor in hidden)
 
         return hidden
 
@@ -274,7 +275,6 @@ def train_network(
     batch_size,
     lr,
     num_epochs,
-    gpu_available,
 ):
     """
     """
@@ -290,12 +290,11 @@ def train_network(
     batch_counter = 0
     for epoch in range(1, num_epochs + 1):
         # initialize hidden state
-        h = network.init_hidden(batch_size, gpu_available)
+        h = network.init_hidden(batch_size)
 
         # process training examples in batches
         for inputs, labels in train_loader:
-            if gpu_available:
-                inputs, labels = inputs.cuda(), labels.cuda()
+            inputs, labels = inputs.to(DEVICE), labels.to(DEVICE)
 
             # generate new variables for the hidden state
             h = tuple(tensor.data for tensor in h)
@@ -324,7 +323,7 @@ def train_network(
                 validation_loss_list = []
 
                 # get validation loss
-                validation_h = network.init_hidden(batch_size, gpu_available)
+                validation_h = network.init_hidden(batch_size)
 
                 network.eval()
 
@@ -332,8 +331,7 @@ def train_network(
                     # create new variables for the hidden state
                     validation_h = tuple(tensor.data for tensor in validation_h)
 
-                    if gpu_available:
-                        inputs, labels = inputs.cuda(), labels.cuda()
+                    inputs, labels = inputs.to(DEVICE), labels.to(DEVICE)
 
                     output, validation_h = network(inputs, validation_h)
 
@@ -360,35 +358,30 @@ def train_network(
     print(f"trained neural network saved at {network_path}")
 
 
-def load_network(network_filename, gpu_available):
+def load_network(network_filename):
     """
     load saved network
     """
     network_path = data_directory / network_filename
 
-    if gpu_available:
-        network = torch.load(network_path)
-    else:
-        device = torch.device("cpu")
-        network = torch.load(network_path, map_location=device)
+    network = torch.load(network_path, map_location=DEVICE)
 
     return network
 
 
-def test_network(network, criterion, test_loader, batch_size, gpu_available):
+def test_network(network, criterion, test_loader, batch_size):
     """
     Calculate test loss and generate metrics.
     """
     # initialize hidden state
-    h = network.init_hidden(batch_size, gpu_available)
+    h = network.init_hidden(batch_size)
 
     network.eval()
 
     test_losses = []
     num_correct_predictions = 0
     for inputs, labels in test_loader:
-        if gpu_available:
-            inputs, labels = inputs.cuda(), labels.cuda()
+        inputs, labels = inputs.to(DEVICE), labels.to(DEVICE)
 
         # create new variables for the hidden state
         h = tuple(tensor.data for tensor in h)
@@ -539,11 +532,7 @@ def main():
     criterion = nn.NLLLoss()
     ############################################################################
 
-    gpu_available = torch.cuda.is_available()
-
-    # move network to GPU, if available
-    if gpu_available:
-        network.cuda()
+    network.to(DEVICE)
 
     # training
     if args.train:
@@ -565,20 +554,19 @@ def main():
             batch_size,
             lr,
             num_epochs,
-            gpu_available,
         )
 
     # load trained network
     if args.load:
         network_filename = args.load
         print(f'loading neural network "{network_filename}"')
-        network = load_network(network_filename, gpu_available)
+        network = load_network(network_filename)
         # print(network)
         print()
 
     # testing
     if args.test:
-        test_network(network, criterion, test_loader, batch_size, gpu_available)
+        test_network(network, criterion, test_loader, batch_size)
 
 
 if __name__ == "__main__":
