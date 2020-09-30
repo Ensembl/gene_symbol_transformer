@@ -39,7 +39,7 @@ USE_CACHE = True
 data_directory = pathlib.Path("data")
 
 
-class SequencesDataset(Dataset):
+class SequenceDataset(Dataset):
     """
     Custom Dataset for raw sequences.
 
@@ -444,8 +444,8 @@ def main():
     if RANDOM_STATE is not None:
         torch.manual_seed(RANDOM_STATE)
 
-    n = 101
-    # n = 3
+    # n = 101
+    n = 3
 
     sequence_length = 1000
     test_size = 0.2
@@ -459,7 +459,7 @@ def main():
 
     # load data, generate datasets
     ############################################################################
-    dataset = SequencesDataset(n, sequence_length)
+    dataset = SequenceDataset(n, sequence_length)
 
     # split dataset into train, validation, and test datasets
     validation_ratio = 0.2
@@ -504,11 +504,11 @@ def main():
 
     # hidden_size = 128
     # hidden_size = 256
-    # hidden_size = 512
-    hidden_size = 1024
+    hidden_size = 512
+    # hidden_size = 1024
 
-    # num_layers = 1
-    num_layers = 2
+    num_layers = 1
+    # num_layers = 2
 
     if num_layers == 1:
         lstm_dropout_probability = 0
