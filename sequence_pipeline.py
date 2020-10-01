@@ -444,8 +444,9 @@ def main():
     if RANDOM_STATE is not None:
         torch.manual_seed(RANDOM_STATE)
 
+    # n = 3
     # n = 101
-    n = 3
+    n = 1013
 
     sequence_length = 1000
     test_size = 0.2
@@ -454,8 +455,8 @@ def main():
     # batch_size = 1
     # batch_size = 4
     # batch_size = 64
-    # batch_size = 200
-    batch_size = 256
+    batch_size = 200
+    # batch_size = 256
 
     # load data, generate datasets
     ############################################################################
@@ -480,6 +481,8 @@ def main():
         f"dataset split to train ({num_train}), validation ({num_validation}), and test ({num_test}) datasets"
     )
     print()
+
+    assert batch_size <= min(num_train, num_validation, num_test), f"{batch_size=}, {num_train=}, {num_validation=}, {num_test=}"
 
     drop_last = True
     # drop_last = False
@@ -548,8 +551,8 @@ def main():
         lr = 0.001
         # lr = 0.01
 
-        # num_epochs = 10
-        num_epochs = 100
+        num_epochs = 10
+        # num_epochs = 100
         # num_epochs = 1000
 
         train_network(
