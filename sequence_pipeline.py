@@ -47,9 +47,7 @@ class SequenceDataset(Dataset):
     """
 
     def __init__(self, n, sequence_length):
-        print(
-            f"Loading dataset of the {n} most frequent symbols sequences...", end=""
-        )
+        print(f"Loading dataset of the {n} most frequent symbols sequences...", end="")
         data_pickle_path = data_directory / f"most_frequent_{n}.pickle"
         data = pd.read_pickle(data_pickle_path)
         print(" Done.")
@@ -345,7 +343,9 @@ def train_network(
 
                     validation_loss_list.append(validation_loss.item())
 
-                training_progress = get_training_progress(epoch, num_epochs, batch_counter, loss, validation_loss_list)
+                training_progress = get_training_progress(
+                    epoch, num_epochs, batch_counter, loss, validation_loss_list
+                )
                 print(training_progress)
 
                 network.train()
@@ -482,7 +482,9 @@ def main():
     )
     print()
 
-    assert batch_size <= min(num_train, num_validation, num_test), f"{batch_size=}, {num_train=}, {num_validation=}, {num_test=}"
+    assert batch_size <= min(
+        num_train, num_validation, num_test
+    ), f"{batch_size=}, {num_train=}, {num_validation=}, {num_test=}"
 
     drop_last = True
     # drop_last = False
