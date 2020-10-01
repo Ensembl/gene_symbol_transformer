@@ -159,33 +159,28 @@ def save_most_frequent_n(n, max_frequency=None):
 
     if max_frequency is not None:
         assert all(symbol_counts[:n] == symbol_counts[symbol_counts >= max_frequency])
+        assert symbol_counts[n] < max_frequency
 
     most_frequent_n = data[data["symbol"].isin(symbol_counts[:n].index)]
 
     # save dataframe to a pickle file
     pickle_path = data_directory / f"most_frequent_{n}.pickle"
     most_frequent_n.to_pickle(pickle_path)
+    print(f"pickle file of the most {n} frequent symbol sequences saved at {pickle_path}")
 
     # save sequences to a FASTA file
     fasta_path = data_directory / f"most_frequent_{n}.fasta"
-    dataframe_to_fasta(most_frequent_n, fasta_path)
-
-
-def dataframe_to_fasta(dataframe, fasta_path):
-    """
-    Generate a FASTA file from a genes dataframe.
-    """
-    print("generating FASTA file from dataframe...")
     with open(fasta_path, "w+") as fasta_file:
-        for entry in dataframe.itertuples():
+        for entry in most_frequent_n.itertuples():
             entry_dict = entry._asdict()
 
-            symbol = entry_dict["symbol"]
             stable_id = entry_dict["stable_id"]
+            symbol = entry_dict["symbol"]
             sequence = entry_dict["sequence"]
 
             fasta_file.write(f">{stable_id};{symbol}\n{sequence}\n")
-    print(f"FASTA file saved at {fasta_path}")
+
+    print(f"FASTA file of the most {n} frequent symbol sequences saved at {fasta_path}")
 
 
 def load_data():
@@ -210,8 +205,9 @@ def main():
     argument_parser = argparse.ArgumentParser()
     argument_parser.add_argument("--merge_metadata_sequences", action="store_true")
     argument_parser.add_argument("--data_wrangling", action="store_true")
-    argument_parser.add_argument("--save_most_frequent_101", action="store_true")
     argument_parser.add_argument("--save_most_frequent_3", action="store_true")
+    argument_parser.add_argument("--save_most_frequent_101", action="store_true")
+    argument_parser.add_argument("--save_most_frequent_1013", action="store_true")
 
     args = argument_parser.parse_args()
 
@@ -219,10 +215,12 @@ def main():
         merge_metadata_sequences()
     elif args.data_wrangling:
         data_wrangling()
-    elif args.save_most_frequent_101:
-        save_most_frequent_n(n=101, max_frequency=297)
     elif args.save_most_frequent_3:
         save_most_frequent_n(n=3, max_frequency=335)
+    elif args.save_most_frequent_101:
+        save_most_frequent_n(n=101, max_frequency=297)
+    elif args.save_most_frequent_1013:
+        save_most_frequent_n(n=1013, max_frequency=252)
     else:
         print("nothing to do")
 
