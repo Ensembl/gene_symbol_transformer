@@ -157,6 +157,7 @@ def save_most_frequent_n(n, max_frequency=None):
 
     symbol_counts = data["symbol"].value_counts()
 
+    # verify that max_frequency is the cutoff limit for selected symbols
     if max_frequency is not None:
         assert all(symbol_counts[:n] == symbol_counts[symbol_counts >= max_frequency])
         assert symbol_counts[n] < max_frequency
@@ -208,6 +209,7 @@ def main():
     argument_parser.add_argument("--save_most_frequent_3", action="store_true")
     argument_parser.add_argument("--save_most_frequent_101", action="store_true")
     argument_parser.add_argument("--save_most_frequent_1013", action="store_true")
+    argument_parser.add_argument("--save_most_frequent_10059", action="store_true")
 
     args = argument_parser.parse_args()
 
@@ -221,6 +223,8 @@ def main():
         save_most_frequent_n(n=101, max_frequency=297)
     elif args.save_most_frequent_1013:
         save_most_frequent_n(n=1013, max_frequency=252)
+    elif args.save_most_frequent_10059:
+        save_most_frequent_n(n=10059, max_frequency=165)
     else:
         print("nothing to do")
 
