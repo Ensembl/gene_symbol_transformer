@@ -439,7 +439,8 @@ def main():
 
     # n = 3
     # n = 101
-    n = 1013
+    # n = 1013
+    n = 10059
 
     sequence_length = 1000
     test_size = 0.2
@@ -448,8 +449,10 @@ def main():
     # batch_size = 1
     # batch_size = 4
     # batch_size = 64
-    batch_size = 200
-    # batch_size = 256
+    # batch_size = 128
+    # batch_size = 200
+    batch_size = 256
+    # batch_size = 512
 
     # load data, generate datasets
     ############################################################################
@@ -475,9 +478,10 @@ def main():
     )
     print()
 
-    assert batch_size <= min(
-        num_train, num_validation, num_test
-    ), f"{batch_size=}, {num_train=}, {num_validation=}, {num_test=}"
+    # set the batch size to the size of the smallest dataset if larger than that
+    min_dataset_size = min(num_train, num_validation, num_test)
+    if batch_size > min_dataset_size:
+        batch_size = min_dataset_size
 
     drop_last = True
     # drop_last = False
