@@ -270,7 +270,7 @@ def get_training_progress(epoch, num_epochs, batch_counter, loss, validation_los
 def train_network(
     network,
     criterion,
-    train_loader,
+    training_loader,
     validation_loader,
     batch_size,
     lr,
@@ -293,7 +293,7 @@ def train_network(
         h = network.init_hidden(batch_size)
 
         # process training examples in batches
-        for inputs, labels in train_loader:
+        for inputs, labels in training_loader:
             inputs, labels = inputs.to(DEVICE), labels.to(DEVICE)
 
             # generate new variables for the hidden state
@@ -463,31 +463,31 @@ def main():
     test_ratio = 0.2
     validation_size = int(validation_ratio * len(dataset))
     test_size = int(test_ratio * len(dataset))
-    train_size = len(dataset) - validation_size - test_size
+    training_size = len(dataset) - validation_size - test_size
 
     # https://pytorch.org/docs/stable/data.html#torch.utils.data.random_split
-    train_dataset, validation_dataset, test_dataset = random_split(
-        dataset, lengths=(train_size, validation_size, test_size)
+    training_dataset, validation_dataset, test_dataset = random_split(
+        dataset, lengths=(training_size, validation_size, test_size)
     )
 
-    num_train = len(train_dataset)
+    num_training = len(training_dataset)
     num_validation = len(validation_dataset)
     num_test = len(test_dataset)
     print(
-        f"dataset split to train ({num_train}), validation ({num_validation}), and test ({num_test}) datasets"
+        f"dataset split to train ({num_training}), validation ({num_validation}), and test ({num_test}) datasets"
     )
     print()
 
     # set the batch size to the size of the smallest dataset if larger than that
-    min_dataset_size = min(num_train, num_validation, num_test)
+    min_dataset_size = min(num_training, num_validation, num_test)
     if batch_size > min_dataset_size:
         batch_size = min_dataset_size
 
     drop_last = True
     # drop_last = False
     # https://pytorch.org/docs/stable/data.html#torch.utils.data.DataLoader
-    train_loader = DataLoader(
-        train_dataset, batch_size=batch_size, shuffle=True, drop_last=drop_last
+    training_loader = DataLoader(
+        training_dataset, batch_size=batch_size, shuffle=True, drop_last=drop_last
     )
     validation_loader = DataLoader(
         validation_dataset, batch_size=batch_size, shuffle=True, drop_last=drop_last
@@ -553,7 +553,7 @@ def main():
         train_network(
             network,
             criterion,
-            train_loader,
+            training_loader,
             validation_loader,
             batch_size,
             lr,
