@@ -22,8 +22,8 @@
 # -R "res_req" [-R "res_req" ...]
 # Runs the job on a host that meets the specified resource requirements.
 
-JOB_TYPE=standard
-#JOB_TYPE=gpu
+#JOB_TYPE=standard
+JOB_TYPE=gpu
 #JOB_TYPE=parallel
 
 #QUEUE=research-rh74

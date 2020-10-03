@@ -254,19 +254,6 @@ class Sequence_LSTM(nn.Module):
         return hidden
 
 
-def get_training_progress(epoch, num_epochs, batch_counter, loss, validation_loss_list):
-    """
-    """
-    loss_ = loss.item()
-    validation_loss = np.mean(validation_loss_list)
-
-    num_epochs_length = len(str(num_epochs))
-
-    training_progress = f"epoch {epoch:{num_epochs_length}} of {num_epochs}, step {batch_counter:3} | loss: {loss_:.3f}, validation loss: {validation_loss:.3f}"
-
-    return training_progress
-
-
 def train_network(
     network,
     criterion,
@@ -278,21 +265,41 @@ def train_network(
 ):
     """
     """
+    training_parameters = {
+        "network": network,
+        "criterion": criterion,
+        "batch_size": batch_size,
+        "lr": lr,
+        "num_epochs": num_epochs,
+    }
+
     # optimization function
     optimizer = torch.optim.Adam(network.parameters(), lr=lr)
+    training_parameters["optimizer"] = optimizer
 
     clip_max_norm = 5
 
-    statistics_output_delay = 10
+    patience = 11
+    loss_delta = 0.001
 
-    # train for num_epochs
+    datetime_now = datetime.datetime.now().replace(microsecond=0).isoformat()
+    checkpoint_filename = f"Sequence_LSTM-{datetime_now}.net"
+    checkpoint_path = data_directory / checkpoint_filename
+    print(f"checkpoints of the training neural network will be saved at {checkpoint_path}")
+    stop_early = EarlyStopping(checkpoint_path, patience, loss_delta)
+
+    average_training_losses = []
+    average_validation_losses = []
+
     network.train()
-    batch_counter = 0
     for epoch in range(1, num_epochs + 1):
-        # initialize hidden state
-        h = network.init_hidden(batch_size)
+        training_parameters["epoch"] = epoch
 
-        # process training examples in batches
+        # train
+        ########################################################################
+        training_losses = []
+        h = network.init_hidden(batch_size)
+        network.train()
         for inputs, labels in training_loader:
             inputs, labels = inputs.to(DEVICE), labels.to(DEVICE)
 
@@ -309,64 +316,60 @@ def train_network(
                 # get class indexes from the labels one hot encoding
                 labels = torch.argmax(labels, dim=1)
 
-            # calculate the loss and perform back propagation
-            loss = criterion(output, labels)
+            # calculate the training loss
+            training_loss = criterion(output, labels)
+            training_losses.append(training_loss.item())
+
             # perform back propagation
-            loss.backward()
+            training_loss.backward()
+
             # prevent the exploding gradient problem
             nn.utils.clip_grad_norm_(network.parameters(), clip_max_norm)
+
+            # perform an optimization step
             optimizer.step()
 
-            # print training statistics
-            batch_counter += 1
-            if batch_counter == 1 or batch_counter % statistics_output_delay == 0:
-                validation_loss_list = []
+        # validate
+        ########################################################################
+        validation_losses = []
+        h = network.init_hidden(batch_size)
+        network.eval()
+        for inputs, labels in validation_loader:
+            inputs, labels = inputs.to(DEVICE), labels.to(DEVICE)
 
-                # get validation loss
-                validation_h = network.init_hidden(batch_size)
+            # generate new variables for the hidden state
+            h = tuple(tensor.data for tensor in h)
 
-                network.eval()
+            output, h = network(inputs, h)
+            labels = torch.argmax(labels, dim=1)
+            validation_loss = criterion(output, labels)
+            validation_losses.append(validation_loss.item())
 
-                for inputs, labels in validation_loader:
-                    # create new variables for the hidden state
-                    validation_h = tuple(tensor.data for tensor in validation_h)
+        average_training_loss = np.average(training_losses)
+        average_validation_loss = np.average(validation_losses)
+        average_training_losses.append(average_training_loss)
+        average_validation_losses.append(average_validation_loss)
 
-                    inputs, labels = inputs.to(DEVICE), labels.to(DEVICE)
+        num_epochs_length = len(str(num_epochs))
+        training_progress = f"epoch {epoch:{num_epochs_length}} of {num_epochs}, | average training loss: {average_training_loss:.4f}, average validation loss: {average_validation_loss:.4f}"
+        print(training_progress)
 
-                    output, validation_h = network(inputs, validation_h)
+        training_parameters["average_training_losses"] = average_training_losses
+        training_parameters["average_validation_losses"] = average_validation_losses
 
-                    labels = torch.argmax(labels, dim=1)
-
-                    validation_loss = criterion(output, labels)
-
-                    validation_loss_list.append(validation_loss.item())
-
-                training_progress = get_training_progress(
-                    epoch, num_epochs, batch_counter, loss, validation_loss_list
-                )
-                print(training_progress)
-
-                network.train()
-
-    # save trained network
-    datetime_now = datetime.datetime.now().replace(microsecond=0).isoformat()
-
-    network_filename = f"Sequence_LSTM-{datetime_now}.net"
-    network_path = data_directory / network_filename
-
-    torch.save(network, network_path)
-    print(f"trained neural network saved at {network_path}")
+        if stop_early(network, training_parameters, average_validation_loss):
+            break
 
 
-def load_network(network_filename):
+def load_checkpoint(checkpoint_filename):
     """
-    load saved network
+    Load saved training checkpoint.
     """
-    network_path = data_directory / network_filename
+    checkpoint_path = data_directory / checkpoint_filename
 
-    network = torch.load(network_path, map_location=DEVICE)
+    checkpoint = torch.load(checkpoint_path, map_location=DEVICE)
 
-    return network
+    return checkpoint
 
 
 def test_network(network, criterion, test_loader, batch_size):
@@ -405,11 +408,61 @@ def test_network(network, criterion, test_loader, batch_size):
         num_correct_predictions += torch.sum(predictions_correctness).item()
 
     # print statistics
-    print("average test loss: {:.3f}".format(np.mean(test_losses)))
+    print("average test loss: {:.4f}".format(np.mean(test_losses)))
 
     # test predictions accuracy
     test_accuracy = num_correct_predictions / len(test_loader.dataset)
     print("test accuracy: {:.3f}".format(test_accuracy))
+
+
+def save_training_checkpoint(network, training_parameters, checkpoint_path):
+    """
+    """
+    checkpoint = {
+            "network": network,
+            "training_parameters": training_parameters,
+            }
+    torch.save(checkpoint, checkpoint_path)
+
+
+class EarlyStopping:
+    """
+    Stop training if validation loss doesn't improve during a specified patience period.
+    """
+    def __init__(self, checkpoint_path, patience=7, loss_delta=0):
+        """
+        Arguments:
+            patience (int): Number of calls to continue training if validation loss is not improving. Defaults to 7.
+            loss_delta (float): Minimum change in the monitored quantity to qualify as an improvement. Defaults to 0.
+            checkpoint_path (path-like object): Path to save the checkpoint.
+        """
+        self.patience = patience
+        self.loss_delta = loss_delta
+        self.checkpoint_path = checkpoint_path
+
+        self.no_progress = 0
+        self.min_validation_loss = np.Inf
+
+    def __call__(self, network, training_parameters, validation_loss):
+        if self.min_validation_loss == np.Inf:
+            self.min_validation_loss = validation_loss
+            print("Saving initial network checkpoint...")
+            save_training_checkpoint(network, training_parameters, self.checkpoint_path)
+            return False
+
+        elif validation_loss <= self.min_validation_loss + self.loss_delta:
+            validation_loss_improvement = self.min_validation_loss - validation_loss
+            print(f"Validation loss decreased by {validation_loss_improvement:.4f}, saving network checkpoint...")
+            save_training_checkpoint(network, training_parameters, self.checkpoint_path)
+            self.min_validation_loss = validation_loss
+            self.no_progress = 0
+            return False
+
+        else:
+            self.no_progress += 1
+            if self.no_progress == self.patience:
+                print(f"{self.no_progress} calls with no validation loss improvement. Stopping training.")
+                return True
 
 
 def main():
@@ -437,10 +490,10 @@ def main():
     if RANDOM_STATE is not None:
         torch.manual_seed(RANDOM_STATE)
 
-    # n = 3
+    n = 3
     # n = 101
     # n = 1013
-    n = 10059
+    # n = 10059
 
     sequence_length = 1000
     test_size = 0.2
@@ -450,8 +503,8 @@ def main():
     # batch_size = 4
     # batch_size = 64
     # batch_size = 128
-    # batch_size = 200
-    batch_size = 256
+    batch_size = 200
+    # batch_size = 256
     # batch_size = 512
 
     # load data, generate datasets
@@ -505,8 +558,8 @@ def main():
     output_size = n
 
     # hidden_size = 128
-    # hidden_size = 256
-    hidden_size = 512
+    hidden_size = 256
+    # hidden_size = 512
     # hidden_size = 1024
 
     num_layers = 1
@@ -538,7 +591,7 @@ def main():
 
     network.to(DEVICE)
 
-    # training
+    # train network
     if args.train:
         print(f"training neural network, batch_size: {batch_size}")
         print()
@@ -546,8 +599,8 @@ def main():
         lr = 0.001
         # lr = 0.01
 
-        num_epochs = 10
-        # num_epochs = 100
+        # num_epochs = 10
+        num_epochs = 100
         # num_epochs = 1000
 
         train_network(
@@ -562,13 +615,14 @@ def main():
 
     # load trained network
     if args.load:
-        network_filename = args.load
-        print(f'loading neural network "{network_filename}"')
-        network = load_network(network_filename)
+        checkpoint_filename = args.load
+        print(f'loading neural network "{checkpoint_filename}"')
+        checkpoint = load_checkpoint(checkpoint_filename)
+        network = checkpoint["network"]
         # print(network)
         print()
 
-    # testing
+    # test trained network
     if args.test:
         test_network(network, criterion, test_loader, batch_size)
 
