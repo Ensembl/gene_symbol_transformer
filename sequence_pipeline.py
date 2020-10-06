@@ -259,9 +259,11 @@ def train_network(
     criterion,
     training_loader,
     validation_loader,
+    num_training,
     batch_size,
     lr,
     num_epochs,
+    verbose=False,
 ):
     """
     """
@@ -288,6 +290,11 @@ def train_network(
     print(f"checkpoints of the training neural network will be saved at {checkpoint_path}")
     stop_early = EarlyStopping(checkpoint_path, patience, loss_delta)
 
+    num_epochs_length = len(str(num_epochs))
+
+    num_batches = int(num_training / batch_size)
+    num_batches_length = len(str(num_batches))
+
     average_training_losses = []
     average_validation_losses = []
 
@@ -295,13 +302,15 @@ def train_network(
     for epoch in range(1, num_epochs + 1):
         training_parameters["epoch"] = epoch
 
-        # train
+        # training
         ########################################################################
         training_losses = []
         h = network.init_hidden(batch_size)
         network.train()
-        for inputs, labels in training_loader:
+        for batch_number, (inputs, labels) in enumerate(training_loader, start=1):
             inputs, labels = inputs.to(DEVICE), labels.to(DEVICE)
+
+            epoch_end = batch_number == num_batches
 
             # generate new variables for the hidden state
             h = tuple(tensor.data for tensor in h)
@@ -329,8 +338,18 @@ def train_network(
             # perform an optimization step
             optimizer.step()
 
-        # validate
+            if verbose and not epoch_end:
+                average_training_loss = np.average(training_losses)
+
+                training_progress = f"epoch {epoch:{num_epochs_length}} of {num_epochs}, batch {batch_number:{num_batches_length}} of {num_batches} | average training loss: {average_training_loss:.4f}"
+                print(training_progress)
+
+
+        # validation
         ########################################################################
+        average_training_loss = np.average(training_losses)
+        average_training_losses.append(average_training_loss)
+
         validation_losses = []
         h = network.init_hidden(batch_size)
         network.eval()
@@ -345,13 +364,13 @@ def train_network(
             validation_loss = criterion(output, labels)
             validation_losses.append(validation_loss.item())
 
-        average_training_loss = np.average(training_losses)
         average_validation_loss = np.average(validation_losses)
-        average_training_losses.append(average_training_loss)
         average_validation_losses.append(average_validation_loss)
 
-        num_epochs_length = len(str(num_epochs))
-        training_progress = f"epoch {epoch:{num_epochs_length}} of {num_epochs}, | average training loss: {average_training_loss:.4f}, average validation loss: {average_validation_loss:.4f}"
+        training_progress = f"epoch {epoch:{num_epochs_length}} of {num_epochs}, "
+        if verbose:
+            training_progress += f"batch {batch_number:{num_batches_length}} of {num_batches} "
+        training_progress += f"| average training loss: {average_training_loss:.4f}, average validation loss: {average_validation_loss:.4f}"
         print(training_progress)
 
         training_parameters["average_training_losses"] = average_training_losses
@@ -446,13 +465,13 @@ class EarlyStopping:
     def __call__(self, network, training_parameters, validation_loss):
         if self.min_validation_loss == np.Inf:
             self.min_validation_loss = validation_loss
-            print("Saving initial network checkpoint...")
+            print("saving initial network checkpoint...")
             save_training_checkpoint(network, training_parameters, self.checkpoint_path)
             return False
 
         elif validation_loss <= self.min_validation_loss + self.loss_delta:
             validation_loss_improvement = self.min_validation_loss - validation_loss
-            print(f"Validation loss decreased by {validation_loss_improvement:.4f}, saving network checkpoint...")
+            print(f"validation loss decreased by {validation_loss_improvement:.4f}, saving network checkpoint...")
             save_training_checkpoint(network, training_parameters, self.checkpoint_path)
             self.min_validation_loss = validation_loss
             self.no_progress = 0
@@ -485,6 +504,9 @@ def main():
     # print(f"{torch.version.cuda=}")
     # print(f"{torch.backends.cudnn.enabled=}")
     # print(f"{torch.cuda.is_available()=}")
+    # print(f"{DEVICE=}")
+    # if torch.cuda.is_available():
+    #     print(f"{torch.cuda.get_device_properties(DEVICE)}")
     # print()
 
     if RANDOM_STATE is not None:
@@ -599,18 +621,22 @@ def main():
         lr = 0.001
         # lr = 0.01
 
-        # num_epochs = 10
-        num_epochs = 100
+        num_epochs = 10
+        # num_epochs = 100
         # num_epochs = 1000
+
+        verbose = True
 
         train_network(
             network,
             criterion,
             training_loader,
             validation_loader,
+            num_training,
             batch_size,
             lr,
             num_epochs,
+            verbose,
         )
 
     # load trained network
