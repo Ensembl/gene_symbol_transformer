@@ -500,22 +500,25 @@ def main():
     # pd.options.display.max_rows = None
 
     # print version and environment information
-    # print(f"{torch.__version__=}")
-    # print(f"{torch.version.cuda=}")
-    # print(f"{torch.backends.cudnn.enabled=}")
-    # print(f"{torch.cuda.is_available()=}")
-    # print(f"{DEVICE=}")
-    # if torch.cuda.is_available():
-    #     print(f"{torch.cuda.get_device_properties(DEVICE)}")
-    # print()
+    print(f"{torch.__version__=}")
+    print(f"{torch.version.cuda=}")
+    print(f"{torch.backends.cudnn.enabled=}")
+    print(f"{torch.cuda.is_available()=}")
+    print(f"{DEVICE=}")
+    if torch.cuda.is_available():
+        print(f"{torch.cuda.get_device_properties(DEVICE)}")
+        # print(f"{torch.cuda.memory_summary(DEVICE)}")
+        # torch.cuda.empty_cache()
+    print()
+    # sys.exit()
 
     if RANDOM_STATE is not None:
         torch.manual_seed(RANDOM_STATE)
 
-    n = 3
+    # n = 3
     # n = 101
     # n = 1013
-    # n = 10059
+    n = 10059
 
     sequence_length = 1000
     test_size = 0.2
@@ -524,8 +527,8 @@ def main():
     # batch_size = 1
     # batch_size = 4
     # batch_size = 64
-    # batch_size = 128
-    batch_size = 200
+    batch_size = 128
+    # batch_size = 200
     # batch_size = 256
     # batch_size = 512
 
@@ -580,8 +583,8 @@ def main():
     output_size = n
 
     # hidden_size = 128
-    hidden_size = 256
-    # hidden_size = 512
+    # hidden_size = 256
+    hidden_size = 512
     # hidden_size = 1024
 
     num_layers = 1

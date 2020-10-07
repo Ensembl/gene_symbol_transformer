@@ -22,8 +22,8 @@
 # -R "res_req" [-R "res_req" ...]
 # Runs the job on a host that meets the specified resource requirements.
 
-#JOB_TYPE=standard
-JOB_TYPE=gpu
+JOB_TYPE=standard
+#JOB_TYPE=gpu
 #JOB_TYPE=parallel
 
 #QUEUE=research-rh74
@@ -43,13 +43,17 @@ if [[ "$JOB_TYPE" = "standard" ]]; then
     bsub -Is -tty -M $MEM_LIMIT -R"select[mem>$MEM_LIMIT] rusage[mem=$MEM_LIMIT] span[hosts=1]" $SHELL
 fi
 
+COMPUTE_NODE=gpu-009
+#COMPUTE_NODE=gpu-010
+#COMPUTE_NODE=gpu-011
+
 # open a shell on a GPU node
 # https://sysinf.ebi.ac.uk/doku.php?id=ebi_cluster_good_computing_guide#gpu_hosts
 # https://www.ibm.com/support/knowledgecenter/SSWRJV_10.1.0/lsf_command_ref/bsub.gpu.1.html
 if [[ "$JOB_TYPE" = "gpu" ]]; then
     #bsub -q $QUEUE -P gpu -gpu - -Is -tty -M $MEM_LIMIT -R"select[mem>$MEM_LIMIT] rusage[mem=$MEM_LIMIT] span[hosts=1]" $SHELL
     # specify exclusive use of the GPU
-    bsub -q $QUEUE -P gpu -gpu "num=1:j_exclusive=yes" -Is -tty -M $MEM_LIMIT -R"select[mem>$MEM_LIMIT] rusage[mem=$MEM_LIMIT] span[hosts=1]" $SHELL
+    bsub -q $QUEUE -P gpu -gpu "num=1:j_exclusive=yes" -m ${COMPUTE_NODE}.ebi.ac.uk -Is -tty -M $MEM_LIMIT -R"select[mem>$MEM_LIMIT] rusage[mem=$MEM_LIMIT] span[hosts=1]" $SHELL
 fi
 
 # open a parallel jobs shell
