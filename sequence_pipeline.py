@@ -298,7 +298,6 @@ def train_network(
     average_training_losses = []
     average_validation_losses = []
 
-    network.train()
     for epoch in range(1, num_epochs + 1):
         training_parameters["epoch"] = epoch
 
@@ -306,6 +305,8 @@ def train_network(
         ########################################################################
         training_losses = []
         h = network.init_hidden(batch_size)
+
+        # set the network in training mode
         network.train()
         for batch_number, (inputs, labels) in enumerate(training_loader, start=1):
             inputs, labels = inputs.to(DEVICE), labels.to(DEVICE)
@@ -344,25 +345,29 @@ def train_network(
                 training_progress = f"epoch {epoch:{num_epochs_length}} of {num_epochs}, batch {batch_number:{num_batches_length}} of {num_batches} | average training loss: {average_training_loss:.4f}"
                 print(training_progress)
 
-
-        # validation
-        ########################################################################
         average_training_loss = np.average(training_losses)
         average_training_losses.append(average_training_loss)
 
+        # validation
+        ########################################################################
         validation_losses = []
         h = network.init_hidden(batch_size)
+
+        # set the network in evaluation mode
         network.eval()
-        for inputs, labels in validation_loader:
-            inputs, labels = inputs.to(DEVICE), labels.to(DEVICE)
 
-            # generate new variables for the hidden state
-            h = tuple(tensor.data for tensor in h)
+        # disable gradient calculation
+        with torch.no_grad():
+            for inputs, labels in validation_loader:
+                inputs, labels = inputs.to(DEVICE), labels.to(DEVICE)
 
-            output, h = network(inputs, h)
-            labels = torch.argmax(labels, dim=1)
-            validation_loss = criterion(output, labels)
-            validation_losses.append(validation_loss.item())
+                # generate new variables for the hidden state
+                h = tuple(tensor.data for tensor in h)
+
+                output, h = network(inputs, h)
+                labels = torch.argmax(labels, dim=1)
+                validation_loss = criterion(output, labels)
+                validation_losses.append(validation_loss.item())
 
         average_validation_loss = np.average(validation_losses)
         average_validation_losses.append(average_validation_loss)
@@ -402,29 +407,31 @@ def test_network(network, criterion, test_loader, batch_size):
 
     test_losses = []
     num_correct_predictions = 0
-    for inputs, labels in test_loader:
-        inputs, labels = inputs.to(DEVICE), labels.to(DEVICE)
 
-        # create new variables for the hidden state
-        h = tuple(tensor.data for tensor in h)
+    with torch.no_grad():
+        for inputs, labels in test_loader:
+            inputs, labels = inputs.to(DEVICE), labels.to(DEVICE)
 
-        # get output values
-        output, h = network(inputs, h)
+            # create new variables for the hidden state
+            h = tuple(tensor.data for tensor in h)
 
-        # get predicted labels from output
-        predicted_probabilities = torch.exp(output)
-        predictions = torch.argmax(predicted_probabilities, dim=1)
+            # get output values
+            output, h = network(inputs, h)
 
-        # get class indexes from one hot labels
-        labels = torch.argmax(labels, dim=1)
+            # get predicted labels from output
+            predicted_probabilities = torch.exp(output)
+            predictions = torch.argmax(predicted_probabilities, dim=1)
 
-        # calculate test loss
-        test_loss = criterion(output, labels)
-        test_losses.append(test_loss.item())
+            # get class indexes from one hot labels
+            labels = torch.argmax(labels, dim=1)
 
-        # predictions to ground truth comparison
-        predictions_correctness = predictions.eq(labels)
-        num_correct_predictions += torch.sum(predictions_correctness).item()
+            # calculate test loss
+            test_loss = criterion(output, labels)
+            test_losses.append(test_loss.item())
+
+            # predictions to ground truth comparison
+            predictions_correctness = predictions.eq(labels)
+            num_correct_predictions += torch.sum(predictions_correctness).item()
 
     # print statistics
     print("average test loss: {:.4f}".format(np.mean(test_losses)))
