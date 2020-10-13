@@ -48,9 +48,9 @@ class SequenceDataset(Dataset):
     https://pytorch.org/docs/stable/data.html#torch.utils.data.Dataset
     """
 
-    def __init__(self, n, sequence_length):
-        print(f"Loading dataset of the {n} most frequent symbols sequences...", end="")
-        data_pickle_path = data_directory / f"most_frequent_{n}.pickle"
+    def __init__(self, num_most_frequent_symbols, sequence_length):
+        print(f"Loading dataset of the {num_most_frequent_symbols} most frequent symbols sequences...", end="")
+        data_pickle_path = data_directory / f"most_frequent_{num_most_frequent_symbols}.pickle"
         data = pd.read_pickle(data_pickle_path)
         print(" Done.")
         print()
@@ -522,10 +522,10 @@ def main():
     if RANDOM_STATE is not None:
         torch.manual_seed(RANDOM_STATE)
 
-    # n = 3
-    # n = 101
-    # n = 1013
-    n = 10059
+    # num_most_frequent_symbols = 3
+    # num_most_frequent_symbols = 101
+    # num_most_frequent_symbols = 1013
+    num_most_frequent_symbols = 10059
 
     sequence_length = 1000
     test_size = 0.2
@@ -541,7 +541,7 @@ def main():
 
     # load data, generate datasets
     ############################################################################
-    dataset = SequenceDataset(n, sequence_length)
+    dataset = SequenceDataset(num_most_frequent_symbols, sequence_length)
 
     # split dataset into train, validation, and test datasets
     validation_ratio = 0.2
@@ -587,7 +587,7 @@ def main():
     num_protein_letters = len(dataset.protein_letters)
     input_size = num_protein_letters
 
-    output_size = n
+    output_size = num_most_frequent_symbols
 
     # hidden_size = 128
     # hidden_size = 256
