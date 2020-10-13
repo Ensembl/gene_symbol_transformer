@@ -16,6 +16,8 @@ import pathlib
 import pickle
 import sys
 
+from pprint import pprint
+
 # third party imports
 import Bio
 import numpy as np
@@ -260,9 +262,7 @@ def train_network(
     training_loader,
     validation_loader,
     num_training,
-    batch_size,
-    lr,
-    num_epochs,
+    hyperparameters,
     verbose=False,
 ):
     """
@@ -270,10 +270,12 @@ def train_network(
     training_parameters = {
         "network": network,
         "criterion": criterion,
-        "batch_size": batch_size,
-        "lr": lr,
-        "num_epochs": num_epochs,
+        "hyperparameters": hyperparameters,
     }
+
+    batch_size = hyperparameters["batch_size"]
+    lr = hyperparameters["lr"]
+    num_epochs = hyperparameters["num_epochs"]
 
     # optimization function
     optimizer = torch.optim.Adam(network.parameters(), lr=lr)
@@ -281,14 +283,14 @@ def train_network(
 
     clip_max_norm = 5
 
-    patience = 11
-    loss_delta = 0.001
 
     datetime_now = datetime.datetime.now().replace(microsecond=0).isoformat()
     checkpoint_filename = f"Sequence_LSTM-{datetime_now}.net"
     checkpoint_path = data_directory / checkpoint_filename
-    print(f"checkpoints of the training neural network will be saved at {checkpoint_path}")
+    patience = 11
+    loss_delta = 0.001
     stop_early = EarlyStopping(checkpoint_path, patience, loss_delta)
+    print(f"checkpoints of the training neural network will be saved at {checkpoint_path}")
 
     num_epochs_length = len(str(num_epochs))
 
@@ -347,6 +349,7 @@ def train_network(
 
         average_training_loss = np.average(training_losses)
         average_training_losses.append(average_training_loss)
+        training_parameters["average_training_losses"] = average_training_losses
 
         # validation
         ########################################################################
@@ -371,15 +374,13 @@ def train_network(
 
         average_validation_loss = np.average(validation_losses)
         average_validation_losses.append(average_validation_loss)
+        training_parameters["average_validation_losses"] = average_validation_losses
 
         training_progress = f"epoch {epoch:{num_epochs_length}} of {num_epochs}, "
         if verbose:
             training_progress += f"batch {batch_number:{num_batches_length}} of {num_batches} "
         training_progress += f"| average training loss: {average_training_loss:.4f}, average validation loss: {average_validation_loss:.4f}"
         print(training_progress)
-
-        training_parameters["average_training_losses"] = average_training_losses
-        training_parameters["average_validation_losses"] = average_validation_losses
 
         if stop_early(network, training_parameters, average_validation_loss):
             break
@@ -527,25 +528,35 @@ def main():
     # num_most_frequent_symbols = 1013
     num_most_frequent_symbols = 10059
 
+    # hyperparameters dictionary
+    hyperparameters = {}
+
+    # padding or truncating length
     sequence_length = 1000
-    test_size = 0.2
-    validation_size = 0.2
+    hyperparameters["sequence_length"] = sequence_length
+
+    dataset_split_ratio = 0.1
+    # dataset_split_ratio = 0.2
+
+    test_ratio = dataset_split_ratio
+    validation_ratio = dataset_split_ratio
+    hyperparameters["test_ratio"] = test_ratio
+    hyperparameters["validation_ratio"] = validation_ratio
 
     # batch_size = 1
     # batch_size = 4
     # batch_size = 64
-    batch_size = 128
+    # batch_size = 128
     # batch_size = 200
     # batch_size = 256
-    # batch_size = 512
+    batch_size = 512
+    hyperparameters["batch_size"] = batch_size
 
     # load data, generate datasets
     ############################################################################
     dataset = SequenceDataset(num_most_frequent_symbols, sequence_length)
 
     # split dataset into train, validation, and test datasets
-    validation_ratio = 0.2
-    test_ratio = 0.2
     validation_size = int(validation_ratio * len(dataset))
     test_size = int(test_ratio * len(dataset))
     training_size = len(dataset) - validation_size - test_size
@@ -591,20 +602,24 @@ def main():
 
     # hidden_size = 128
     # hidden_size = 256
-    hidden_size = 512
-    # hidden_size = 1024
+    # hidden_size = 512
+    hidden_size = 1024
+    hyperparameters["hidden_size"] = hidden_size
 
     num_layers = 1
     # num_layers = 2
+    hyperparameters["num_layers"] = num_layers
 
     if num_layers == 1:
         lstm_dropout_probability = 0
     else:
         lstm_dropout_probability = 1 / 3
         # lstm_dropout_probability = 1 / 4
+        hyperparameters["lstm_dropout_probability"] = lstm_dropout_probability
 
     final_dropout_probability = 1 / 4
     # final_dropout_probability = 1 / 5
+    hyperparameters["final_dropout_probability"] = final_dropout_probability
 
     network = Sequence_LSTM(
         input_size=input_size,
@@ -625,15 +640,18 @@ def main():
 
     # train network
     if args.train:
-        print(f"training neural network, batch_size: {batch_size}")
-        print()
-
         lr = 0.001
         # lr = 0.01
+        hyperparameters["lr"] = lr
 
-        num_epochs = 10
-        # num_epochs = 100
+        # num_epochs = 10
+        num_epochs = 100
         # num_epochs = 1000
+        hyperparameters["num_epochs"] = num_epochs
+
+        print(f"training neural network, hyperparameters:")
+        pprint(hyperparameters)
+        print()
 
         verbose = True
 
@@ -643,9 +661,7 @@ def main():
             training_loader,
             validation_loader,
             num_training,
-            batch_size,
-            lr,
-            num_epochs,
+            hyperparameters,
             verbose,
         )
 
