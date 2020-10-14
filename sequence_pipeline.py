@@ -533,6 +533,7 @@ def main():
 
     # padding or truncating length
     sequence_length = 1000
+    # sequence_length = 2000
     hyperparameters["sequence_length"] = sequence_length
 
     dataset_split_ratio = 0.1
@@ -548,8 +549,8 @@ def main():
     # batch_size = 64
     # batch_size = 128
     # batch_size = 200
-    # batch_size = 256
-    batch_size = 512
+    batch_size = 256
+    # batch_size = 512
     hyperparameters["batch_size"] = batch_size
 
     # load data, generate datasets
