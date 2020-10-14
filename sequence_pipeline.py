@@ -356,11 +356,11 @@ def train_network(
         validation_losses = []
         h = network.init_hidden(batch_size)
 
-        # set the network in evaluation mode
-        network.eval()
-
         # disable gradient calculation
         with torch.no_grad():
+            # set the network in evaluation mode
+            network.eval()
+
             for inputs, labels in validation_loader:
                 inputs, labels = inputs.to(DEVICE), labels.to(DEVICE)
 
@@ -404,12 +404,12 @@ def test_network(network, criterion, test_loader, batch_size):
     # initialize hidden state
     h = network.init_hidden(batch_size)
 
-    network.eval()
-
     test_losses = []
     num_correct_predictions = 0
 
     with torch.no_grad():
+        network.eval()
+
         for inputs, labels in test_loader:
             inputs, labels = inputs.to(DEVICE), labels.to(DEVICE)
 
