@@ -210,6 +210,9 @@ def main():
     argument_parser.add_argument("--save_most_frequent_101", action="store_true")
     argument_parser.add_argument("--save_most_frequent_1013", action="store_true")
     argument_parser.add_argument("--save_most_frequent_10059", action="store_true")
+    argument_parser.add_argument("--save_most_frequent_20147", action="store_true")
+    argument_parser.add_argument("--save_most_frequent_25028", action="store_true")
+    argument_parser.add_argument("--save_most_frequent_30591", action="store_true")
 
     args = argument_parser.parse_args()
 
@@ -225,6 +228,12 @@ def main():
         save_most_frequent_n(n=1013, max_frequency=252)
     elif args.save_most_frequent_10059:
         save_most_frequent_n(n=10059, max_frequency=165)
+    elif args.save_most_frequent_20147:
+        save_most_frequent_n(n=20147, max_frequency=70)
+    elif args.save_most_frequent_25028:
+        save_most_frequent_n(n=25028, max_frequency=23)
+    elif args.save_most_frequent_30591:
+        save_most_frequent_n(n=30591, max_frequency=5)
     else:
         print("nothing to do")
 
