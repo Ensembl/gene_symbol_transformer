@@ -526,7 +526,10 @@ def main():
     # num_most_frequent_symbols = 3
     # num_most_frequent_symbols = 101
     # num_most_frequent_symbols = 1013
-    num_most_frequent_symbols = 10059
+    # num_most_frequent_symbols = 10059
+    num_most_frequent_symbols = 20147
+    # num_most_frequent_symbols = 25028
+    # num_most_frequent_symbols = 30591
 
     # hyperparameters dictionary
     hyperparameters = {}
@@ -547,9 +550,9 @@ def main():
     # batch_size = 1
     # batch_size = 4
     # batch_size = 64
-    # batch_size = 128
+    batch_size = 128
     # batch_size = 200
-    batch_size = 256
+    # batch_size = 256
     # batch_size = 512
     hyperparameters["batch_size"] = batch_size
 
@@ -602,9 +605,9 @@ def main():
     output_size = num_most_frequent_symbols
 
     # hidden_size = 128
-    # hidden_size = 256
+    hidden_size = 256
     # hidden_size = 512
-    hidden_size = 1024
+    # hidden_size = 1024
     hyperparameters["hidden_size"] = hidden_size
 
     num_layers = 1
