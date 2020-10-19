@@ -20,9 +20,6 @@ An experiment on choosing the optimal features for this task is using the BLAST 
 ## dataset
 
 229,133 unique symbols
-```
-data["symbol"].nuniquenique()
-```
 
 
 ## code structure
