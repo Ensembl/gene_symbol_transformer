@@ -17,6 +17,14 @@ There are a total of `31204` genes between the 101 most frequent gene symbols th
 An experiment on choosing the optimal features for this task is using the BLAST hits values of each sequence against a BLAST database of all sequences in the dataset.
 
 
+## dataset
+
+229,133 unique symbols
+```
+data["symbol"].nuniquenique()
+```
+
+
 ## code structure
 
 `dataset_generation.py` : merge original data files, normalize, cleanup, and filter examples to a single pandas dataframe saved as the pickle file `data.pickle`; create smaller development datasets of the 101 and 3 most frequent gene symbols
