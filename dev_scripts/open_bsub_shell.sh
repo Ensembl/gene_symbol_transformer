@@ -22,16 +22,16 @@
 # -R "res_req" [-R "res_req" ...]
 # Runs the job on a host that meets the specified resource requirements.
 
-JOB_TYPE=standard
-#JOB_TYPE=gpu
+#JOB_TYPE=standard
+JOB_TYPE=gpu
 #JOB_TYPE=parallel
 
 #QUEUE=research-rh74
 QUEUE=production-rh74
 
-#MEM_LIMIT=16384
+MEM_LIMIT=16384
 #MEM_LIMIT=20000
-MEM_LIMIT=32768
+#MEM_LIMIT=32768
 #MEM_LIMIT=65536
 
 #MIN_TASKS=8
@@ -44,7 +44,6 @@ if [[ "$JOB_TYPE" = "standard" ]]; then
 fi
 
 COMPUTE_NODE=gpu-009
-#COMPUTE_NODE=gpu-010
 #COMPUTE_NODE=gpu-011
 
 # open a shell on a GPU node
