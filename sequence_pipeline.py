@@ -498,8 +498,9 @@ def main():
     """
     argument_parser = argparse.ArgumentParser()
     argument_parser.add_argument("--train", action="store_true")
-    argument_parser.add_argument("--load")
     argument_parser.add_argument("--test", action="store_true")
+    argument_parser.add_argument("--num_most_frequent_symbols", type=int)
+    argument_parser.add_argument("--load")
 
     args = argument_parser.parse_args()
 
@@ -523,11 +524,12 @@ def main():
     if RANDOM_STATE is not None:
         torch.manual_seed(RANDOM_STATE)
 
+    num_most_frequent_symbols = args.num_most_frequent_symbols
     # num_most_frequent_symbols = 3
     # num_most_frequent_symbols = 101
     # num_most_frequent_symbols = 1013
     # num_most_frequent_symbols = 10059
-    num_most_frequent_symbols = 20147
+    # num_most_frequent_symbols = 20147
     # num_most_frequent_symbols = 25028
     # num_most_frequent_symbols = 30591
 
