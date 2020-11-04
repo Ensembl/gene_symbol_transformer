@@ -31,11 +31,6 @@ from torch.utils.data import DataLoader, Dataset, random_split
 import dataset_generation
 
 
-RANDOM_STATE = None
-# RANDOM_STATE = 5
-# RANDOM_STATE = 7
-# RANDOM_STATE = 11
-
 USE_CACHE = True
 
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -495,6 +490,7 @@ def main():
     main function
     """
     argument_parser = argparse.ArgumentParser()
+    argument_parser.add_argument("--random_state", type=int)
     argument_parser.add_argument("--num_most_frequent_symbols", type=int)
     argument_parser.add_argument("--train", action="store_true")
     argument_parser.add_argument("--test", action="store_true")
@@ -519,8 +515,18 @@ def main():
     print()
     # sys.exit()
 
-    if RANDOM_STATE is not None:
-        torch.manual_seed(RANDOM_STATE)
+    # hyperparameters dictionary
+    hyperparameters = {}
+
+    random_state = args.random_state
+    # random_state = None
+    # random_state = 5
+    # random_state = 7
+    # random_state = 11
+    hyperparameters["random_state"] = random_state
+
+    if random_state is not None:
+        torch.manual_seed(random_state)
 
     num_most_frequent_symbols = args.num_most_frequent_symbols
     # num_most_frequent_symbols = 3
@@ -530,9 +536,7 @@ def main():
     # num_most_frequent_symbols = 20147
     # num_most_frequent_symbols = 25028
     # num_most_frequent_symbols = 30591
-
-    # hyperparameters dictionary
-    hyperparameters = {}
+    hyperparameters["num_most_frequent_symbols"] = num_most_frequent_symbols
 
     # padding or truncating length
     sequence_length = 1000
