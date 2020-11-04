@@ -386,12 +386,10 @@ def train_network(
             break
 
 
-def load_checkpoint(checkpoint_filename):
+def load_checkpoint(checkpoint_path):
     """
     Load saved training checkpoint.
     """
-    checkpoint_path = data_directory / checkpoint_filename
-
     checkpoint = torch.load(checkpoint_path, map_location=DEVICE)
 
     return checkpoint
@@ -673,9 +671,9 @@ def main():
 
     # load trained network
     if args.load:
-        checkpoint_filename = args.load
-        print(f'loading neural network "{checkpoint_filename}"')
-        checkpoint = load_checkpoint(checkpoint_filename)
+        checkpoint_path = pathlib.Path(args.load)
+        print(f'loading neural network "{checkpoint_path}"')
+        checkpoint = load_checkpoint(checkpoint_path)
         network = checkpoint["network"]
         # print(network)
         print()
