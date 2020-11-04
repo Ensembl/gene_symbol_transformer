@@ -495,9 +495,9 @@ def main():
     main function
     """
     argument_parser = argparse.ArgumentParser()
+    argument_parser.add_argument("--num_most_frequent_symbols", type=int)
     argument_parser.add_argument("--train", action="store_true")
     argument_parser.add_argument("--test", action="store_true")
-    argument_parser.add_argument("--num_most_frequent_symbols", type=int)
     argument_parser.add_argument("--load")
 
     args = argument_parser.parse_args()
@@ -539,7 +539,8 @@ def main():
     # sequence_length = 2000
     hyperparameters["sequence_length"] = sequence_length
 
-    dataset_split_ratio = 0.1
+    dataset_split_ratio = 0.05
+    # dataset_split_ratio = 0.1
     # dataset_split_ratio = 0.2
 
     test_ratio = dataset_split_ratio
