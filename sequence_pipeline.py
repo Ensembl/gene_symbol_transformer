@@ -43,8 +43,13 @@ class SequenceDataset(Dataset):
     """
 
     def __init__(self, num_most_frequent_symbols, sequence_length):
-        print(f"Loading dataset of the {num_most_frequent_symbols} most frequent symbols sequences...", end="")
-        data_pickle_path = data_directory / f"most_frequent_{num_most_frequent_symbols}.pickle"
+        print(
+            f"Loading dataset of the {num_most_frequent_symbols} most frequent symbols sequences...",
+            end="",
+        )
+        data_pickle_path = (
+            data_directory / f"most_frequent_{num_most_frequent_symbols}.pickle"
+        )
         data = pd.read_pickle(data_pickle_path)
         print(" Done.")
         print()
@@ -274,15 +279,21 @@ def train_network(
     patience = 11
     loss_delta = 0.001
     stop_early = EarlyStopping(checkpoint_path, patience, loss_delta)
-    print(f"checkpoints of the training neural network will be saved at {checkpoint_path}")
+    print(
+        f"checkpoints of the training neural network will be saved at {checkpoint_path}"
+    )
 
     num_epochs_length = len(str(num_epochs))
 
     num_batches = int(num_training / hyperparameters["batch_size"])
     num_batches_length = len(str(num_batches))
 
-    training_parameters["average_training_losses"] = training_parameters.get("average_training_losses", [])
-    training_parameters["average_validation_losses"] = training_parameters.get("average_validation_losses", [])
+    training_parameters["average_training_losses"] = training_parameters.get(
+        "average_training_losses", []
+    )
+    training_parameters["average_validation_losses"] = training_parameters.get(
+        "average_validation_losses", []
+    )
 
     training_parameters["epoch"] = training_parameters.get("epoch", 1)
     for epoch in range(training_parameters["epoch"], num_epochs + 1):
@@ -361,11 +372,15 @@ def train_network(
 
         training_progress = f"epoch {epoch:{num_epochs_length}} of {num_epochs}, "
         if verbose:
-            training_progress += f"batch {batch_number:{num_batches_length}} of {num_batches} "
+            training_progress += (
+                f"batch {batch_number:{num_batches_length}} of {num_batches} "
+            )
         training_progress += f"| average training loss: {average_training_loss:.4f}, average validation loss: {average_validation_loss:.4f}"
         print(training_progress)
 
-        if stop_early(network, hyperparameters, training_parameters, average_validation_loss):
+        if stop_early(
+            network, hyperparameters, training_parameters, average_validation_loss
+        ):
             break
 
 
@@ -425,14 +440,16 @@ def test_network(network, hyperparameters, training_parameters, test_loader):
     print("test accuracy: {:.3f}".format(test_accuracy))
 
 
-def save_training_checkpoint(network, hyperparameters, training_parameters, checkpoint_path):
+def save_training_checkpoint(
+    network, hyperparameters, training_parameters, checkpoint_path
+):
     """
     """
     checkpoint = {
-            "network": network,
-            "hyperparameters": hyperparameters,
-            "training_parameters": training_parameters,
-            }
+        "network": network,
+        "hyperparameters": hyperparameters,
+        "training_parameters": training_parameters,
+    }
     torch.save(checkpoint, checkpoint_path)
 
 
@@ -440,6 +457,7 @@ class EarlyStopping:
     """
     Stop training if validation loss doesn't improve during a specified patience period.
     """
+
     def __init__(self, checkpoint_path, patience=7, loss_delta=0):
         """
         Arguments:
@@ -459,14 +477,20 @@ class EarlyStopping:
             self.min_validation_loss = validation_loss
             print("saving initial network checkpoint...")
             print()
-            save_training_checkpoint(network, hyperparameters, training_parameters, self.checkpoint_path)
+            save_training_checkpoint(
+                network, hyperparameters, training_parameters, self.checkpoint_path
+            )
             return False
 
         elif validation_loss <= self.min_validation_loss + self.loss_delta:
             validation_loss_improvement = self.min_validation_loss - validation_loss
-            print(f"validation loss decreased by {validation_loss_improvement:.4f}, saving network checkpoint...")
+            print(
+                f"validation loss decreased by {validation_loss_improvement:.4f}, saving network checkpoint..."
+            )
             print()
-            save_training_checkpoint(network, hyperparameters, training_parameters, self.checkpoint_path)
+            save_training_checkpoint(
+                network, hyperparameters, training_parameters, self.checkpoint_path
+            )
             self.min_validation_loss = validation_loss
             self.no_progress = 0
             return False
@@ -474,7 +498,9 @@ class EarlyStopping:
         else:
             self.no_progress += 1
             if self.no_progress == self.patience:
-                print(f"{self.no_progress} calls with no validation loss improvement. Stopping training.")
+                print(
+                    f"{self.no_progress} calls with no validation loss improvement. Stopping training."
+                )
                 return True
 
 
@@ -625,8 +651,7 @@ def main():
     # load data, generate datasets
     ############################################################################
     dataset = SequenceDataset(
-        hyperparameters["num_most_frequent_symbols"],
-        hyperparameters["sequence_length"]
+        hyperparameters["num_most_frequent_symbols"], hyperparameters["sequence_length"]
     )
 
     # split dataset into train, validation, and test datasets
@@ -654,13 +679,22 @@ def main():
     drop_last = True
     # drop_last = False
     training_loader = DataLoader(
-        training_dataset, batch_size=hyperparameters["batch_size"], shuffle=True, drop_last=drop_last
+        training_dataset,
+        batch_size=hyperparameters["batch_size"],
+        shuffle=True,
+        drop_last=drop_last,
     )
     validation_loader = DataLoader(
-        validation_dataset, batch_size=hyperparameters["batch_size"], shuffle=True, drop_last=drop_last
+        validation_dataset,
+        batch_size=hyperparameters["batch_size"],
+        shuffle=True,
+        drop_last=drop_last,
     )
     test_loader = DataLoader(
-        test_dataset, batch_size=hyperparameters["batch_size"], shuffle=False, drop_last=drop_last
+        test_dataset,
+        batch_size=hyperparameters["batch_size"],
+        shuffle=False,
+        drop_last=drop_last,
     )
     ############################################################################
 
