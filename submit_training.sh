@@ -9,8 +9,9 @@
 NUM_MOST_FREQUENT_SYMBOLS=25028
 #NUM_MOST_FREQUENT_SYMBOLS=30591
 
+DATETIME="2020-11-11T22:51"
 
-#NUM_MOST_FREQUENT_SYMBOLS=25028; RANDOM_STATE=5; bash submit_training.sh python sequence_pipeline.py --random_state $RANDOM_STATE --num_most_frequent_symbols $NUM_MOST_FREQUENT_SYMBOLS --train --test"
+#DATETIME="2020-11-11T22:49"; NUM_MOST_FREQUENT_SYMBOLS=25028; RANDOM_STATE=5; bash submit_training.sh python sequence_pipeline.py --random_state $RANDOM_STATE --num_most_frequent_symbols $NUM_MOST_FREQUENT_SYMBOLS --train --test"
 
 
 if [[ -z "$1" ]]; then
@@ -19,9 +20,7 @@ if [[ -z "$1" ]]; then
 fi
 
 
-DATE_TIME=$(date +%Y-%m-%d_%H:%M:%S%:z)
-
-JOB_NAME="n=${NUM_MOST_FREQUENT_SYMBOLS}_${DATE_TIME}"
+JOB_NAME="n=${NUM_MOST_FREQUENT_SYMBOLS}_${DATETIME}"
 
 
 #QUEUE=research-rh74

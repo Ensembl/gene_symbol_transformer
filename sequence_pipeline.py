@@ -11,7 +11,6 @@ Raw sequences neural network pipeline.
 
 # standard library imports
 import argparse
-import datetime
 import pathlib
 import pickle
 import sys
@@ -41,8 +40,6 @@ data_directory = pathlib.Path("data")
 class SequenceDataset(Dataset):
     """
     Custom Dataset for raw sequences.
-
-    https://pytorch.org/docs/stable/data.html#torch.utils.data.Dataset
     """
 
     def __init__(self, num_most_frequent_symbols, sequence_length):
@@ -253,34 +250,26 @@ class Sequence_LSTM(nn.Module):
 
 def train_network(
     network,
-    criterion,
+    hyperparameters,
+    training_parameters,
     training_loader,
     validation_loader,
     num_training,
-    hyperparameters,
     verbose=False,
 ):
     """
     """
-    training_parameters = {
-        "network": network,
-        "criterion": criterion,
-        "hyperparameters": hyperparameters,
-    }
-
-    batch_size = hyperparameters["batch_size"]
-    lr = hyperparameters["lr"]
     num_epochs = hyperparameters["num_epochs"]
 
+    criterion = training_parameters["criterion"]
+
     # optimization function
-    optimizer = torch.optim.Adam(network.parameters(), lr=lr)
+    optimizer = torch.optim.Adam(network.parameters(), lr=hyperparameters["lr"])
     training_parameters["optimizer"] = optimizer
 
     clip_max_norm = 5
 
-
-    datetime_now = datetime.datetime.now().replace(microsecond=0).isoformat()
-    checkpoint_filename = f"Sequence_LSTM-{datetime_now}.net"
+    checkpoint_filename = f'n={hyperparameters["num_most_frequent_symbols"]}_{training_parameters["datetime"]}.net'
     checkpoint_path = data_directory / checkpoint_filename
     patience = 11
     loss_delta = 0.001
@@ -289,19 +278,20 @@ def train_network(
 
     num_epochs_length = len(str(num_epochs))
 
-    num_batches = int(num_training / batch_size)
+    num_batches = int(num_training / hyperparameters["batch_size"])
     num_batches_length = len(str(num_batches))
 
-    average_training_losses = []
-    average_validation_losses = []
+    training_parameters["average_training_losses"] = training_parameters.get("average_training_losses", [])
+    training_parameters["average_validation_losses"] = training_parameters.get("average_validation_losses", [])
 
-    for epoch in range(1, num_epochs + 1):
+    training_parameters["epoch"] = training_parameters.get("epoch", 1)
+    for epoch in range(training_parameters["epoch"], num_epochs + 1):
         training_parameters["epoch"] = epoch
 
         # training
         ########################################################################
         training_losses = []
-        h = network.init_hidden(batch_size)
+        h = network.init_hidden(hyperparameters["batch_size"])
 
         # set the network in training mode
         network.train()
@@ -343,13 +333,12 @@ def train_network(
                 print(training_progress)
 
         average_training_loss = np.average(training_losses)
-        average_training_losses.append(average_training_loss)
-        training_parameters["average_training_losses"] = average_training_losses
+        training_parameters["average_training_losses"].append(average_training_loss)
 
         # validation
         ########################################################################
         validation_losses = []
-        h = network.init_hidden(batch_size)
+        h = network.init_hidden(hyperparameters["batch_size"])
 
         # disable gradient calculation
         with torch.no_grad():
@@ -368,8 +357,7 @@ def train_network(
                 validation_losses.append(validation_loss.item())
 
         average_validation_loss = np.average(validation_losses)
-        average_validation_losses.append(average_validation_loss)
-        training_parameters["average_validation_losses"] = average_validation_losses
+        training_parameters["average_validation_losses"].append(average_validation_loss)
 
         training_progress = f"epoch {epoch:{num_epochs_length}} of {num_epochs}, "
         if verbose:
@@ -377,7 +365,7 @@ def train_network(
         training_progress += f"| average training loss: {average_training_loss:.4f}, average validation loss: {average_validation_loss:.4f}"
         print(training_progress)
 
-        if stop_early(network, training_parameters, average_validation_loss):
+        if stop_early(network, hyperparameters, training_parameters, average_validation_loss):
             break
 
 
@@ -390,12 +378,14 @@ def load_checkpoint(checkpoint_path):
     return checkpoint
 
 
-def test_network(network, criterion, test_loader, batch_size):
+def test_network(network, hyperparameters, training_parameters, test_loader):
     """
     Calculate test loss and generate metrics.
     """
+    criterion = training_parameters["criterion"]
+
     # initialize hidden state
-    h = network.init_hidden(batch_size)
+    h = network.init_hidden(hyperparameters["batch_size"])
 
     test_losses = []
     num_correct_predictions = 0
@@ -435,11 +425,12 @@ def test_network(network, criterion, test_loader, batch_size):
     print("test accuracy: {:.3f}".format(test_accuracy))
 
 
-def save_training_checkpoint(network, training_parameters, checkpoint_path):
+def save_training_checkpoint(network, hyperparameters, training_parameters, checkpoint_path):
     """
     """
     checkpoint = {
             "network": network,
+            "hyperparameters": hyperparameters,
             "training_parameters": training_parameters,
             }
     torch.save(checkpoint, checkpoint_path)
@@ -463,17 +454,19 @@ class EarlyStopping:
         self.no_progress = 0
         self.min_validation_loss = np.Inf
 
-    def __call__(self, network, training_parameters, validation_loss):
+    def __call__(self, network, hyperparameters, training_parameters, validation_loss):
         if self.min_validation_loss == np.Inf:
             self.min_validation_loss = validation_loss
             print("saving initial network checkpoint...")
-            save_training_checkpoint(network, training_parameters, self.checkpoint_path)
+            print()
+            save_training_checkpoint(network, hyperparameters, training_parameters, self.checkpoint_path)
             return False
 
         elif validation_loss <= self.min_validation_loss + self.loss_delta:
             validation_loss_improvement = self.min_validation_loss - validation_loss
             print(f"validation loss decreased by {validation_loss_improvement:.4f}, saving network checkpoint...")
-            save_training_checkpoint(network, training_parameters, self.checkpoint_path)
+            print()
+            save_training_checkpoint(network, hyperparameters, training_parameters, self.checkpoint_path)
             self.min_validation_loss = validation_loss
             self.no_progress = 0
             return False
@@ -483,6 +476,83 @@ class EarlyStopping:
             if self.no_progress == self.patience:
                 print(f"{self.no_progress} calls with no validation loss improvement. Stopping training.")
                 return True
+
+
+def generate_training_session(args):
+    """
+    """
+    # hyperparameters dictionary
+    hyperparameters = {}
+
+    # hyperparameters["random_state"] = None
+    # hyperparameters["random_state"] = 5
+    # hyperparameters["random_state"] = 7
+    # hyperparameters["random_state"] = 11
+    hyperparameters["random_state"] = args.random_state
+
+    # hyperparameters["num_most_frequent_symbols"] = 3
+    # hyperparameters["num_most_frequent_symbols"] = 101
+    # hyperparameters["num_most_frequent_symbols"] = 1013
+    # hyperparameters["num_most_frequent_symbols"] = 10059
+    # hyperparameters["num_most_frequent_symbols"] = 20147
+    # hyperparameters["num_most_frequent_symbols"] = 25028
+    # hyperparameters["num_most_frequent_symbols"] = 30591
+    hyperparameters["num_most_frequent_symbols"] = args.num_most_frequent_symbols
+
+    # padding or truncating length
+    hyperparameters["sequence_length"] = 1000
+    # hyperparameters["sequence_length"] = 2000
+
+    hyperparameters["test_ratio"] = 0.05
+    # hyperparameters["test_ratio"] = 0.1
+    # hyperparameters["test_ratio"] = 0.2
+
+    hyperparameters["validation_ratio"] = 0.05
+    # hyperparameters["validation_ratio"] = 0.1
+    # hyperparameters["validation_ratio"] = 0.2
+
+    # hyperparameters["batch_size"] = 1
+    # hyperparameters["batch_size"] = 4
+    # hyperparameters["batch_size"] = 32
+    # hyperparameters["batch_size"] = 64
+    hyperparameters["batch_size"] = 128
+    # hyperparameters["batch_size"] = 200
+    # hyperparameters["batch_size"] = 256
+    # hyperparameters["batch_size"] = 512
+
+    hyperparameters["lr"] = 0.001
+    # hyperparameters["lr"] = 0.01
+
+    # hyperparameters["num_epochs"] = 10
+    hyperparameters["num_epochs"] = 100
+    # hyperparameters["num_epochs"] = 1000
+
+    # hyperparameters["hidden_size"] = 128
+    hyperparameters["hidden_size"] = 256
+    # hyperparameters["hidden_size"] = 512
+    # hyperparameters["hidden_size"] = 1024
+
+    hyperparameters["num_layers"] = 1
+    # hyperparameters["num_layers"] = 2
+
+    if hyperparameters["num_layers"] == 1:
+        hyperparameters["lstm_dropout_probability"] = 0
+    else:
+        hyperparameters["lstm_dropout_probability"] = 1 / 3
+        # hyperparameters["lstm_dropout_probability"] = 1 / 4
+
+    hyperparameters["final_dropout_probability"] = 1 / 4
+    # hyperparameters["final_dropout_probability"] = 1 / 5
+
+    # training parameters dictionary
+    training_parameters = {}
+
+    training_parameters["datetime"] = args.datetime
+
+    # loss function
+    training_parameters["criterion"] = nn.NLLLoss()
+
+    return hyperparameters, training_parameters
 
 
 def main():
@@ -495,6 +565,7 @@ def main():
     argument_parser.add_argument("--train", action="store_true")
     argument_parser.add_argument("--test", action="store_true")
     argument_parser.add_argument("--load")
+    argument_parser.add_argument("--datetime")
 
     args = argument_parser.parse_args()
 
@@ -511,66 +582,58 @@ def main():
     if torch.cuda.is_available():
         print(f"{torch.cuda.get_device_properties(DEVICE)}")
         # print(f"{torch.cuda.memory_summary(DEVICE)}")
-        # torch.cuda.empty_cache()
     print()
-    # sys.exit()
 
-    # hyperparameters dictionary
-    hyperparameters = {}
+    # load training checkpoint or generate new training session
+    if args.load:
+        checkpoint_path = pathlib.Path(args.load)
+        print(f'loading training checkpoint "{checkpoint_path}"')
+        checkpoint = load_checkpoint(checkpoint_path)
+        network = checkpoint["network"]
+        # print(network)
+        hyperparameters = checkpoint["hyperparameters"]
+        # print(hyperparameters)
+        training_parameters = checkpoint["training_parameters"]
+        # print(training_parameters)
+        print()
+    else:
+        hyperparameters, training_parameters = generate_training_session(args)
 
-    random_state = args.random_state
-    # random_state = None
-    # random_state = 5
-    # random_state = 7
-    # random_state = 11
-    hyperparameters["random_state"] = random_state
+        # neural network instantiation
+        ############################################################################
+        # num_protein_letters = len(dataset.protein_letters)
+        num_protein_letters = 27
+        input_size = num_protein_letters
 
-    if random_state is not None:
-        torch.manual_seed(random_state)
+        network = Sequence_LSTM(
+            input_size=input_size,
+            output_size=hyperparameters["num_most_frequent_symbols"],
+            hidden_size=hyperparameters["hidden_size"],
+            num_layers=hyperparameters["num_layers"],
+            lstm_dropout_probability=hyperparameters["lstm_dropout_probability"],
+            final_dropout_probability=hyperparameters["final_dropout_probability"],
+        )
+        # print(network)
+        # print()
+        ############################################################################
 
-    num_most_frequent_symbols = args.num_most_frequent_symbols
-    # num_most_frequent_symbols = 3
-    # num_most_frequent_symbols = 101
-    # num_most_frequent_symbols = 1013
-    # num_most_frequent_symbols = 10059
-    # num_most_frequent_symbols = 20147
-    # num_most_frequent_symbols = 25028
-    # num_most_frequent_symbols = 30591
-    hyperparameters["num_most_frequent_symbols"] = num_most_frequent_symbols
+        network.to(DEVICE)
 
-    # padding or truncating length
-    sequence_length = 1000
-    # sequence_length = 2000
-    hyperparameters["sequence_length"] = sequence_length
-
-    dataset_split_ratio = 0.05
-    # dataset_split_ratio = 0.1
-    # dataset_split_ratio = 0.2
-
-    test_ratio = dataset_split_ratio
-    validation_ratio = dataset_split_ratio
-    hyperparameters["test_ratio"] = test_ratio
-    hyperparameters["validation_ratio"] = validation_ratio
-
-    # batch_size = 1
-    # batch_size = 4
-    # batch_size = 64
-    batch_size = 128
-    # batch_size = 200
-    # batch_size = 256
-    # batch_size = 512
-    hyperparameters["batch_size"] = batch_size
+    if hyperparameters["random_state"] is not None:
+        torch.manual_seed(hyperparameters["random_state"])
 
     # load data, generate datasets
     ############################################################################
-    dataset = SequenceDataset(num_most_frequent_symbols, sequence_length)
+    dataset = SequenceDataset(
+        hyperparameters["num_most_frequent_symbols"],
+        hyperparameters["sequence_length"]
+    )
 
     # split dataset into train, validation, and test datasets
-    validation_size = int(validation_ratio * len(dataset))
-    test_size = int(test_ratio * len(dataset))
+    validation_size = int(hyperparameters["validation_ratio"] * len(dataset))
+    test_size = int(hyperparameters["test_ratio"] * len(dataset))
     training_size = len(dataset) - validation_size - test_size
 
-    # https://pytorch.org/docs/stable/data.html#torch.utils.data.random_split
     training_dataset, validation_dataset, test_dataset = random_split(
         dataset, lengths=(training_size, validation_size, test_size)
     )
@@ -585,79 +648,24 @@ def main():
 
     # set the batch size to the size of the smallest dataset if larger than that
     min_dataset_size = min(num_training, num_validation, num_test)
-    if batch_size > min_dataset_size:
-        batch_size = min_dataset_size
+    if hyperparameters["batch_size"] > min_dataset_size:
+        hyperparameters["batch_size"] = min_dataset_size
 
     drop_last = True
     # drop_last = False
-    # https://pytorch.org/docs/stable/data.html#torch.utils.data.DataLoader
     training_loader = DataLoader(
-        training_dataset, batch_size=batch_size, shuffle=True, drop_last=drop_last
+        training_dataset, batch_size=hyperparameters["batch_size"], shuffle=True, drop_last=drop_last
     )
     validation_loader = DataLoader(
-        validation_dataset, batch_size=batch_size, shuffle=True, drop_last=drop_last
+        validation_dataset, batch_size=hyperparameters["batch_size"], shuffle=True, drop_last=drop_last
     )
     test_loader = DataLoader(
-        test_dataset, batch_size=batch_size, shuffle=False, drop_last=drop_last
+        test_dataset, batch_size=hyperparameters["batch_size"], shuffle=False, drop_last=drop_last
     )
     ############################################################################
-
-    # neural network instantiation
-    ############################################################################
-    num_protein_letters = len(dataset.protein_letters)
-    input_size = num_protein_letters
-
-    output_size = num_most_frequent_symbols
-
-    # hidden_size = 128
-    hidden_size = 256
-    # hidden_size = 512
-    # hidden_size = 1024
-    hyperparameters["hidden_size"] = hidden_size
-
-    num_layers = 1
-    # num_layers = 2
-    hyperparameters["num_layers"] = num_layers
-
-    if num_layers == 1:
-        lstm_dropout_probability = 0
-    else:
-        lstm_dropout_probability = 1 / 3
-        # lstm_dropout_probability = 1 / 4
-        hyperparameters["lstm_dropout_probability"] = lstm_dropout_probability
-
-    final_dropout_probability = 1 / 4
-    # final_dropout_probability = 1 / 5
-    hyperparameters["final_dropout_probability"] = final_dropout_probability
-
-    network = Sequence_LSTM(
-        input_size=input_size,
-        output_size=output_size,
-        hidden_size=hidden_size,
-        num_layers=num_layers,
-        lstm_dropout_probability=lstm_dropout_probability,
-        final_dropout_probability=final_dropout_probability,
-    )
-    # print(network)
-    # print()
-
-    # loss function
-    criterion = nn.NLLLoss()
-    ############################################################################
-
-    network.to(DEVICE)
 
     # train network
     if args.train:
-        lr = 0.001
-        # lr = 0.01
-        hyperparameters["lr"] = lr
-
-        # num_epochs = 10
-        num_epochs = 100
-        # num_epochs = 1000
-        hyperparameters["num_epochs"] = num_epochs
-
         print(f"training neural network, hyperparameters:")
         pprint(hyperparameters)
         print()
@@ -666,26 +674,17 @@ def main():
 
         train_network(
             network,
-            criterion,
+            hyperparameters,
+            training_parameters,
             training_loader,
             validation_loader,
             num_training,
-            hyperparameters,
             verbose,
         )
 
-    # load trained network
-    if args.load:
-        checkpoint_path = pathlib.Path(args.load)
-        print(f'loading neural network "{checkpoint_path}"')
-        checkpoint = load_checkpoint(checkpoint_path)
-        network = checkpoint["network"]
-        # print(network)
-        print()
-
     # test trained network
     if args.test:
-        test_network(network, criterion, test_loader, batch_size)
+        test_network(network, hyperparameters, training_parameters, test_loader)
 
 
 if __name__ == "__main__":
