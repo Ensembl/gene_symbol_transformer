@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-# Dimitrios Paraschas (dimitrios@ebi.ac.uk)
+# William Dimitrios Paraschas (dimitrios@ebi.ac.uk)
 
 
 """
