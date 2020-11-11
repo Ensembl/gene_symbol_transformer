@@ -1,6 +1,18 @@
 #!/bin/bash
 
 
+#NUM_MOST_FREQUENT_SYMBOLS=3
+#NUM_MOST_FREQUENT_SYMBOLS=101
+#NUM_MOST_FREQUENT_SYMBOLS=1013
+#NUM_MOST_FREQUENT_SYMBOLS=10059
+#NUM_MOST_FREQUENT_SYMBOLS=20147
+NUM_MOST_FREQUENT_SYMBOLS=25028
+#NUM_MOST_FREQUENT_SYMBOLS=30591
+
+
+#NUM_MOST_FREQUENT_SYMBOLS=25028; RANDOM_STATE=5; bash submit_training.sh python sequence_pipeline.py --random_state $RANDOM_STATE --num_most_frequent_symbols $NUM_MOST_FREQUENT_SYMBOLS --train --test"
+
+
 if [[ -z "$1" ]]; then
     echo "Nothing to run, pass the command to run with bsub as an argument."
     exit
@@ -9,7 +21,7 @@ fi
 
 DATE_TIME=$(date +%Y-%m-%d_%H:%M:%S%:z)
 
-JOB_NAME="$DATE_TIME"
+JOB_NAME="n=${NUM_MOST_FREQUENT_SYMBOLS}_${DATE_TIME}"
 
 
 #QUEUE=research-rh74
