@@ -39,8 +39,8 @@ if [[ "$GPU_NODE" = "any" ]]; then
 fi
 
 # specify compute node
-COMPUTE_NODE=gpu-009
-#COMPUTE_NODE=gpu-011
+#COMPUTE_NODE=gpu-009
+COMPUTE_NODE=gpu-011
 
 if [[ "$GPU_NODE" = "V100" ]]; then
     bsub -q $QUEUE -P gpu -gpu "num=1:j_exclusive=yes" -m ${COMPUTE_NODE}.ebi.ac.uk -M $MEM_LIMIT -R"select[mem>$MEM_LIMIT] rusage[mem=$MEM_LIMIT] span[hosts=1]" -o "${JOB_NAME}.stdout.txt" -e "${JOB_NAME}.stderr.txt" "$@"

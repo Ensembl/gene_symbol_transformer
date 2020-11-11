@@ -43,8 +43,8 @@ if [[ "$JOB_TYPE" = "standard" ]]; then
     bsub -Is -tty -M $MEM_LIMIT -R"select[mem>$MEM_LIMIT] rusage[mem=$MEM_LIMIT] span[hosts=1]" $SHELL
 fi
 
-COMPUTE_NODE=gpu-009
-#COMPUTE_NODE=gpu-011
+#COMPUTE_NODE=gpu-009
+COMPUTE_NODE=gpu-011
 
 # open a shell on a GPU node
 # https://sysinf.ebi.ac.uk/doku.php?id=ebi_cluster_good_computing_guide#gpu_hosts
