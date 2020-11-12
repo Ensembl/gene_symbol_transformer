@@ -166,6 +166,23 @@ def save_most_frequent_n(n, max_frequency=None):
 
     Specify the max_frequency of the n symbols to run an extra validation check.
     """
+    n_max_frequencies = {
+        3: 335,
+        101: 297,
+        1013: 252,
+        10059: 165,
+        20147: 70,
+        25028: 23,
+        30591: 5,
+    }
+
+    assert (
+        n in n_max_frequencies.keys()
+    ), f"got {n} for n, should be one of {n_max_frequencies.keys()}"
+
+    if max_frequency is not None:
+        assert max_frequency == n_max_frequencies[n]
+
     data = load_data()
 
     symbol_counts = data["symbol"].value_counts()
@@ -219,13 +236,8 @@ def main():
     argument_parser = argparse.ArgumentParser()
     argument_parser.add_argument("--merge_metadata_sequences", action="store_true")
     argument_parser.add_argument("--data_wrangling", action="store_true")
-    argument_parser.add_argument("--save_most_frequent_3", action="store_true")
-    argument_parser.add_argument("--save_most_frequent_101", action="store_true")
-    argument_parser.add_argument("--save_most_frequent_1013", action="store_true")
-    argument_parser.add_argument("--save_most_frequent_10059", action="store_true")
-    argument_parser.add_argument("--save_most_frequent_20147", action="store_true")
-    argument_parser.add_argument("--save_most_frequent_25028", action="store_true")
-    argument_parser.add_argument("--save_most_frequent_30591", action="store_true")
+    argument_parser.add_argument("--num_most_frequent_symbols", type=int)
+    argument_parser.add_argument("--max_frequency", type=int)
 
     args = argument_parser.parse_args()
 
@@ -233,20 +245,10 @@ def main():
         merge_metadata_sequences()
     elif args.data_wrangling:
         data_wrangling()
-    elif args.save_most_frequent_3:
-        save_most_frequent_n(n=3, max_frequency=335)
-    elif args.save_most_frequent_101:
-        save_most_frequent_n(n=101, max_frequency=297)
-    elif args.save_most_frequent_1013:
-        save_most_frequent_n(n=1013, max_frequency=252)
-    elif args.save_most_frequent_10059:
-        save_most_frequent_n(n=10059, max_frequency=165)
-    elif args.save_most_frequent_20147:
-        save_most_frequent_n(n=20147, max_frequency=70)
-    elif args.save_most_frequent_25028:
-        save_most_frequent_n(n=25028, max_frequency=23)
-    elif args.save_most_frequent_30591:
-        save_most_frequent_n(n=30591, max_frequency=5)
+    elif args.save_most_frequent_n:
+        save_most_frequent_n(
+            n=args.num_most_frequent_symbols, max_frequency=args.max_frequency
+        )
     else:
         print("nothing to do")
 
