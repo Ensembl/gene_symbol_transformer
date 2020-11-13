@@ -47,7 +47,7 @@ USE_CACHE = True
 
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-data_directory = pathlib.Path("data")
+data_directory = pathlib.Path("../data")
 
 
 class SequenceDataset(Dataset):
@@ -179,6 +179,7 @@ def pad_or_truncate_sequence(sequence, normalized_length):
 class SuppressSettingWithCopyWarning:
     """
     Suppress SettingWithCopyWarning warning.
+
     https://stackoverflow.com/a/53954986
     """
 
@@ -631,10 +632,11 @@ def main():
         network = checkpoint["network"]
         # print(network)
         hyperparameters = checkpoint["hyperparameters"]
-        # print(hyperparameters)
+        # pprint(hyperparameters)
         training_parameters = checkpoint["training_parameters"]
-        # print(training_parameters)
+        # pprint(training_parameters)
         print()
+        # sys.exit()
     else:
         hyperparameters, training_parameters = generate_training_session(args)
 
