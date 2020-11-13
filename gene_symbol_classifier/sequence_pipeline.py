@@ -38,10 +38,13 @@ import torch
 import torch.nn as nn
 
 from torch.utils.data import DataLoader, Dataset, random_split
+from torch.utils.tensorboard import SummaryWriter
 
 # project imports
 import dataset_generation
 
+
+summary_writer = SummaryWriter()
 
 USE_CACHE = True
 
@@ -341,6 +344,7 @@ def train_network(
             # calculate the training loss
             training_loss = criterion(output, labels)
             training_losses.append(training_loss.item())
+            summary_writer.add_scalar("loss/training", training_loss, epoch)
 
             # perform back propagation
             training_loss.backward()
@@ -380,6 +384,7 @@ def train_network(
                 labels = torch.argmax(labels, dim=1)
                 validation_loss = criterion(output, labels)
                 validation_losses.append(validation_loss.item())
+                summary_writer.add_scalar("loss/validation", validation_loss, epoch)
 
         average_validation_loss = np.average(validation_losses)
         training_parameters["average_validation_losses"].append(average_validation_loss)
@@ -511,6 +516,8 @@ class EarlyStopping:
 
         else:
             self.no_progress += 1
+            print()
+
             if self.no_progress == self.patience:
                 print(
                     f"{self.no_progress} calls with no validation loss improvement. Stopping training."
@@ -730,6 +737,9 @@ def main():
             num_training,
             verbose,
         )
+
+        summary_writer.flush()
+        summary_writer.close()
 
     # test trained network
     if args.test:
