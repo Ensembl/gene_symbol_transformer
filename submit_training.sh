@@ -21,12 +21,14 @@
 #NUM_MOST_FREQUENT_SYMBOLS=1013
 #NUM_MOST_FREQUENT_SYMBOLS=10059
 #NUM_MOST_FREQUENT_SYMBOLS=20147
-NUM_MOST_FREQUENT_SYMBOLS=25028
+#NUM_MOST_FREQUENT_SYMBOLS=25028
 #NUM_MOST_FREQUENT_SYMBOLS=30591
 
-DATETIME="2020-11-11T22:51"
+# submit training job with bsub
+#export DATETIME="2020-11-19T23:11"; export NUM_MOST_FREQUENT_SYMBOLS=20147; RANDOM_STATE=5; bash submit_training.sh python sequence_pipeline.py --datetime $DATETIME --random_state $RANDOM_STATE --num_most_frequent_symbols $NUM_MOST_FREQUENT_SYMBOLS --train --test"
 
-#DATETIME="2020-11-11T22:49"; NUM_MOST_FREQUENT_SYMBOLS=25028; RANDOM_STATE=5; bash submit_training.sh python sequence_pipeline.py --random_state $RANDOM_STATE --num_most_frequent_symbols $NUM_MOST_FREQUENT_SYMBOLS --train --test"
+# directly on a GPU node
+#DATETIME="2020-11-19T23:11"; NUM_MOST_FREQUENT_SYMBOLS=20147; RANDOM_STATE=5; python sequence_pipeline.py --datetime $DATETIME --random_state $RANDOM_STATE --num_most_frequent_symbols $NUM_MOST_FREQUENT_SYMBOLS --train --test"
 
 
 if [[ -z "$1" ]]; then
@@ -34,6 +36,15 @@ if [[ -z "$1" ]]; then
     exit
 fi
 
+if [[ -z "${NUM_MOST_FREQUENT_SYMBOLS}" ]]; then
+    echo "please pass the NUM_MOST_FREQUENT_SYMBOLS value"
+    exit
+fi
+
+if [[ -z "${DATETIME}" ]]; then
+    echo "please pass the DATETIME value"
+    exit
+fi
 
 JOB_NAME="n=${NUM_MOST_FREQUENT_SYMBOLS}_${DATETIME}"
 
