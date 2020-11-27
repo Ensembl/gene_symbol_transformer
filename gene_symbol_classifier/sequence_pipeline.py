@@ -722,8 +722,7 @@ def main():
 
     # train network
     if args.train:
-        print(f"training neural network, hyperparameters:")
-        pprint(hyperparameters)
+        print(f"training neural network")
         print()
 
         verbose = True
