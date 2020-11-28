@@ -44,8 +44,6 @@ from torch.utils.tensorboard import SummaryWriter
 import dataset_generation
 
 
-summary_writer = SummaryWriter()
-
 USE_CACHE = True
 
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -282,6 +280,9 @@ def train_network(
 ):
     """
     """
+    tensorboard_log_dir = f'runs/{hyperparameters["num_most_frequent_symbols"]}/{training_parameters["datetime"]}'
+    summary_writer = SummaryWriter(log_dir=tensorboard_log_dir)
+
     num_epochs = hyperparameters["num_epochs"]
 
     criterion = training_parameters["criterion"]
