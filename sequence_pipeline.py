@@ -50,7 +50,8 @@ USE_CACHE = True
 
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-data_directory = pathlib.Path("../data")
+data_directory = pathlib.Path("data")
+networks_directory = pathlib.Path("networks")
 
 
 class SequenceDataset(Dataset):
@@ -292,13 +293,12 @@ def train_network(
     clip_max_norm = 5
 
     checkpoint_filename = f'n={hyperparameters["num_most_frequent_symbols"]}_{training_parameters["datetime"]}.net'
-    checkpoint_path = data_directory / checkpoint_filename
+    checkpoint_path = networks_directory / checkpoint_filename
     patience = 11
     loss_delta = 0.001
     stop_early = EarlyStopping(checkpoint_path, patience, loss_delta)
-    print(
-        f"checkpoints of the training neural network will be saved at {checkpoint_path}"
-    )
+    print(f"checkpoints of the network being trained saved to {checkpoint_path}")
+    print()
 
     num_epochs_length = len(str(num_epochs))
 
@@ -312,7 +312,7 @@ def train_network(
         "average_validation_losses", []
     )
 
-    training_parameters["epoch"] = training_parameters.get("epoch", 1)
+    training_parameters["epoch"] = training_parameters["num_complete_epochs"] + 1
     for epoch in range(training_parameters["epoch"], num_epochs + 1):
         training_parameters["epoch"] = epoch
 
@@ -360,6 +360,8 @@ def train_network(
 
                 training_progress = f"epoch {epoch:{num_epochs_length}} of {num_epochs}, batch {batch_number:{num_batches_length}} of {num_batches} | average training loss: {average_training_loss:.4f}"
                 print(training_progress)
+
+        training_parameters["num_complete_epochs"] += 1
 
         average_training_loss = np.average(training_losses)
         training_parameters["average_training_losses"].append(average_training_loss)
@@ -598,6 +600,8 @@ def generate_training_session(args):
 
     # loss function
     training_parameters["criterion"] = nn.NLLLoss()
+
+    training_parameters["num_complete_epochs"] = 0
 
     return hyperparameters, training_parameters
 
