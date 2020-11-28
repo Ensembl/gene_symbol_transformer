@@ -25,9 +25,10 @@
 *.png
 
 data
+networks
+runs
 more
 
-prototype.ipynb
 query.fasta
 results.csv
 
