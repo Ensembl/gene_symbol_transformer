@@ -61,7 +61,7 @@ class SequenceDataset(Dataset):
 
     def __init__(self, num_most_frequent_symbols, sequence_length):
         print(
-            f"Loading dataset of the {num_most_frequent_symbols} most frequent symbols sequences...",
+            f"Loading {num_most_frequent_symbols} most frequent symbols sequences dataset...",
             end="",
         )
         data_pickle_path = (
@@ -563,8 +563,8 @@ def generate_training_session(args):
     # hyperparameters["batch_size"] = 1
     # hyperparameters["batch_size"] = 4
     # hyperparameters["batch_size"] = 32
-    # hyperparameters["batch_size"] = 64
-    hyperparameters["batch_size"] = 128
+    hyperparameters["batch_size"] = 64
+    # hyperparameters["batch_size"] = 128
     # hyperparameters["batch_size"] = 200
     # hyperparameters["batch_size"] = 256
     # hyperparameters["batch_size"] = 512
@@ -638,16 +638,12 @@ def main():
     # load training checkpoint or generate new training session
     if args.load:
         checkpoint_path = pathlib.Path(args.load)
-        print(f'loading training checkpoint "{checkpoint_path}"')
+        print(f'Loading training checkpoint "{checkpoint_path}"...', end="")
         checkpoint = load_checkpoint(checkpoint_path)
         network = checkpoint["network"]
-        # print(network)
         hyperparameters = checkpoint["hyperparameters"]
-        # pprint(hyperparameters)
         training_parameters = checkpoint["training_parameters"]
-        # pprint(training_parameters)
-        print()
-        # sys.exit()
+        print(" Done.")
     else:
         hyperparameters, training_parameters = generate_training_session(args)
 
@@ -723,6 +719,16 @@ def main():
         drop_last=drop_last,
     )
     ############################################################################
+
+    print("network:")
+    print(network)
+    print()
+    print("hyperparameters:")
+    pprint(hyperparameters)
+    print()
+    print("training_parameters:")
+    pprint(training_parameters)
+    print()
 
     # train network
     if args.train:
