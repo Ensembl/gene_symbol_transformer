@@ -156,8 +156,8 @@ def main():
         training_session = TrainingSession(args)
 
         # training_session.hidden_size = 128
-        training_session.hidden_size = 256
-        # training_session.hidden_size = 512
+        # training_session.hidden_size = 256
+        training_session.hidden_size = 512
         # training_session.hidden_size = 1024
 
         training_session.num_layers = 1
