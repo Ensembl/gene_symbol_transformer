@@ -433,6 +433,7 @@ class EarlyStopping:
 
         elif validation_loss <= self.min_validation_loss - self.loss_delta:
             validation_loss_decrease = self.min_validation_loss - validation_loss
+            assert validation_loss_decrease > 0, f"{validation_loss_decrease=}, should be a positive number"
             print(
                 f"validation loss decreased by {validation_loss_decrease:.4f}, saving network checkpoint..."
             )
