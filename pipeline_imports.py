@@ -431,10 +431,10 @@ class EarlyStopping:
             )
             return False
 
-        elif validation_loss <= self.min_validation_loss + self.loss_delta:
-            validation_loss_improvement = self.min_validation_loss - validation_loss
+        elif validation_loss <= self.min_validation_loss - self.loss_delta:
+            validation_loss_decrease = self.min_validation_loss - validation_loss
             print(
-                f"validation loss decreased by {validation_loss_improvement:.4f}, saving network checkpoint..."
+                f"validation loss decreased by {validation_loss_decrease:.4f}, saving network checkpoint..."
             )
             print()
             save_training_checkpoint(
