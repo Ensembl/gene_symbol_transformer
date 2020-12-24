@@ -18,7 +18,7 @@
 
 
 """
-Classes and functions for use in all pipelines.
+Generic training and testing pipeline functions and classes.
 """
 
 
