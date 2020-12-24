@@ -491,8 +491,8 @@ class TrainingSession:
             self.validation_ratio = 0.05
 
         # self.batch_size = 32
-        self.batch_size = 64
-        # self.batch_size = 128
+        # self.batch_size = 64
+        self.batch_size = 128
         # self.batch_size = 200
         # self.batch_size = 256
         # self.batch_size = 512
