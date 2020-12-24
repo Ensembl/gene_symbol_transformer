@@ -166,11 +166,11 @@ def main():
         if training_session.num_layers == 1:
             training_session.lstm_dropout_probability = 0
         else:
-            training_session.lstm_dropout_probability = 1 / 3
-            # training_session.lstm_dropout_probability = 1 / 4
+            training_session.lstm_dropout_probability = 0.1
+            # training_session.lstm_dropout_probability = 0.2
 
-        training_session.final_dropout_probability = 1 / 4
-        # training_session.final_dropout_probability = 1 / 5
+        training_session.final_dropout_probability = 0.1
+        # training_session.final_dropout_probability = 0.2
 
         # loss function
         training_session.criterion = nn.NLLLoss()
