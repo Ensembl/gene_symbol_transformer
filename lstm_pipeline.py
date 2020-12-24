@@ -35,12 +35,10 @@ import torch.nn as nn
 from torch.utils.data import DataLoader, random_split
 
 # project imports
+from generic_pipeline import load_checkpoint, test_network, train_network, TrainingSession,SequenceDataset
 
 
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-
-
-from generic_pipeline import load_checkpoint, test_network, train_network, TrainingSession,SequenceDataset
 
 
 class Sequence_LSTM(nn.Module):
