@@ -26,6 +26,8 @@ Classes and functions for use in all pipelines.
 import pathlib
 import sys
 
+import pprint
+
 # third party imports
 import Bio
 import numpy as np
@@ -195,8 +197,7 @@ class SuppressSettingWithCopyWarning:
 
 def train_network(
     network,
-    hyperparameters,
-    training_parameters,
+    training_session,
     training_loader,
     validation_loader,
     num_training,
@@ -204,20 +205,20 @@ def train_network(
 ):
     """
     """
-    tensorboard_log_dir = f'runs/{hyperparameters["num_most_frequent_symbols"]}/{training_parameters["datetime"]}'
+    tensorboard_log_dir = f'runs/{training_session.num_most_frequent_symbols}/{training_session.datetime}'
     summary_writer = SummaryWriter(log_dir=tensorboard_log_dir)
 
-    num_epochs = hyperparameters["num_epochs"]
+    num_epochs = training_session.num_epochs
 
-    criterion = training_parameters["criterion"]
+    criterion = training_session.criterion
 
     # optimization function
-    optimizer = torch.optim.Adam(network.parameters(), lr=hyperparameters["lr"])
-    training_parameters["optimizer"] = optimizer
+    optimizer = torch.optim.Adam(network.parameters(), lr=training_session.learning_rate)
+    training_session.optimizer = optimizer
 
     clip_max_norm = 5
 
-    checkpoint_filename = f'n={hyperparameters["num_most_frequent_symbols"]}_{training_parameters["datetime"]}.net'
+    checkpoint_filename = f'n={training_session.num_most_frequent_symbols}_{training_session.datetime}.net'
     checkpoint_path = networks_directory / checkpoint_filename
     patience = 11
     loss_delta = 0.001
@@ -227,24 +228,23 @@ def train_network(
 
     num_epochs_length = len(str(num_epochs))
 
-    num_batches = int(num_training / hyperparameters["batch_size"])
+    num_batches = int(num_training / training_session.batch_size)
     num_batches_length = len(str(num_batches))
 
-    training_parameters["average_training_losses"] = training_parameters.get(
-        "average_training_losses", []
-    )
-    training_parameters["average_validation_losses"] = training_parameters.get(
-        "average_validation_losses", []
-    )
+    if not hasattr(training_session, "average_training_losses"):
+        training_session.average_training_losses = []
 
-    training_parameters["epoch"] = training_parameters["num_complete_epochs"] + 1
-    for epoch in range(training_parameters["epoch"], num_epochs + 1):
-        training_parameters["epoch"] = epoch
+    if not hasattr(training_session, "average_validation_losses"):
+        training_session.average_validation_losses = []
+
+    training_session.epoch = training_session.num_complete_epochs + 1
+    for epoch in range(training_session.epoch, num_epochs + 1):
+        training_session.epoch = epoch
 
         # training
         ########################################################################
         training_losses = []
-        h = network.init_hidden(hyperparameters["batch_size"])
+        h = network.init_hidden(training_session.batch_size)
 
         # set the network in training mode
         network.train()
@@ -286,15 +286,15 @@ def train_network(
                 training_progress = f"epoch {epoch:{num_epochs_length}} of {num_epochs}, batch {batch_number:{num_batches_length}} of {num_batches} | average training loss: {average_training_loss:.4f}"
                 print(training_progress)
 
-        training_parameters["num_complete_epochs"] += 1
+        training_session.num_complete_epochs += 1
 
         average_training_loss = np.average(training_losses)
-        training_parameters["average_training_losses"].append(average_training_loss)
+        training_session.average_training_losses.append(average_training_loss)
 
         # validation
         ########################################################################
         validation_losses = []
-        h = network.init_hidden(hyperparameters["batch_size"])
+        h = network.init_hidden(training_session.batch_size)
 
         # disable gradient calculation
         with torch.no_grad():
@@ -314,7 +314,7 @@ def train_network(
                 summary_writer.add_scalar("loss/validation", validation_loss, epoch)
 
         average_validation_loss = np.average(validation_losses)
-        training_parameters["average_validation_losses"].append(average_validation_loss)
+        training_session.average_validation_losses.append(average_validation_loss)
 
         training_progress = f"epoch {epoch:{num_epochs_length}} of {num_epochs}, "
         if verbose:
@@ -325,7 +325,7 @@ def train_network(
         print(training_progress)
 
         if stop_early(
-            network, hyperparameters, training_parameters, average_validation_loss
+            network, training_session, average_validation_loss
         ):
             summary_writer.flush()
             summary_writer.close()
@@ -342,14 +342,14 @@ def load_checkpoint(checkpoint_path):
     return checkpoint
 
 
-def test_network(network, hyperparameters, training_parameters, test_loader):
+def test_network(network, training_session, test_loader):
     """
     Calculate test loss and generate metrics.
     """
-    criterion = training_parameters["criterion"]
+    criterion = training_session.criterion
 
     # initialize hidden state
-    h = network.init_hidden(hyperparameters["batch_size"])
+    h = network.init_hidden(training_session.batch_size)
 
     test_losses = []
     num_correct_predictions = 0
@@ -390,14 +390,13 @@ def test_network(network, hyperparameters, training_parameters, test_loader):
 
 
 def save_training_checkpoint(
-    network, hyperparameters, training_parameters, checkpoint_path
+    network, training_session, checkpoint_path
 ):
     """
     """
     checkpoint = {
         "network": network,
-        "hyperparameters": hyperparameters,
-        "training_parameters": training_parameters,
+        "training_session": training_session,
     }
     torch.save(checkpoint, checkpoint_path)
 
@@ -421,13 +420,13 @@ class EarlyStopping:
         self.no_progress = 0
         self.min_validation_loss = np.Inf
 
-    def __call__(self, network, hyperparameters, training_parameters, validation_loss):
+    def __call__(self, network, training_session, validation_loss):
         if self.min_validation_loss == np.Inf:
             self.min_validation_loss = validation_loss
             print("saving initial network checkpoint...")
             print()
             save_training_checkpoint(
-                network, hyperparameters, training_parameters, self.checkpoint_path
+                network, training_session, self.checkpoint_path
             )
             return False
 
@@ -439,7 +438,7 @@ class EarlyStopping:
             )
             print()
             save_training_checkpoint(
-                network, hyperparameters, training_parameters, self.checkpoint_path
+                network, training_session, self.checkpoint_path
             )
             self.min_validation_loss = validation_loss
             self.no_progress = 0
@@ -456,83 +455,59 @@ class EarlyStopping:
                 return True
 
 
-def generate_training_session(args):
+class TrainingSession:
     """
     """
-    # hyperparameters dictionary
-    hyperparameters = {}
+    def __init__(self, args):
+        self.datetime = args.datetime
 
-    # hyperparameters["random_state"] = None
-    # hyperparameters["random_state"] = 5
-    # hyperparameters["random_state"] = 7
-    # hyperparameters["random_state"] = 11
-    hyperparameters["random_state"] = args.random_state
+        # self.random_state = None
+        # self.random_state = 5
+        # self.random_state = 7
+        # self.random_state = 11
+        self.random_state = args.random_state
 
-    # hyperparameters["num_most_frequent_symbols"] = 3
-    # hyperparameters["num_most_frequent_symbols"] = 101
-    # hyperparameters["num_most_frequent_symbols"] = 1013
-    # hyperparameters["num_most_frequent_symbols"] = 10059
-    # hyperparameters["num_most_frequent_symbols"] = 20147
-    # hyperparameters["num_most_frequent_symbols"] = 25028
-    # hyperparameters["num_most_frequent_symbols"] = 30591
-    hyperparameters["num_most_frequent_symbols"] = args.num_most_frequent_symbols
+        # self.num_most_frequent_symbols = 3
+        # self.num_most_frequent_symbols = 101
+        # self.num_most_frequent_symbols = 1013
+        # self.num_most_frequent_symbols = 10059
+        # self.num_most_frequent_symbols = 20147
+        # self.num_most_frequent_symbols = 25028
+        # self.num_most_frequent_symbols = 30591
+        self.num_most_frequent_symbols = args.num_most_frequent_symbols
 
-    # padding or truncating length
-    hyperparameters["sequence_length"] = 1000
-    # hyperparameters["sequence_length"] = 2000
+        # padding or truncating length
+        self.sequence_length = 1000
+        # self.sequence_length = 2000
 
-    hyperparameters["test_ratio"] = 0.05
-    # hyperparameters["test_ratio"] = 0.1
-    # hyperparameters["test_ratio"] = 0.2
+        if self.num_most_frequent_symbols == 3:
+            self.test_ratio = 0.2
+            self.validation_ratio = 0.2
+        elif self.num_most_frequent_symbols in {101, 1013}:
+            self.test_ratio = 0.1
+            self.validation_ratio = 0.1
+        else:
+            self.test_ratio = 0.05
+            self.validation_ratio = 0.05
 
-    hyperparameters["validation_ratio"] = 0.05
-    # hyperparameters["validation_ratio"] = 0.1
-    # hyperparameters["validation_ratio"] = 0.2
+        # self.batch_size = 32
+        self.batch_size = 64
+        # self.batch_size = 128
+        # self.batch_size = 200
+        # self.batch_size = 256
+        # self.batch_size = 512
 
-    # hyperparameters["batch_size"] = 1
-    # hyperparameters["batch_size"] = 4
-    # hyperparameters["batch_size"] = 32
-    hyperparameters["batch_size"] = 64
-    # hyperparameters["batch_size"] = 128
-    # hyperparameters["batch_size"] = 200
-    # hyperparameters["batch_size"] = 256
-    # hyperparameters["batch_size"] = 512
+        self.learning_rate = 0.001
+        # self.learning_rate = 0.01
 
-    hyperparameters["lr"] = 0.001
-    # hyperparameters["lr"] = 0.01
+        # self.num_epochs = 10
+        self.num_epochs = 100
+        # self.num_epochs = 1000
 
-    # hyperparameters["num_epochs"] = 10
-    hyperparameters["num_epochs"] = 100
-    # hyperparameters["num_epochs"] = 1000
+        self.num_complete_epochs = 0
 
-    # hyperparameters["hidden_size"] = 128
-    hyperparameters["hidden_size"] = 256
-    # hyperparameters["hidden_size"] = 512
-    # hyperparameters["hidden_size"] = 1024
-
-    hyperparameters["num_layers"] = 1
-    # hyperparameters["num_layers"] = 2
-
-    if hyperparameters["num_layers"] == 1:
-        hyperparameters["lstm_dropout_probability"] = 0
-    else:
-        hyperparameters["lstm_dropout_probability"] = 1 / 3
-        # hyperparameters["lstm_dropout_probability"] = 1 / 4
-
-    hyperparameters["final_dropout_probability"] = 1 / 4
-    # hyperparameters["final_dropout_probability"] = 1 / 5
-
-    # training parameters dictionary
-    training_parameters = {}
-
-    training_parameters["datetime"] = args.datetime
-
-    # loss function
-    training_parameters["criterion"] = nn.NLLLoss()
-
-    training_parameters["num_complete_epochs"] = 0
-
-    return hyperparameters, training_parameters
+    def __str__(self):
+        return pprint.pformat(self.__dict__, sort_dicts=False)
 
 
 if __name__ == "__main__":

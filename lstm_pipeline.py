@@ -27,8 +27,6 @@ import argparse
 import pathlib
 import sys
 
-from pprint import pprint
-
 # third party imports
 import pandas as pd
 import torch
@@ -42,7 +40,7 @@ from torch.utils.data import DataLoader, random_split
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
-from pipeline_imports import SequenceDataset, train_network, load_checkpoint, test_network, generate_training_session
+from pipeline_imports import SequenceDataset, train_network, load_checkpoint, test_network, TrainingSession
 
 
 class Sequence_LSTM(nn.Module):
@@ -152,11 +150,30 @@ def main():
         print(f'Loading training checkpoint "{checkpoint_path}"...', end="")
         checkpoint = load_checkpoint(checkpoint_path)
         network = checkpoint["network"]
-        hyperparameters = checkpoint["hyperparameters"]
-        training_parameters = checkpoint["training_parameters"]
+        training_session = checkpoint["training_session"]
         print(" Done.")
     else:
-        hyperparameters, training_parameters = generate_training_session(args)
+        training_session = TrainingSession(args)
+
+        # training_session.hidden_size = 128
+        training_session.hidden_size = 256
+        # training_session.hidden_size = 512
+        # training_session.hidden_size = 1024
+
+        training_session.num_layers = 1
+        # training_session.num_layers = 2
+
+        if training_session.num_layers == 1:
+            training_session.lstm_dropout_probability = 0
+        else:
+            training_session.lstm_dropout_probability = 1 / 3
+            # training_session.lstm_dropout_probability = 1 / 4
+
+        training_session.final_dropout_probability = 1 / 4
+        # training_session.final_dropout_probability = 1 / 5
+
+        # loss function
+        training_session.criterion = nn.NLLLoss()
 
         # neural network instantiation
         ############################################################################
@@ -166,11 +183,11 @@ def main():
 
         network = Sequence_LSTM(
             input_size=input_size,
-            output_size=hyperparameters["num_most_frequent_symbols"],
-            hidden_size=hyperparameters["hidden_size"],
-            num_layers=hyperparameters["num_layers"],
-            lstm_dropout_probability=hyperparameters["lstm_dropout_probability"],
-            final_dropout_probability=hyperparameters["final_dropout_probability"],
+            output_size=training_session.num_most_frequent_symbols,
+            hidden_size=training_session.hidden_size,
+            num_layers=training_session.num_layers,
+            lstm_dropout_probability=training_session.lstm_dropout_probability,
+            final_dropout_probability=training_session.final_dropout_probability,
         )
         # print(network)
         # print()
@@ -178,18 +195,18 @@ def main():
 
         network.to(DEVICE)
 
-    if hyperparameters["random_state"] is not None:
-        torch.manual_seed(hyperparameters["random_state"])
+    if training_session.random_state is not None:
+        torch.manual_seed(training_session.random_state)
 
     # load data, generate datasets
     ############################################################################
     dataset = SequenceDataset(
-        hyperparameters["num_most_frequent_symbols"], hyperparameters["sequence_length"]
+        training_session.num_most_frequent_symbols, training_session.sequence_length
     )
 
     # split dataset into train, validation, and test datasets
-    validation_size = int(hyperparameters["validation_ratio"] * len(dataset))
-    test_size = int(hyperparameters["test_ratio"] * len(dataset))
+    validation_size = int(training_session.validation_ratio * len(dataset))
+    test_size = int(training_session.test_ratio * len(dataset))
     training_size = len(dataset) - validation_size - test_size
 
     training_dataset, validation_dataset, test_dataset = random_split(
@@ -206,26 +223,26 @@ def main():
 
     # set the batch size to the size of the smallest dataset if larger than that
     min_dataset_size = min(num_training, num_validation, num_test)
-    if hyperparameters["batch_size"] > min_dataset_size:
-        hyperparameters["batch_size"] = min_dataset_size
+    if training_session.batch_size > min_dataset_size:
+        training_session.batch_size = min_dataset_size
 
     drop_last = True
     # drop_last = False
     training_loader = DataLoader(
         training_dataset,
-        batch_size=hyperparameters["batch_size"],
+        batch_size=training_session.batch_size,
         shuffle=True,
         drop_last=drop_last,
     )
     validation_loader = DataLoader(
         validation_dataset,
-        batch_size=hyperparameters["batch_size"],
+        batch_size=training_session.batch_size,
         shuffle=True,
         drop_last=drop_last,
     )
     test_loader = DataLoader(
         test_dataset,
-        batch_size=hyperparameters["batch_size"],
+        batch_size=training_session.batch_size,
         shuffle=False,
         drop_last=drop_last,
     )
@@ -234,11 +251,8 @@ def main():
     print("network:")
     print(network)
     print()
-    print("hyperparameters:")
-    pprint(hyperparameters)
-    print()
-    print("training_parameters:")
-    pprint(training_parameters)
+    print("training_session:")
+    print(training_session)
     print()
 
     # train network
@@ -250,8 +264,7 @@ def main():
 
         train_network(
             network,
-            hyperparameters,
-            training_parameters,
+            training_session,
             training_loader,
             validation_loader,
             num_training,
@@ -260,7 +273,7 @@ def main():
 
     # test trained network
     if args.test:
-        test_network(network, hyperparameters, training_parameters, test_loader)
+        test_network(network, training_session, test_loader)
 
 
 if __name__ == "__main__":
