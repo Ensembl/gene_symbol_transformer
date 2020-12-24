@@ -403,6 +403,9 @@ def train_network(
         if stop_early(
             network, hyperparameters, training_parameters, average_validation_loss
         ):
+            summary_writer.flush()
+            summary_writer.close()
+
             break
 
 
@@ -747,9 +750,6 @@ def main():
             num_training,
             verbose,
         )
-
-        summary_writer.flush()
-        summary_writer.close()
 
     # test trained network
     if args.test:
