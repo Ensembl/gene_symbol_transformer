@@ -37,6 +37,7 @@ from torch.utils.data import DataLoader, random_split
 # project imports
 from generic_pipeline import (
     load_checkpoint,
+    networks_directory,
     test_network,
     train_network,
     TrainingSession,
@@ -151,11 +152,9 @@ def main():
     # load training checkpoint or generate new training session
     if args.load:
         checkpoint_path = pathlib.Path(args.load)
-        print(f'Loading training checkpoint "{checkpoint_path}"...', end="")
-        checkpoint = load_checkpoint(checkpoint_path)
+        checkpoint = load_checkpoint(checkpoint_path, verbose=True)
         network = checkpoint["network"]
         training_session = checkpoint["training_session"]
-        print(" Done.")
     else:
         training_session = TrainingSession(args)
 
@@ -170,11 +169,11 @@ def main():
         if training_session.num_layers == 1:
             training_session.lstm_dropout_probability = 0
         else:
-            training_session.lstm_dropout_probability = 0.1
-            # training_session.lstm_dropout_probability = 0.2
+            # training_session.lstm_dropout_probability = 0.1
+            training_session.lstm_dropout_probability = 0.2
 
-        training_session.final_dropout_probability = 0.1
-        # training_session.final_dropout_probability = 0.2
+        # training_session.final_dropout_probability = 0.1
+        training_session.final_dropout_probability = 0.2
 
         # loss function
         training_session.criterion = nn.NLLLoss()
@@ -277,6 +276,10 @@ def main():
 
     # test trained network
     if args.test:
+        checkpoint_path = networks_directory / training_session.checkpoint_filename
+        checkpoint = load_checkpoint(checkpoint_path, verbose=True)
+        network = checkpoint["network"]
+        training_session = checkpoint["training_session"]
         test_network(network, training_session, test_loader)
 
 
