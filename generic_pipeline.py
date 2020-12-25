@@ -220,13 +220,7 @@ def train_network(
 
     checkpoint_filename = f'n={training_session.num_most_frequent_symbols}_{training_session.datetime}.net'
     checkpoint_path = networks_directory / checkpoint_filename
-    # larger patience for short and smaller patience for longer epochs
-    if training_session.num_most_frequent_symbols in {3, 101}:
-        patience = 11
-    else:
-        patience = 7
-    loss_delta = 0.001
-    stop_early = EarlyStopping(checkpoint_path, patience, loss_delta)
+    stop_early = EarlyStopping(checkpoint_path, training_session.patience, training_session.loss_delta)
     print(f"checkpoints of the network being trained saved to {checkpoint_path}")
     print()
 
@@ -413,13 +407,13 @@ class EarlyStopping:
     def __init__(self, checkpoint_path, patience=7, loss_delta=0):
         """
         Arguments:
+            checkpoint_path (path-like object): Path to save the checkpoint.
             patience (int): Number of calls to continue training if validation loss is not improving. Defaults to 7.
             loss_delta (float): Minimum change in the monitored quantity to qualify as an improvement. Defaults to 0.
-            checkpoint_path (path-like object): Path to save the checkpoint.
         """
+        self.checkpoint_path = checkpoint_path
         self.patience = patience
         self.loss_delta = loss_delta
-        self.checkpoint_path = checkpoint_path
 
         self.no_progress = 0
         self.min_validation_loss = np.Inf
@@ -509,6 +503,14 @@ class TrainingSession:
         # self.num_epochs = 1000
 
         self.num_complete_epochs = 0
+
+        # larger patience for short epochs and smaller patience for longer epochs
+        if self.num_most_frequent_symbols in {3, 101}:
+            self.patience = 11
+        else:
+            self.patience = 7
+
+        self.loss_delta = 0.001
 
     def __str__(self):
         return pprint.pformat(self.__dict__, sort_dicts=False)
