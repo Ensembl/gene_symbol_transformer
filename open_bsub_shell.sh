@@ -16,16 +16,8 @@
 # limitations under the License.
 
 
+# bsub
 # https://www.ibm.com/support/knowledgecenter/SSWRJV_10.1.0/lsf_command_ref/bsub.man_top.1.html
-
-
-# settings used to install torch
-#MEM_LIMIT=8192
-#MIN_TASKS=8
-#SCRATCH_SIZE=4096
-#bsub -M $MEM_LIMIT -Is -n $MIN_TASKS -R"rusage[mem=$MEM_LIMIT, scratch=$SCRATCH_SIZE] select[model=XeonE52650, mem>$MEM_LIMIT] span[hosts=1]" $SHELL
-
-
 # -Is [-tty]
 # Submits an interactive job and creates a pseudo-terminal with shell mode when the job starts.
 # -n min_tasks[,max_tasks]
@@ -49,30 +41,37 @@ MEM_LIMIT=16384
 #MEM_LIMIT=32768
 #MEM_LIMIT=65536
 
-#MIN_TASKS=8
-MIN_TASKS=16
 
-
-# open a shell on a stardard compute node
+# stardard compute node shell
+################################################################################
 if [[ "$JOB_TYPE" = "standard" ]]; then
     bsub -Is -tty -M $MEM_LIMIT -R"select[mem>$MEM_LIMIT] rusage[mem=$MEM_LIMIT] span[hosts=1]" $SHELL
 fi
+################################################################################
 
-#COMPUTE_NODE=gpu-009
-COMPUTE_NODE=gpu-011
-
-#NUM_GPUS=1
-NUM_GPUS=2
-#NUM_GPUS=4
-
-# open a shell on a GPU node
+# GPU node shell
+################################################################################
 # https://sysinf.ebi.ac.uk/doku.php?id=ebi_cluster_good_computing_guide#gpu_hosts
 # https://www.ibm.com/support/knowledgecenter/SSWRJV_10.1.0/lsf_command_ref/bsub.gpu.1.html
+
+COMPUTE_NODE=gpu-009
+#COMPUTE_NODE=gpu-011
+
+NUM_GPUS=1
+#NUM_GPUS=2
+#NUM_GPUS=4
+
 if [[ "$JOB_TYPE" = "gpu" ]]; then
     bsub -q $QUEUE -P gpu -gpu "num=$NUM_GPUS:j_exclusive=yes" -m ${COMPUTE_NODE}.ebi.ac.uk -Is -tty -M $MEM_LIMIT -R"select[mem>$MEM_LIMIT] rusage[mem=$MEM_LIMIT] span[hosts=1]" $SHELL
 fi
+################################################################################
 
-# open a parallel jobs shell
+# parallel jobs shell
+################################################################################
+#MIN_TASKS=8
+MIN_TASKS=16
+
 if [[ "$JOB_TYPE" = "parallel" ]]; then
     bsub -Is -tty -n $MIN_TASKS -M $MEM_LIMIT -R"select[mem>$MEM_LIMIT] rusage[mem=$MEM_LIMIT] span[hosts=1]" $SHELL
 fi
+################################################################################
