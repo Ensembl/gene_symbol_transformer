@@ -205,7 +205,9 @@ def train_network(
 ):
     """
     """
-    tensorboard_log_dir = f'runs/{training_session.num_most_frequent_symbols}/{training_session.datetime}'
+    tensorboard_log_dir = (
+        f"runs/{training_session.num_most_frequent_symbols}/{training_session.datetime}"
+    )
     summary_writer = SummaryWriter(log_dir=tensorboard_log_dir)
 
     num_epochs = training_session.num_epochs
@@ -218,9 +220,13 @@ def train_network(
 
     clip_max_norm = 5
 
-    checkpoint_filename = f'n={training_session.num_most_frequent_symbols}_{training_session.datetime}.net'
+    checkpoint_filename = (
+        f"n={training_session.num_most_frequent_symbols}_{training_session.datetime}.net"
+    )
     checkpoint_path = networks_directory / checkpoint_filename
-    stop_early = EarlyStopping(checkpoint_path, training_session.patience, training_session.loss_delta)
+    stop_early = EarlyStopping(
+        checkpoint_path, training_session.patience, training_session.loss_delta
+    )
     print(f"checkpoints of the network being trained saved to {checkpoint_path}")
     print()
 
@@ -322,9 +328,7 @@ def train_network(
         training_progress += f"| average training loss: {average_training_loss:.4f}, average validation loss: {average_validation_loss:.4f}"
         print(training_progress)
 
-        if stop_early(
-            network, training_session, average_validation_loss
-        ):
+        if stop_early(network, training_session, average_validation_loss):
             summary_writer.flush()
             summary_writer.close()
 
@@ -387,9 +391,7 @@ def test_network(network, training_session, test_loader):
     print("test accuracy: {:.3f}".format(test_accuracy))
 
 
-def save_training_checkpoint(
-    network, training_session, checkpoint_path
-):
+def save_training_checkpoint(network, training_session, checkpoint_path):
     """
     """
     checkpoint = {
@@ -423,21 +425,19 @@ class EarlyStopping:
             self.min_validation_loss = validation_loss
             print("saving initial network checkpoint...")
             print()
-            save_training_checkpoint(
-                network, training_session, self.checkpoint_path
-            )
+            save_training_checkpoint(network, training_session, self.checkpoint_path)
             return False
 
         elif validation_loss <= self.min_validation_loss - self.loss_delta:
             validation_loss_decrease = self.min_validation_loss - validation_loss
-            assert validation_loss_decrease > 0, f"{validation_loss_decrease=}, should be a positive number"
+            assert (
+                validation_loss_decrease > 0
+            ), f"{validation_loss_decrease=}, should be a positive number"
             print(
                 f"validation loss decreased by {validation_loss_decrease:.4f}, saving network checkpoint..."
             )
             print()
-            save_training_checkpoint(
-                network, training_session, self.checkpoint_path
-            )
+            save_training_checkpoint(network, training_session, self.checkpoint_path)
             self.min_validation_loss = validation_loss
             self.no_progress = 0
             return False
@@ -456,6 +456,7 @@ class EarlyStopping:
 class TrainingSession:
     """
     """
+
     def __init__(self, args):
         self.datetime = args.datetime
 
