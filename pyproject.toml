@@ -2,7 +2,7 @@
 name = "gene_symbol_classifier"
 version = "0.1.0"
 description = ""
-authors = ["William Dimitrios Paraschas <dimitrios@ebi.ac.uk>"]
+authors = ["William Stark <dimitrios@ebi.ac.uk>"]
 
 [tool.poetry.dependencies]
 python = "^3.8"
