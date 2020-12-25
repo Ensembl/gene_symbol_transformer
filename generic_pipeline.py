@@ -220,7 +220,11 @@ def train_network(
 
     checkpoint_filename = f'n={training_session.num_most_frequent_symbols}_{training_session.datetime}.net'
     checkpoint_path = networks_directory / checkpoint_filename
-    patience = 11
+    # larger patience for short and smaller patience for longer epochs
+    if training_session.num_most_frequent_symbols in {3, 101}:
+        patience = 11
+    else:
+        patience = 7
     loss_delta = 0.001
     stop_early = EarlyStopping(checkpoint_path, patience, loss_delta)
     print(f"checkpoints of the network being trained saved to {checkpoint_path}")
