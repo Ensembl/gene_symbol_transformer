@@ -10,7 +10,7 @@ if [[ "$PYTHON_SCIPT" != "lstm_pipeline.py" && "$PYTHON_SCIPT" != "cnn_pipeline.
     exit
 fi
 
-DATETIME=$(date +%Y-%m-%d_%H:%M)
+DATETIME=$(date +%Y-%m-%d_%H:%M:%S)
 
 #NUM_MOST_FREQUENT_SYMBOLS=3
 #NUM_MOST_FREQUENT_SYMBOLS=101

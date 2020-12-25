@@ -220,10 +220,7 @@ def train_network(
 
     clip_max_norm = 5
 
-    checkpoint_filename = (
-        f"n={training_session.num_most_frequent_symbols}_{training_session.datetime}.net"
-    )
-    checkpoint_path = networks_directory / checkpoint_filename
+    checkpoint_path = networks_directory / training_session.checkpoint_filename
     stop_early = EarlyStopping(
         checkpoint_path, training_session.patience, training_session.loss_delta
     )
@@ -335,11 +332,17 @@ def train_network(
             break
 
 
-def load_checkpoint(checkpoint_path):
+def load_checkpoint(checkpoint_path, verbose=False):
     """
     Load saved training checkpoint.
     """
+    if verbose:
+        print(f'Loading training checkpoint "{checkpoint_path}"...', end="")
+
     checkpoint = torch.load(checkpoint_path, map_location=DEVICE)
+
+    if verbose:
+        print(" Done.")
 
     return checkpoint
 
@@ -450,6 +453,7 @@ class EarlyStopping:
                 print(
                     f"{self.no_progress} calls with no validation loss improvement. Stopping training."
                 )
+                print()
                 return True
 
 
@@ -506,12 +510,14 @@ class TrainingSession:
         self.num_complete_epochs = 0
 
         # larger patience for short epochs and smaller patience for longer epochs
-        if self.num_most_frequent_symbols in {3, 101}:
+        if self.num_most_frequent_symbols in {3, 101, 1013}:
             self.patience = 11
         else:
             self.patience = 7
 
         self.loss_delta = 0.001
+
+        self.checkpoint_filename = f"n={self.num_most_frequent_symbols}_{self.datetime}.pth"
 
     def __str__(self):
         return pprint.pformat(self.__dict__, sort_dicts=False)
