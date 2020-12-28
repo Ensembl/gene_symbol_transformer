@@ -28,18 +28,20 @@ import pathlib
 import sys
 
 # third party imports
+import numpy as np
 import pandas as pd
 import torch
 import torch.nn as nn
 
 from torch.utils.data import DataLoader, random_split
+from torch.utils.tensorboard import SummaryWriter
 
 # project imports
 from generic_pipeline import (
     load_checkpoint,
     networks_directory,
     test_network,
-    train_network,
+    EarlyStopping,
     TrainingSession,
     SequenceDataset,
 )
@@ -120,6 +122,145 @@ class Sequence_LSTM(nn.Module):
         return hidden
 
 
+def train_network(
+    network,
+    training_session,
+    training_loader,
+    validation_loader,
+    num_training,
+    verbose=False,
+):
+    """
+    """
+    tensorboard_log_dir = (
+        f"runs/{training_session.num_most_frequent_symbols}/{training_session.datetime}"
+    )
+    summary_writer = SummaryWriter(log_dir=tensorboard_log_dir)
+
+    num_epochs = training_session.num_epochs
+
+    criterion = training_session.criterion
+
+    # optimization function
+    training_session.optimizer = torch.optim.Adam(
+        network.parameters(),
+        lr=training_session.learning_rate
+    )
+
+    clip_max_norm = 5
+
+    checkpoint_path = networks_directory / training_session.checkpoint_filename
+    stop_early = EarlyStopping(
+        checkpoint_path, training_session.patience, training_session.loss_delta
+    )
+    print(f"checkpoints of the network being trained saved to {checkpoint_path}")
+    print()
+
+    num_epochs_length = len(str(num_epochs))
+
+    num_batches = int(num_training / training_session.batch_size)
+    num_batches_length = len(str(num_batches))
+
+    if not hasattr(training_session, "average_training_losses"):
+        training_session.average_training_losses = []
+
+    if not hasattr(training_session, "average_validation_losses"):
+        training_session.average_validation_losses = []
+
+    training_session.epoch = training_session.num_complete_epochs + 1
+    for epoch in range(training_session.epoch, num_epochs + 1):
+        training_session.epoch = epoch
+
+        # training
+        ########################################################################
+        training_losses = []
+        h = network.init_hidden(training_session.batch_size)
+
+        # set the network in training mode
+        network.train()
+        for batch_number, (inputs, labels) in enumerate(training_loader, start=1):
+            inputs, labels = inputs.to(DEVICE), labels.to(DEVICE)
+
+            epoch_end = batch_number == num_batches
+
+            # generate new variables for the hidden state
+            h = tuple(tensor.data for tensor in h)
+
+            # zero accumulated gradients
+            network.zero_grad()
+
+            # get network output and hidden state
+            output, h = network(inputs, h)
+
+            with torch.no_grad():
+                # get class indexes from the labels one hot encoding
+                labels = torch.argmax(labels, dim=1)
+
+            # calculate the training loss
+            training_loss = criterion(output, labels)
+            training_losses.append(training_loss.item())
+            summary_writer.add_scalar("loss/training", training_loss, epoch)
+
+            # perform back propagation
+            training_loss.backward()
+
+            # prevent the exploding gradient problem
+            nn.utils.clip_grad_norm_(network.parameters(), clip_max_norm)
+
+            # perform an optimization step
+            training_session.optimizer.step()
+
+            if verbose and not epoch_end:
+                average_training_loss = np.average(training_losses)
+
+                training_progress = f"epoch {epoch:{num_epochs_length}} of {num_epochs}, batch {batch_number:{num_batches_length}} of {num_batches} | average training loss: {average_training_loss:.4f}"
+                print(training_progress)
+
+        training_session.num_complete_epochs += 1
+
+        average_training_loss = np.average(training_losses)
+        training_session.average_training_losses.append(average_training_loss)
+
+        # validation
+        ########################################################################
+        validation_losses = []
+        h = network.init_hidden(training_session.batch_size)
+
+        # disable gradient calculation
+        with torch.no_grad():
+            # set the network in evaluation mode
+            network.eval()
+
+            for inputs, labels in validation_loader:
+                inputs, labels = inputs.to(DEVICE), labels.to(DEVICE)
+
+                # generate new variables for the hidden state
+                h = tuple(tensor.data for tensor in h)
+
+                output, h = network(inputs, h)
+                labels = torch.argmax(labels, dim=1)
+                validation_loss = criterion(output, labels)
+                validation_losses.append(validation_loss.item())
+                summary_writer.add_scalar("loss/validation", validation_loss, epoch)
+
+        average_validation_loss = np.average(validation_losses)
+        training_session.average_validation_losses.append(average_validation_loss)
+
+        training_progress = f"epoch {epoch:{num_epochs_length}} of {num_epochs}, "
+        if verbose:
+            training_progress += (
+                f"batch {batch_number:{num_batches_length}} of {num_batches} "
+            )
+        training_progress += f"| average training loss: {average_training_loss:.4f}, average validation loss: {average_validation_loss:.4f}"
+        print(training_progress)
+
+        if stop_early(network, training_session, average_validation_loss):
+            summary_writer.flush()
+            summary_writer.close()
+
+            break
+
+
 def main():
     """
     main function
@@ -138,13 +279,18 @@ def main():
     # pd.options.display.max_columns = None
     # pd.options.display.max_rows = None
 
-    # print version and environment information
+    # print PyTorch version information
     print(f"{torch.__version__=}")
     print(f"{torch.version.cuda=}")
+
+    # print CUDA environment information
+    # os.environ["CUDA_VISIBLE_DEVICES"] = "0,1"
+
     print(f"{torch.backends.cudnn.enabled=}")
     print(f"{torch.cuda.is_available()=}")
     print(f"{DEVICE=}")
     if torch.cuda.is_available():
+        print(f"{torch.cuda.device_count()=}")
         print(f"{torch.cuda.get_device_properties(DEVICE)}")
         # print(f"{torch.cuda.memory_summary(DEVICE)}")
     print()
