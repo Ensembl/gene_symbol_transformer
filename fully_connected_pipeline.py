@@ -28,43 +28,249 @@ import pathlib
 import sys
 
 # third party imports
+import numpy as np
 import pandas as pd
 import torch
 import torch.nn as nn
 
 from torch.utils.data import DataLoader, random_split
+from torch.utils.tensorboard import SummaryWriter
 
 # project imports
-from generic_pipeline import load_checkpoint, test_network, train_network, TrainingSession,SequenceDataset
+from generic_pipeline import (
+    load_checkpoint,
+    networks_directory,
+    EarlyStopping,
+    TrainingSession,
+    SequenceDataset,
+)
 
 
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
-class CNN_network(nn.Module):
+class FullyConnectedNetwork(nn.Module):
     """
-    A convolutional neural network for gene name classification of protein sequences
+    A fully connected neural network for gene name classification of protein sequences
     using the protein letters as features.
     """
 
-    def __init__(
-        self,
-        pass
-    ):
+    def __init__(self, sequence_length, num_protein_letters, num_most_frequent_symbols, dropout_probability, batch_size):
         """
         Initialize the neural network.
         """
         super().__init__()
 
-        pass
+        self.batch_size = batch_size
+
+        input_size = sequence_length * num_protein_letters
+        num_connections = 256
+        output_size = num_most_frequent_symbols
+
+        self.input_layer = nn.Linear(in_features=input_size, out_features=num_connections)
+        # self.hidden_layer = nn.Linear(in_features=None, out_features=None)
+        self.output_layer = nn.Linear(in_features=num_connections, out_features=output_size)
+
+        self.relu = nn.ReLU()
+        # self.final_activation = nn.LogSoftmax(dim=2)
+        self.final_activation = nn.LogSoftmax(dim=1)
 
     def forward(self, x):
         """
         Perform a forward pass of the network.
         """
-        pass
+        # print(x.shape)
+        # sys.exit()
 
-        return output
+        x = x.view(self.batch_size, -1)
+        # x = torch.flatten(x, start_dim=1)
+        # print(x.shape)
+        # sys.exit()
+
+        # sys.exit()
+        x = self.input_layer(x)
+        x = self.relu(x)
+
+        # x = self.hidden_layer(x)
+        # x = self.relu(x)
+
+        x = self.output_layer(x)
+        # print(x.shape)
+        # sys.exit()
+        x = self.final_activation(x)
+
+        return x
+
+
+def train_network(
+    network,
+    training_session,
+    training_loader,
+    validation_loader,
+    num_training,
+    verbose=False,
+):
+    """
+    """
+    tensorboard_log_dir = (
+        f"runs/{training_session.num_most_frequent_symbols}/{training_session.datetime}"
+    )
+    summary_writer = SummaryWriter(log_dir=tensorboard_log_dir)
+
+    num_epochs = training_session.num_epochs
+    criterion = training_session.criterion
+
+    # optimization function
+    training_session.optimizer = torch.optim.Adam(
+        network.parameters(),
+        lr=training_session.learning_rate
+    )
+
+    clip_max_norm = 5
+
+    checkpoint_path = networks_directory / training_session.checkpoint_filename
+    stop_early = EarlyStopping(
+        checkpoint_path, training_session.patience, training_session.loss_delta
+    )
+    print(f"checkpoints of the network being trained saved to {checkpoint_path}")
+    print()
+
+    num_epochs_length = len(str(num_epochs))
+
+    num_batches = int(num_training / training_session.batch_size)
+    num_batches_length = len(str(num_batches))
+
+    if not hasattr(training_session, "average_training_losses"):
+        training_session.average_training_losses = []
+
+    if not hasattr(training_session, "average_validation_losses"):
+        training_session.average_validation_losses = []
+
+    training_session.epoch = training_session.num_complete_epochs + 1
+    for epoch in range(training_session.epoch, num_epochs + 1):
+        training_session.epoch = epoch
+
+        # training
+        ########################################################################
+        training_losses = []
+
+        # set the network in training mode
+        network.train()
+        for batch_number, (inputs, labels) in enumerate(training_loader, start=1):
+            inputs, labels = inputs.to(DEVICE), labels.to(DEVICE)
+
+            epoch_end = batch_number == num_batches
+
+            # zero accumulated gradients
+            network.zero_grad()
+
+            # get network output and hidden state
+            output = network(inputs)
+
+            with torch.no_grad():
+                # get class indexes from the labels one hot encoding
+                labels = torch.argmax(labels, dim=1)
+
+            # calculate the training loss
+            training_loss = criterion(output, labels)
+            training_losses.append(training_loss.item())
+            summary_writer.add_scalar("loss/training", training_loss, epoch)
+
+            # perform back propagation
+            training_loss.backward()
+
+            # prevent the exploding gradient problem
+            nn.utils.clip_grad_norm_(network.parameters(), clip_max_norm)
+
+            # perform an optimization step
+            training_session.optimizer.step()
+
+            if verbose and not epoch_end:
+                average_training_loss = np.average(training_losses)
+
+                training_progress = f"epoch {epoch:{num_epochs_length}} of {num_epochs}, batch {batch_number:{num_batches_length}} of {num_batches} | average training loss: {average_training_loss:.4f}"
+                print(training_progress)
+
+        training_session.num_complete_epochs += 1
+
+        average_training_loss = np.average(training_losses)
+        training_session.average_training_losses.append(average_training_loss)
+
+        # validation
+        ########################################################################
+        validation_losses = []
+
+        # disable gradient calculation
+        with torch.no_grad():
+            # set the network in evaluation mode
+            network.eval()
+
+            for inputs, labels in validation_loader:
+                inputs, labels = inputs.to(DEVICE), labels.to(DEVICE)
+
+                output = network(inputs)
+                labels = torch.argmax(labels, dim=1)
+                validation_loss = criterion(output, labels)
+                validation_losses.append(validation_loss.item())
+                summary_writer.add_scalar("loss/validation", validation_loss, epoch)
+
+        average_validation_loss = np.average(validation_losses)
+        training_session.average_validation_losses.append(average_validation_loss)
+
+        training_progress = f"epoch {epoch:{num_epochs_length}} of {num_epochs}, "
+        if verbose:
+            training_progress += (
+                f"batch {batch_number:{num_batches_length}} of {num_batches} "
+            )
+        training_progress += f"| average training loss: {average_training_loss:.4f}, average validation loss: {average_validation_loss:.4f}"
+        print(training_progress)
+
+        if stop_early(network, training_session, average_validation_loss):
+            summary_writer.flush()
+            summary_writer.close()
+
+            break
+
+
+def test_network(network, training_session, test_loader):
+    """
+    Calculate test loss and generate metrics.
+    """
+    criterion = training_session.criterion
+
+    test_losses = []
+    num_correct_predictions = 0
+
+    with torch.no_grad():
+        network.eval()
+
+        for inputs, labels in test_loader:
+            inputs, labels = inputs.to(DEVICE), labels.to(DEVICE)
+
+            # get output values
+            output = network(inputs)
+
+            # get predicted labels from output
+            predicted_probabilities = torch.exp(output)
+            predictions = torch.argmax(predicted_probabilities, dim=1)
+
+            # get class indexes from one hot labels
+            labels = torch.argmax(labels, dim=1)
+
+            # calculate test loss
+            test_loss = criterion(output, labels)
+            test_losses.append(test_loss.item())
+
+            # predictions to ground truth comparison
+            predictions_correctness = predictions.eq(labels)
+            num_correct_predictions += torch.sum(predictions_correctness).item()
+
+    # print statistics
+    print("average test loss: {:.4f}".format(np.mean(test_losses)))
+
+    # test predictions accuracy
+    test_accuracy = num_correct_predictions / len(test_loader.dataset)
+    print("test accuracy: {:.3f}".format(test_accuracy))
 
 
 def main():
@@ -85,9 +291,13 @@ def main():
     # pd.options.display.max_columns = None
     # pd.options.display.max_rows = None
 
-    # print version and environment information
+    # print PyTorch version information
     print(f"{torch.__version__=}")
     print(f"{torch.version.cuda=}")
+
+    # print CUDA environment information
+    # os.environ["CUDA_VISIBLE_DEVICES"] = "0,1"
+
     print(f"{torch.backends.cudnn.enabled=}")
     print(f"{torch.cuda.is_available()=}")
     print(f"{DEVICE=}")
@@ -108,15 +318,32 @@ def main():
     else:
         training_session = TrainingSession(args)
 
-        pass
+        # training_session.hidden_size = 128
+        # training_session.hidden_size = 256
+        # training_session.hidden_size = 512
+        # training_session.hidden_size = 1024
+
+        training_session.dropout_probability = 0
+        # training_session.dropout_probability = 0.1
+        # training_session.dropout_probability = 0.2
+
+        # loss function
+        training_session.criterion = nn.NLLLoss()
 
         # neural network instantiation
         ############################################################################
-        pass
+        # num_protein_letters = len(dataset.protein_letters)
+        num_protein_letters = 27
 
-        # print(network)
-        # print()
+        network = FullyConnectedNetwork(
+            training_session.sequence_length,
+            num_protein_letters,
+            training_session.num_most_frequent_symbols,
+            training_session.dropout_probability,
+            training_session.batch_size,
+        )
         ############################################################################
+        training_session.device = DEVICE
 
         network.to(DEVICE)
 
