@@ -209,53 +209,6 @@ def load_checkpoint(checkpoint_path, verbose=False):
     return checkpoint
 
 
-def test_network(network, training_session, test_loader):
-    """
-    Calculate test loss and generate metrics.
-    """
-    criterion = training_session.criterion
-
-    # initialize hidden state
-    h = network.init_hidden(training_session.batch_size)
-
-    test_losses = []
-    num_correct_predictions = 0
-
-    with torch.no_grad():
-        network.eval()
-
-        for inputs, labels in test_loader:
-            inputs, labels = inputs.to(DEVICE), labels.to(DEVICE)
-
-            # create new variables for the hidden state
-            h = tuple(tensor.data for tensor in h)
-
-            # get output values
-            output, h = network(inputs, h)
-
-            # get predicted labels from output
-            predicted_probabilities = torch.exp(output)
-            predictions = torch.argmax(predicted_probabilities, dim=1)
-
-            # get class indexes from one hot labels
-            labels = torch.argmax(labels, dim=1)
-
-            # calculate test loss
-            test_loss = criterion(output, labels)
-            test_losses.append(test_loss.item())
-
-            # predictions to ground truth comparison
-            predictions_correctness = predictions.eq(labels)
-            num_correct_predictions += torch.sum(predictions_correctness).item()
-
-    # print statistics
-    print("average test loss: {:.4f}".format(np.mean(test_losses)))
-
-    # test predictions accuracy
-    test_accuracy = num_correct_predictions / len(test_loader.dataset)
-    print("test accuracy: {:.3f}".format(test_accuracy))
-
-
 def save_training_checkpoint(network, training_session, checkpoint_path):
     """
     """
