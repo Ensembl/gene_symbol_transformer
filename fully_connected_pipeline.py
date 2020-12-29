@@ -71,6 +71,8 @@ class FullyConnectedNetwork(nn.Module):
         # self.hidden_layer = nn.Linear(in_features=None, out_features=None)
         self.output_layer = nn.Linear(in_features=num_connections, out_features=output_size)
 
+        self.dropout = nn.Dropout(dropout_probability)
+
         self.relu = nn.ReLU()
         # self.final_activation = nn.LogSoftmax(dim=2)
         self.final_activation = nn.LogSoftmax(dim=1)
@@ -89,6 +91,7 @@ class FullyConnectedNetwork(nn.Module):
 
         # sys.exit()
         x = self.input_layer(x)
+        x = self.dropout(x)
         x = self.relu(x)
 
         # x = self.hidden_layer(x)
@@ -97,6 +100,7 @@ class FullyConnectedNetwork(nn.Module):
         x = self.output_layer(x)
         # print(x.shape)
         # sys.exit()
+        x = self.dropout(x)
         x = self.final_activation(x)
 
         return x
@@ -324,6 +328,7 @@ def main():
         # training_session.hidden_size = 1024
 
         training_session.dropout_probability = 0
+        # training_session.dropout_probability = 0.05
         # training_session.dropout_probability = 0.1
         # training_session.dropout_probability = 0.2
 
