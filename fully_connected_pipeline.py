@@ -55,7 +55,14 @@ class FullyConnectedNetwork(nn.Module):
     using the protein letters as features.
     """
 
-    def __init__(self, sequence_length, num_protein_letters, num_most_frequent_symbols, dropout_probability, batch_size):
+    def __init__(
+        self,
+        sequence_length,
+        num_protein_letters,
+        num_most_frequent_symbols,
+        dropout_probability,
+        batch_size,
+    ):
         """
         Initialize the neural network.
         """
@@ -69,7 +76,9 @@ class FullyConnectedNetwork(nn.Module):
 
         self.input_layer = nn.Linear(in_features=input_size, out_features=num_connections)
         # self.hidden_layer = nn.Linear(in_features=None, out_features=None)
-        self.output_layer = nn.Linear(in_features=num_connections, out_features=output_size)
+        self.output_layer = nn.Linear(
+            in_features=num_connections, out_features=output_size
+        )
 
         self.dropout = nn.Dropout(dropout_probability)
 
@@ -126,8 +135,7 @@ def train_network(
 
     # optimization function
     training_session.optimizer = torch.optim.Adam(
-        network.parameters(),
-        lr=training_session.learning_rate
+        network.parameters(), lr=training_session.learning_rate
     )
 
     clip_max_norm = 5
