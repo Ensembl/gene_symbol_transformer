@@ -332,7 +332,9 @@ class TrainingSession:
 
         self.loss_delta = 0.001
 
-        self.checkpoint_filename = f"n={self.num_most_frequent_symbols}_{self.datetime}.pth"
+        self.checkpoint_filename = (
+            f"n={self.num_most_frequent_symbols}_{self.datetime}.pth"
+        )
 
     def __str__(self):
         return pprint.pformat(self.__dict__, sort_dicts=False)

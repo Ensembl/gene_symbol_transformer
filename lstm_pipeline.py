@@ -141,8 +141,7 @@ def train_network(
 
     # optimization function
     training_session.optimizer = torch.optim.Adam(
-        network.parameters(),
-        lr=training_session.learning_rate
+        network.parameters(), lr=training_session.learning_rate
     )
 
     clip_max_norm = 5
