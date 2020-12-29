@@ -51,8 +51,8 @@ DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 class Sequence_LSTM(nn.Module):
     """
-    An LSTM neural network for gene classification using the protein letters of
-    the sequence as features.
+    An LSTM neural network for gene name classification of protein sequences
+    using the protein letters as features.
     """
 
     def __init__(
