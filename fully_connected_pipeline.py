@@ -41,8 +41,8 @@ from generic_pipeline import (
     load_checkpoint,
     networks_directory,
     EarlyStopping,
-    TrainingSession,
     SequenceDataset,
+    TrainingSession,
 )
 
 
@@ -79,7 +79,6 @@ class FullyConnectedNetwork(nn.Module):
         self.output_layer = nn.Linear(
             in_features=num_connections, out_features=output_size
         )
-
         self.dropout = nn.Dropout(dropout_probability)
 
         self.relu = nn.ReLU()
