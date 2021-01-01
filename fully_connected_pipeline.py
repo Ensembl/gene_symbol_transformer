@@ -37,7 +37,7 @@ from torch.utils.data import DataLoader, random_split
 from torch.utils.tensorboard import SummaryWriter
 
 # project imports
-from generic_pipeline import (
+from pipeline_abstractions import (
     load_checkpoint,
     networks_directory,
     EarlyStopping,
