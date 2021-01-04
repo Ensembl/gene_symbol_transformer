@@ -436,7 +436,7 @@ def main():
     test_loader = DataLoader(
         test_dataset,
         batch_size=training_session.batch_size,
-        shuffle=False,
+        shuffle=True,
         drop_last=drop_last,
     )
     ############################################################################
