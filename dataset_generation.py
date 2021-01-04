@@ -173,6 +173,8 @@ def save_most_frequent_n(n, max_frequency=None):
         10059: 165,
         20147: 70,
         25028: 23,
+        26007: 17,
+        27137: 13,
         30591: 5,
     }
 
@@ -236,6 +238,7 @@ def main():
     argument_parser = argparse.ArgumentParser()
     argument_parser.add_argument("--merge_metadata_sequences", action="store_true")
     argument_parser.add_argument("--data_wrangling", action="store_true")
+    argument_parser.add_argument("--save_most_frequent_n", action="store_true")
     argument_parser.add_argument("--num_most_frequent_symbols", type=int)
     argument_parser.add_argument("--max_frequency", type=int)
 
