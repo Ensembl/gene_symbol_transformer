@@ -26,6 +26,7 @@ Fully connected neural network pipeline.
 import argparse
 import pathlib
 import sys
+import time
 
 # third party imports
 import numpy as np
@@ -243,7 +244,7 @@ def train_network(
             break
 
 
-def test_network(network, training_session, test_loader):
+def test_network(network, training_session, test_loader, print_sample_predictions=False):
     """
     Calculate test loss and generate metrics.
     """
@@ -282,6 +283,25 @@ def test_network(network, training_session, test_loader):
     # test predictions accuracy
     test_accuracy = num_correct_predictions / len(test_loader.dataset)
     print("test accuracy: {:.3f}".format(test_accuracy))
+
+    if print_sample_predictions:
+        num_samples = 10
+        with torch.random.fork_rng():
+            torch.manual_seed(time.time() * 1000)
+            permutation = torch.randperm(len(predictions))
+        predictions = predictions[permutation[0:num_samples]]
+        labels = labels[permutation[0:num_samples]]
+
+        print("prediction\tground truth")
+        for prediction, label in zip(predictions, labels):
+            if prediction == label:
+                # unicode "CHECK MARK"
+                correctness = u"\u2713"
+            else:
+                # unicode "BALLOT X"
+                correctness = u"\u2717"
+
+            print(f"{prediction} | {label}\t{correctness}")
 
 
 def main():
@@ -441,7 +461,7 @@ def main():
         checkpoint = load_checkpoint(checkpoint_path, verbose=True)
         network = checkpoint["network"]
         training_session = checkpoint["training_session"]
-        test_network(network, training_session, test_loader)
+        test_network(network, training_session, test_loader, print_sample_predictions=True)
 
 
 if __name__ == "__main__":
