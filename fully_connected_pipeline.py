@@ -62,14 +62,11 @@ class FullyConnectedNetwork(nn.Module):
         num_protein_letters,
         num_most_frequent_symbols,
         dropout_probability,
-        batch_size,
     ):
         """
         Initialize the neural network.
         """
         super().__init__()
-
-        self.batch_size = batch_size
 
         input_size = sequence_length * num_protein_letters
         num_connections = 256
@@ -93,7 +90,8 @@ class FullyConnectedNetwork(nn.Module):
         # print(x.shape)
         # sys.exit()
 
-        x = x.view(self.batch_size, -1)
+        num_samples = len(x)
+        x = x.view(num_samples, -1)
         # x = torch.flatten(x, start_dim=1)
         # print(x.shape)
         # sys.exit()
@@ -372,7 +370,6 @@ def main():
             num_protein_letters,
             training_session.num_most_frequent_symbols,
             training_session.dropout_probability,
-            training_session.batch_size,
         )
         ############################################################################
         training_session.device = DEVICE
