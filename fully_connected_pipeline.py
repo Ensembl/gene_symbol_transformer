@@ -284,11 +284,28 @@ def test_network(network, training_session, test_loader, print_sample_prediction
 
     if print_sample_predictions:
         num_samples = 10
-        with torch.random.fork_rng():
-            torch.manual_seed(time.time() * 1000)
-            permutation = torch.randperm(len(predictions))
-        predictions = predictions[permutation[0:num_samples]]
-        labels = labels[permutation[0:num_samples]]
+
+        with torch.no_grad():
+            network.eval()
+
+            inputs, labels = next(iter(test_loader))
+            with torch.random.fork_rng():
+                torch.manual_seed(time.time() * 1000)
+                permutation = torch.randperm(len(predictions))
+            predictions = predictions[permutation[0:num_samples]]
+            labels = labels[permutation[0:num_samples]]
+
+            # inputs, labels = inputs.to(DEVICE), labels.to(DEVICE)
+
+            # get output values
+            output = network(inputs)
+
+            # get predicted labels from output
+            predicted_probabilities = torch.exp(output)
+            predictions = torch.argmax(predicted_probabilities, dim=1)
+
+            # get class indexes from one hot labels
+            labels = torch.argmax(labels, dim=1)
 
         print("prediction\tground truth")
         for prediction, label in zip(predictions, labels):
@@ -298,7 +315,6 @@ def test_network(network, training_session, test_loader, print_sample_prediction
             else:
                 # unicode "BALLOT X"
                 correctness = u"\u2717"
-
             print(f"{prediction} | {label}\t{correctness}")
 
 
