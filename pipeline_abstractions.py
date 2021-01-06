@@ -245,8 +245,6 @@ def load_checkpoint(checkpoint_path, verbose=False):
 
 
 def save_training_checkpoint(network, training_session, checkpoint_path):
-    """
-    """
     checkpoint = {
         "network": network,
         "training_session": training_session,
@@ -308,9 +306,6 @@ class EarlyStopping:
 
 
 class TrainingSession:
-    """
-    """
-
     def __init__(self, args):
         self.datetime = args.datetime
 
