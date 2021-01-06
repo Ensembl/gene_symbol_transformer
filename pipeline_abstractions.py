@@ -49,6 +49,52 @@ data_directory = pathlib.Path("data")
 networks_directory = pathlib.Path("networks")
 
 
+class GeneSymbols:
+    """
+    Class to hold the categorical data type for gene symbols and methods to translate
+    between text labels and one-hot encoding.
+    """
+
+    def __init__(self, labels):
+        """
+        """
+        # generate a categorical data type for symbols
+        labels = sorted(labels)
+        self.symbol_categorical_datatype = pd.CategoricalDtype(
+            categories=labels, ordered=True
+        )
+
+    def label_to_one_hot_encoding(self, symbol):
+        symbol_categorical = pd.Series(symbol, dtype=self.symbol_categorical_datatype)
+        one_hot_symbol = pd.get_dummies(symbol_categorical, prefix="symbol")
+
+        return one_hot_symbol
+
+
+class ProteinSequences:
+    """
+    Class to hold the categorical data type for protein letters and methods to translate
+    between protein letters and one-hot encoding.
+    """
+
+    def __init__(self, protein_letters):
+        # generate a categorical data type for protein letters
+        protein_letters = sorted(protein_letters)
+        self.protein_letters_categorical_datatype = pd.CategoricalDtype(
+            categories=protein_letters, ordered=True
+        )
+
+    def protein_letters_to_one_hot_encoding(self, sequence):
+        protein_letters_categorical = pd.Series(
+            list(sequence), dtype=self.protein_letters_categorical_datatype
+        )
+        one_hot_sequence = pd.get_dummies(
+            protein_letters_categorical, prefix="protein_letter"
+        )
+
+        return one_hot_sequence
+
+
 class SequenceDataset(Dataset):
     """
     Custom Dataset for raw sequences.
@@ -80,19 +126,15 @@ class SequenceDataset(Dataset):
             )
             self.data["sequence"] = self.data["sequence"].str.slice(stop=sequence_length)
 
-        # generate a categorical data type for symbols
+        print("Generating gene symbols object...", end="")
         labels = self.data["symbol"].unique().tolist()
-        labels.sort()
-        self.symbol_categorical_datatype = pd.CategoricalDtype(
-            categories=labels, ordered=True
-        )
+        self.gene_symbols = GeneSymbols(labels)
+        print(" Done.")
 
-        # generate a categorical data type for protein letters
-        self.protein_letters = get_protein_letters()
-        self.protein_letters.sort()
-        self.protein_letters_categorical_datatype = pd.CategoricalDtype(
-            categories=self.protein_letters, ordered=True
-        )
+        print("Generating protein sequences object...", end="")
+        protein_letters = get_protein_letters()
+        self.protein_sequences = ProteinSequences(protein_letters)
+        print(" Done.")
 
     def __len__(self):
         return len(self.data)
@@ -101,17 +143,10 @@ class SequenceDataset(Dataset):
         sequence = self.data.iloc[index]["sequence"]
         symbol = self.data.iloc[index]["symbol"]
 
-        # generate one-hot encoding of the sequence
-        protein_letters_categorical = pd.Series(
-            list(sequence), dtype=self.protein_letters_categorical_datatype
+        one_hot_sequence = self.protein_sequences.protein_letters_to_one_hot_encoding(
+            sequence
         )
-        one_hot_sequence = pd.get_dummies(
-            protein_letters_categorical, prefix="protein_letter"
-        )
-
-        # generate one-hot encoding of the label (symbol)
-        symbol_categorical = pd.Series(symbol, dtype=self.symbol_categorical_datatype)
-        one_hot_symbol = pd.get_dummies(symbol_categorical, prefix="symbol")
+        one_hot_symbol = self.gene_symbols.label_to_one_hot_encoding(symbol)
 
         # convert features and labels to NumPy arrays
         one_hot_sequence = one_hot_sequence.to_numpy()
