@@ -11,6 +11,7 @@ biopython = "^1.77"
 torch = {url = "https://download.pytorch.org/whl/cu101/torch-1.7.1%2Bcu101-cp38-cp38-linux_x86_64.whl"}
 matplotlib = "^3.2.2"
 scikit-learn = "^0.23.2"
+colorama = "^0.4.4"
 
 [tool.poetry.dev-dependencies]
 jupyterlab = "^2.1.4"
