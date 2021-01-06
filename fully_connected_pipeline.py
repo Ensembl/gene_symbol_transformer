@@ -118,11 +118,9 @@ def train_network(
     training_session,
     training_loader,
     validation_loader,
-    num_training,
+    training_size,
     verbose=False,
 ):
-    """
-    """
     tensorboard_log_dir = (
         f"runs/{training_session.num_most_frequent_symbols}/{training_session.datetime}"
     )
@@ -147,7 +145,7 @@ def train_network(
 
     num_epochs_length = len(str(num_epochs))
 
-    num_batches = int(num_training / training_session.batch_size)
+    num_batches = int(training_size / training_session.batch_size)
     num_batches_length = len(str(num_batches))
 
     if not hasattr(training_session, "average_training_losses"):
@@ -307,7 +305,7 @@ def test_network(network, training_session, test_loader, print_sample_prediction
             # get class indexes from the one-hot encoded labels
             labels = torch.argmax(labels, dim=1)
 
-        print("prediction\tground truth")
+        print("prediction | ground truth")
         for prediction, label in zip(predictions, labels):
             if prediction == label:
                 # unicode "CHECK MARK"
@@ -410,38 +408,37 @@ def main():
         dataset, lengths=(training_size, validation_size, test_size)
     )
 
-    num_training = len(training_dataset)
-    num_validation = len(validation_dataset)
-    num_test = len(test_dataset)
     print(
-        f"dataset split to train ({num_training}), validation ({num_validation}), and test ({num_test}) datasets"
+        f"dataset split to train ({training_size}), validation ({validation_size}), and test ({test_size}) datasets"
     )
     print()
 
     # set the batch size to the size of the smallest dataset if larger than that
-    min_dataset_size = min(num_training, num_validation, num_test)
+    min_dataset_size = min(training_size, validation_size, test_size)
     if training_session.batch_size > min_dataset_size:
         training_session.batch_size = min_dataset_size
 
-    drop_last = True
-    # drop_last = False
+    if training_session.num_most_frequent_symbols in {3, 101}:
+        training_session.drop_last = False
+    else:
+        training_session.drop_last = True
     training_loader = DataLoader(
         training_dataset,
         batch_size=training_session.batch_size,
         shuffle=True,
-        drop_last=drop_last,
+        drop_last=training_session.drop_last,
     )
     validation_loader = DataLoader(
         validation_dataset,
         batch_size=training_session.batch_size,
         shuffle=True,
-        drop_last=drop_last,
+        drop_last=training_session.drop_last,
     )
     test_loader = DataLoader(
         test_dataset,
         batch_size=training_session.batch_size,
         shuffle=True,
-        drop_last=drop_last,
+        drop_last=training_session.drop_last,
     )
     ############################################################################
 
@@ -464,7 +461,7 @@ def main():
             training_session,
             training_loader,
             validation_loader,
-            num_training,
+            training_size,
             verbose,
         )
 
