@@ -29,6 +29,7 @@ import sys
 import time
 
 # third party imports
+import colorama
 import numpy as np
 import pandas as pd
 import torch
@@ -307,15 +308,18 @@ def test_network(network, training_session, test_loader, print_sample_prediction
             # get class indexes from the one-hot encoded labels
             labels = torch.argmax(labels, dim=1)
 
-        print("prediction | ground truth")
+        print()
+        print("sample predictions")
+        print("------------------")
+        print("prediction | true label")
         for prediction, label in zip(predictions, labels):
             if prediction == label:
                 # unicode "CHECK MARK"
-                correctness = "\u2713"
+                correctness = colorama.Fore.GREEN + "\u2713" + colorama.Fore.RESET
             else:
                 # unicode "BALLOT X"
-                correctness = "\u2717"
-            print(f"{prediction} | {label}\t{correctness}")
+                correctness = colorama.Fore.RED + "\u2717" + colorama.Fore.RESET
+            print(f"{prediction:10} | {label:10}    {correctness}")
 
 
 def main():
