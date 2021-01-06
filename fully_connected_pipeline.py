@@ -282,18 +282,20 @@ def test_network(network, training_session, test_loader, print_sample_prediction
 
     if print_sample_predictions:
         num_samples = 10
+        # num_samples = 20
 
         with torch.no_grad():
             network.eval()
 
             inputs, labels = next(iter(test_loader))
+            # inputs, labels = inputs.to(DEVICE), labels.to(DEVICE)
+
             with torch.random.fork_rng():
                 torch.manual_seed(time.time() * 1000)
                 permutation = torch.randperm(len(predictions))
-            predictions = predictions[permutation[0:num_samples]]
-            labels = labels[permutation[0:num_samples]]
 
-            # inputs, labels = inputs.to(DEVICE), labels.to(DEVICE)
+            inputs = inputs[permutation[0:num_samples]]
+            labels = labels[permutation[0:num_samples]]
 
             # get output values
             output = network(inputs)
