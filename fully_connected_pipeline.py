@@ -178,7 +178,7 @@ def train_network(
             output = network(inputs)
 
             with torch.no_grad():
-                # get class indexes from the labels one hot encoding
+                # get class indexes from the one-hot encoded labels
                 labels = torch.argmax(labels, dim=1)
 
             # calculate the training loss
@@ -264,7 +264,7 @@ def test_network(network, training_session, test_loader, print_sample_prediction
             predicted_probabilities = torch.exp(output)
             predictions = torch.argmax(predicted_probabilities, dim=1)
 
-            # get class indexes from one hot labels
+            # get class indexes from the one-hot encoded labels
             labels = torch.argmax(labels, dim=1)
 
             # calculate test loss
@@ -304,7 +304,7 @@ def test_network(network, training_session, test_loader, print_sample_prediction
             predicted_probabilities = torch.exp(output)
             predictions = torch.argmax(predicted_probabilities, dim=1)
 
-            # get class indexes from one hot labels
+            # get class indexes from the one-hot encoded labels
             labels = torch.argmax(labels, dim=1)
 
         print("prediction\tground truth")
