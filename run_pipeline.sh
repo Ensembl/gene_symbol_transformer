@@ -42,7 +42,9 @@ NUM_MOST_FREQUENT_SYMBOLS=3
 #NUM_MOST_FREQUENT_SYMBOLS=27137
 #NUM_MOST_FREQUENT_SYMBOLS=30591
 
-RANDOM_STATE=5
+#RANDOM_STATE=5
+RANDOM_STATE=7
+#RANDOM_STATE=11
 
 # train directly on a GPU node, disable buffering in Python script output, save output to a file with tee
 python -u "$TARGET_SCRIPT" --datetime "$DATETIME" --random_state $RANDOM_STATE --num_most_frequent_symbols $NUM_MOST_FREQUENT_SYMBOLS --train --test | tee -a "networks/n=${NUM_MOST_FREQUENT_SYMBOLS}_${DATETIME}.log"
