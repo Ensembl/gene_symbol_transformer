@@ -311,10 +311,10 @@ def test_network(network, training_session, test_loader, print_sample_prediction
         for prediction, label in zip(predictions, labels):
             if prediction == label:
                 # unicode "CHECK MARK"
-                correctness = u"\u2713"
+                correctness = "\u2713"
             else:
                 # unicode "BALLOT X"
-                correctness = u"\u2717"
+                correctness = "\u2717"
             print(f"{prediction} | {label}\t{correctness}")
 
 
@@ -474,7 +474,9 @@ def main():
         checkpoint = load_checkpoint(checkpoint_path, verbose=True)
         network = checkpoint["network"]
         training_session = checkpoint["training_session"]
-        test_network(network, training_session, test_loader, print_sample_predictions=True)
+        test_network(
+            network, training_session, test_loader, print_sample_predictions=True
+        )
 
 
 if __name__ == "__main__":
