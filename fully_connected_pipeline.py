@@ -282,8 +282,9 @@ def test_network(network, training_session, test_loader, print_sample_prediction
     print("test accuracy: {:.3f}".format(test_accuracy))
 
     if print_sample_predictions:
-        num_samples = 10
+        # num_samples = 10
         # num_samples = 20
+        num_samples = 100
 
         with torch.no_grad():
             network.eval()
@@ -315,8 +316,8 @@ def test_network(network, training_session, test_loader, print_sample_prediction
 
         print()
         print("sample predictions")
-        print("------------------")
         print("prediction | true label")
+        print("-----------------------")
         for prediction, label in zip(predictions, labels):
             if prediction == label:
                 # unicode "CHECK MARK"

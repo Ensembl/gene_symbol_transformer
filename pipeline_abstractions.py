@@ -56,8 +56,6 @@ class GeneSymbols:
     """
 
     def __init__(self, labels):
-        """
-        """
         # generate a categorical data type for symbols
         labels = sorted(labels)
         self.symbol_categorical_datatype = pd.CategoricalDtype(
@@ -355,6 +353,8 @@ class TrainingSession:
         self.learning_rate = 0.001
         # self.learning_rate = 0.01
 
+        # self.num_epochs = 1
+        # self.num_epochs = 3
         # self.num_epochs = 10
         self.num_epochs = 100
         # self.num_epochs = 1000

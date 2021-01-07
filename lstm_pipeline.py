@@ -129,8 +129,6 @@ def train_network(
     num_training,
     verbose=False,
 ):
-    """
-    """
     tensorboard_log_dir = (
         f"runs/{training_session.num_most_frequent_symbols}/{training_session.datetime}"
     )
