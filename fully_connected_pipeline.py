@@ -24,6 +24,7 @@ Fully connected neural network pipeline.
 
 # standard library imports
 import argparse
+import math
 import pathlib
 import sys
 import time
@@ -146,7 +147,10 @@ def train_network(
 
     num_epochs_length = len(str(num_epochs))
 
-    num_batches = int(training_size / training_session.batch_size)
+    if training_session.drop_last:
+        num_batches = int(training_size / training_session.batch_size)
+    else:
+        num_batches = math.ceil(training_size / training_session.batch_size)
     num_batches_length = len(str(num_batches))
 
     if not hasattr(training_session, "average_training_losses"):
