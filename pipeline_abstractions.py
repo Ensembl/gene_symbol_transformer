@@ -64,11 +64,15 @@ class GeneSymbols:
             categories=labels, ordered=True
         )
 
-    def label_to_one_hot_encoding(self, symbol):
+    def symbol_to_one_hot_encoding(self, symbol):
         symbol_categorical = pd.Series(symbol, dtype=self.symbol_categorical_datatype)
         one_hot_symbol = pd.get_dummies(symbol_categorical, prefix="symbol")
 
         return one_hot_symbol
+
+    def one_hot_encoding_to_symbol(self, one_hot_symbol):
+        symbol = self.symbol_categorical_datatype.categories[one_hot_symbol]
+        return symbol
 
 
 class ProteinSequences:
@@ -136,6 +140,8 @@ class SequenceDataset(Dataset):
         self.protein_sequences = ProteinSequences(protein_letters)
         print(" Done.")
 
+        print()
+
     def __len__(self):
         return len(self.data)
 
@@ -146,7 +152,7 @@ class SequenceDataset(Dataset):
         one_hot_sequence = self.protein_sequences.protein_letters_to_one_hot_encoding(
             sequence
         )
-        one_hot_symbol = self.gene_symbols.label_to_one_hot_encoding(symbol)
+        one_hot_symbol = self.gene_symbols.symbol_to_one_hot_encoding(symbol)
 
         # convert features and labels to NumPy arrays
         one_hot_sequence = one_hot_sequence.to_numpy()
