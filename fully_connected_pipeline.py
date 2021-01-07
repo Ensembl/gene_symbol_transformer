@@ -294,7 +294,7 @@ def test_network(network, training_session, test_loader, print_sample_prediction
 
             with torch.random.fork_rng():
                 torch.manual_seed(time.time() * 1000)
-                permutation = torch.randperm(len(predictions))
+                permutation = torch.randperm(len(inputs))
 
             inputs = inputs[permutation[0:num_samples]]
             labels = labels[permutation[0:num_samples]]
