@@ -29,12 +29,12 @@ import sys
 import time
 
 # third party imports
-import colorama
 import numpy as np
 import pandas as pd
 import torch
 import torch.nn as nn
 
+from colorama import Fore
 from torch.utils.data import DataLoader, random_split
 from torch.utils.tensorboard import SummaryWriter
 
@@ -308,6 +308,11 @@ def test_network(network, training_session, test_loader, print_sample_prediction
             # get class indexes from the one-hot encoded labels
             labels = torch.argmax(labels, dim=1)
 
+        predictions = training_session.gene_symbols.one_hot_encoding_to_symbol(
+            predictions
+        )
+        labels = training_session.gene_symbols.one_hot_encoding_to_symbol(labels)
+
         print()
         print("sample predictions")
         print("------------------")
@@ -315,11 +320,25 @@ def test_network(network, training_session, test_loader, print_sample_prediction
         for prediction, label in zip(predictions, labels):
             if prediction == label:
                 # unicode "CHECK MARK"
-                correctness = colorama.Fore.GREEN + "\u2713" + colorama.Fore.RESET
+                correctness = "\u2713"
+                print(
+                    f"{prediction:10} | {label:10}    "
+                    + Fore.GREEN
+                    + f"{correctness}"
+                    + Fore.RESET
+                )
             else:
                 # unicode "BALLOT X"
-                correctness = colorama.Fore.RED + "\u2717" + colorama.Fore.RESET
-            print(f"{prediction:10} | {label:10}    {correctness}")
+                correctness = "\u2717"
+                print(
+                    Fore.RED
+                    + f"{prediction:10}"
+                    + Fore.RESET
+                    + " | "
+                    + Fore.RED
+                    + f"{label:10}    {correctness}"
+                    + Fore.RESET
+                )
 
 
 def main():
@@ -404,6 +423,20 @@ def main():
     dataset = SequenceDataset(
         training_session.num_most_frequent_symbols, training_session.sequence_length
     )
+
+    training_session.gene_symbols = dataset.gene_symbols
+    training_session.protein_sequences = dataset.protein_sequences
+
+    pandas_symbols_categories = (
+        dataset.gene_symbols.symbol_categorical_datatype.categories
+    )
+    print("gene symbols:")
+    print(
+        pandas_symbols_categories.to_series(
+            index=range(len(pandas_symbols_categories)), name="gene symbols"
+        )
+    )
+    print()
 
     # split dataset into train, validation, and test datasets
     validation_size = int(training_session.validation_ratio * len(dataset))
