@@ -399,6 +399,7 @@ def main():
         network = checkpoint["network"]
         training_session = checkpoint["training_session"]
         print(" Done.")
+        print()
     else:
         training_session = TrainingSession(args)
 
