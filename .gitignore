@@ -31,3 +31,5 @@ query.fasta
 results.csv
 
 *.ipynb
+
+.nfs*
