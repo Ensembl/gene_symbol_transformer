@@ -116,12 +116,7 @@ class FullyConnectedNetwork(nn.Module):
 
 
 def train_network(
-    network,
-    training_session,
-    training_loader,
-    validation_loader,
-    training_size,
-    verbose=False,
+    network, training_session, training_loader, validation_loader, verbose=False,
 ):
     tensorboard_log_dir = (
         f"runs/{training_session.num_most_frequent_symbols}/{training_session.datetime}"
@@ -148,9 +143,11 @@ def train_network(
     num_epochs_length = len(str(num_epochs))
 
     if training_session.drop_last:
-        num_batches = int(training_size / training_session.batch_size)
+        num_batches = int(training_session.training_size / training_session.batch_size)
     else:
-        num_batches = math.ceil(training_size / training_session.batch_size)
+        num_batches = math.ceil(
+            training_session.training_size / training_session.batch_size
+        )
     num_batches_length = len(str(num_batches))
 
     if not hasattr(training_session, "average_training_losses"):
@@ -170,9 +167,9 @@ def train_network(
         # set the network in training mode
         network.train()
         for batch_number, (inputs, labels) in enumerate(training_loader, start=1):
-            inputs, labels = inputs.to(DEVICE), labels.to(DEVICE)
-
             epoch_end = batch_number == num_batches
+
+            inputs, labels = inputs.to(DEVICE), labels.to(DEVICE)
 
             # zero accumulated gradients
             network.zero_grad()
@@ -251,13 +248,20 @@ def test_network(network, training_session, test_loader, print_sample_prediction
     """
     criterion = training_session.criterion
 
+    if training_session.drop_last:
+        num_batches = int(training_session.test_size / training_session.batch_size)
+    else:
+        num_batches = math.ceil(training_session.test_size / training_session.batch_size)
+    num_batches_length = len(str(num_batches))
+
     test_losses = []
     num_correct_predictions = 0
 
     with torch.no_grad():
         network.eval()
 
-        for inputs, labels in test_loader:
+        num_samples = 0
+        for batch_number, (inputs, labels) in enumerate(test_loader, start=1):
             inputs, labels = inputs.to(DEVICE), labels.to(DEVICE)
 
             # get output values
@@ -277,6 +281,13 @@ def test_network(network, training_session, test_loader, print_sample_prediction
             # predictions to ground truth comparison
             predictions_correctness = predictions.eq(labels)
             num_correct_predictions += torch.sum(predictions_correctness).item()
+
+            num_samples += len(predictions)
+            running_test_accuracy = num_correct_predictions / num_samples
+
+            test_progress = f"batch {batch_number:{num_batches_length}} of {num_batches} | running test accuracy: {running_test_accuracy:.4f}"
+            print(test_progress)
+    print()
 
     # print statistics
     print("average test loss: {:.4f}".format(np.mean(test_losses)))
@@ -446,19 +457,30 @@ def main():
     # split dataset into train, validation, and test datasets
     validation_size = int(training_session.validation_ratio * len(dataset))
     test_size = int(training_session.test_ratio * len(dataset))
-    training_size = len(dataset) - validation_size - test_size
+    training_session.training_size = len(dataset) - validation_size - test_size
+    training_session.validation_size = validation_size
+    training_session.test_size = test_size
 
     training_dataset, validation_dataset, test_dataset = random_split(
-        dataset, lengths=(training_size, validation_size, test_size)
+        dataset,
+        lengths=(
+            training_session.training_size,
+            training_session.validation_size,
+            training_session.test_size,
+        ),
     )
 
     print(
-        f"dataset split to train ({training_size}), validation ({validation_size}), and test ({test_size}) datasets"
+        f"dataset split to train ({training_session.training_size}), validation ({training_session.validation_size}), and test ({training_session.test_size}) datasets"
     )
     print()
 
     # set the batch size to the size of the smallest dataset if larger than that
-    min_dataset_size = min(training_size, validation_size, test_size)
+    min_dataset_size = min(
+        training_session.training_size,
+        training_session.validation_size,
+        training_session.test_size,
+    )
     if training_session.batch_size > min_dataset_size:
         training_session.batch_size = min_dataset_size
 
@@ -501,12 +523,7 @@ def main():
         verbose = True
 
         train_network(
-            network,
-            training_session,
-            training_loader,
-            validation_loader,
-            training_size,
-            verbose,
+            network, training_session, training_loader, validation_loader, verbose,
         )
 
     # test trained network
