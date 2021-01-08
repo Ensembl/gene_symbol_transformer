@@ -528,10 +528,11 @@ def main():
 
     # test trained network
     if args.test:
-        checkpoint_path = networks_directory / training_session.checkpoint_filename
-        checkpoint = load_checkpoint(checkpoint_path, verbose=True)
-        network = checkpoint["network"]
-        training_session = checkpoint["training_session"]
+        if args.train:
+            checkpoint_path = networks_directory / training_session.checkpoint_filename
+            checkpoint = load_checkpoint(checkpoint_path, verbose=True)
+            network = checkpoint["network"]
+            training_session = checkpoint["training_session"]
         test_network(
             network, training_session, test_loader, print_sample_predictions=True
         )
