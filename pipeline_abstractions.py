@@ -346,9 +346,10 @@ class TrainingSession:
 
         # self.batch_size = 32
         # self.batch_size = 64
-        self.batch_size = 128
+        # self.batch_size = 128
         # self.batch_size = 256
         # self.batch_size = 512
+        self.batch_size = 1024
 
         self.learning_rate = 0.001
         # self.learning_rate = 0.01
