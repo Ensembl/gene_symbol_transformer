@@ -44,9 +44,9 @@ NUM_MOST_FREQUENT_SYMBOLS=3
 #NUM_MOST_FREQUENT_SYMBOLS=29041
 #NUM_MOST_FREQUENT_SYMBOLS=30591
 
-#RANDOM_STATE=5
+RANDOM_STATE=5
 #RANDOM_STATE=7
-RANDOM_STATE=11
+#RANDOM_STATE=11
 
 # train directly on a GPU node, disable buffering in Python script output, save output to a file with tee
 if [[ -z "$RANDOM_STATE" ]]; then
