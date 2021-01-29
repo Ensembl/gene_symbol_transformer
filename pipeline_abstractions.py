@@ -327,6 +327,8 @@ class TrainingSession:
         # self.num_most_frequent_symbols = 25028
         # self.num_most_frequent_symbols = 26007
         # self.num_most_frequent_symbols = 27137
+        # self.num_most_frequent_symbols = 28197
+        # self.num_most_frequent_symbols = 29041
         # self.num_most_frequent_symbols = 30591
         self.num_most_frequent_symbols = args.num_most_frequent_symbols
 
