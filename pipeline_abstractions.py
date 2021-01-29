@@ -351,8 +351,8 @@ class TrainingSession:
         # self.batch_size = 128
         # self.batch_size = 256
         # self.batch_size = 512
-        # self.batch_size = 1024
-        self.batch_size = 2048
+        self.batch_size = 1024
+        # self.batch_size = 2048
         # self.batch_size = 4096
         # self.batch_size = 8192
 
