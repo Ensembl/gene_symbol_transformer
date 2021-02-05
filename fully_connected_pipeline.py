@@ -72,8 +72,9 @@ class FullyConnectedNetwork(nn.Module):
 
         input_size = sequence_length * num_protein_letters
         # num_connections = 256
-        num_connections = 512
-        # num_connections = 1024
+        # num_connections = 512
+        num_connections = 1024
+        # num_connections = 2048
         output_size = num_most_frequent_symbols
 
         self.input_layer = nn.Linear(in_features=input_size, out_features=num_connections)
