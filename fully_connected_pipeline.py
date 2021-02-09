@@ -72,8 +72,8 @@ class FullyConnectedNetwork(nn.Module):
 
         input_size = sequence_length * num_protein_letters
         # num_connections = 256
-        # num_connections = 512
-        num_connections = 1024
+        num_connections = 512
+        # num_connections = 1024
         # num_connections = 2048
         output_size = num_most_frequent_symbols
 
@@ -288,12 +288,15 @@ def test_network(network, training_session, test_loader, print_sample_prediction
             num_samples += len(predictions)
             running_test_accuracy = num_correct_predictions / num_samples
 
-            test_progress = f"batch {batch_number:{num_batches_length}} of {num_batches} | running test accuracy: {running_test_accuracy:.4f}"
-            print(test_progress)
+            print(f"batch {batch_number:{num_batches_length}} of {num_batches} | running test accuracy: {running_test_accuracy:.4f}")
     print()
 
     # print statistics
     print("average test loss: {:.4f}".format(np.mean(test_losses)))
+
+    # make sure that all ways of computing the number of samples gives the same result
+    assert num_samples == training_session.test_size
+    assert len(test_loader.dataset) == training_session.test_size
 
     # test predictions accuracy
     test_accuracy = num_correct_predictions / len(test_loader.dataset)
