@@ -294,18 +294,14 @@ def test_network(network, training_session, test_loader, print_sample_prediction
     # print statistics
     print("average test loss: {:.4f}".format(np.mean(test_losses)))
 
-    # make sure that all ways of computing the number of samples gives the same result
-    assert num_samples == training_session.test_size
-    assert len(test_loader.dataset) == training_session.test_size
-
     # test predictions accuracy
-    test_accuracy = num_correct_predictions / len(test_loader.dataset)
+    test_accuracy = num_correct_predictions / num_samples
     print("test accuracy: {:.3f}".format(test_accuracy))
 
     if print_sample_predictions:
-        # num_samples = 10
-        # num_samples = 20
-        num_samples = 100
+        # num_sample_predictions = 10
+        # num_sample_predictions = 20
+        num_sample_predictions = 100
 
         with torch.no_grad():
             network.eval()
@@ -317,8 +313,8 @@ def test_network(network, training_session, test_loader, print_sample_prediction
                 torch.manual_seed(time.time() * 1000)
                 permutation = torch.randperm(len(inputs))
 
-            inputs = inputs[permutation[0:num_samples]]
-            labels = labels[permutation[0:num_samples]]
+            inputs = inputs[permutation[0:num_sample_predictions]]
+            labels = labels[permutation[0:num_sample_predictions]]
 
             # get output values
             output = network(inputs)
