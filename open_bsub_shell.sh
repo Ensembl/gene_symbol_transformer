@@ -46,6 +46,12 @@ MEM_LIMIT=16384
 ################################################################################
 if [[ "$JOB_TYPE" = "standard" ]]; then
     bsub -Is -tty -M $MEM_LIMIT -R"select[mem>$MEM_LIMIT] rusage[mem=$MEM_LIMIT] span[hosts=1]" $SHELL
+
+    # specify compute node
+    #COMPUTE_NODE=hx-noah-30-03
+    #bsub -m ${COMPUTE_NODE}.ebi.ac.uk -Is -tty -M $MEM_LIMIT -R"select[mem>$MEM_LIMIT] rusage[mem=$MEM_LIMIT] span[hosts=1]" $SHELL
+
+    # specify CPU model
     #bsub -Is -tty -M $MEM_LIMIT -R"select[model=XeonE52650, mem>$MEM_LIMIT] rusage[mem=$MEM_LIMIT] span[hosts=1]" $SHELL
 fi
 ################################################################################
