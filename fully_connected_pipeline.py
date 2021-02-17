@@ -359,6 +359,21 @@ def test_network(network, training_session, test_loader, print_sample_prediction
                 )
 
 
+def save_network_from_checkpoint(checkpoint_path):
+    """
+    Save a network residing inside a checkpoint file as a separate file.
+    """
+    checkpoint = load_checkpoint(checkpoint_path)
+    network = checkpoint["network"]
+
+    path = checkpoint_path
+    network_path = pathlib.Path(f"{path.parent}/{path.stem}_network.pth")
+
+    torch.save(network, network_path)
+
+    return network_path
+
+
 def main():
     """
     main function
@@ -370,12 +385,20 @@ def main():
     argument_parser.add_argument("--test", action="store_true")
     argument_parser.add_argument("--load")
     argument_parser.add_argument("--datetime")
+    argument_parser.add_argument("--save_network")
 
     args = argument_parser.parse_args()
 
     # DEBUG
     # pd.options.display.max_columns = None
     # pd.options.display.max_rows = None
+
+    if args.save_network:
+        checkpoint_path = pathlib.Path(args.save_network)
+        print(f'Loading checkpoint "{checkpoint_path}" ...')
+        network_path = save_network_from_checkpoint(checkpoint_path)
+        print(f'Saved network at "{network_path}"')
+        return
 
     # print PyTorch version information
     print(f"{torch.__version__=}")
