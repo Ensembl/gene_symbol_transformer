@@ -92,16 +92,9 @@ class FullyConnectedNetwork(nn.Module):
         """
         Perform a forward pass of the network.
         """
-        # print(x.shape)
-        # sys.exit()
-
         num_samples = len(x)
         x = x.view(num_samples, -1)
-        # x = torch.flatten(x, start_dim=1)
-        # print(x.shape)
-        # sys.exit()
 
-        # sys.exit()
         x = self.input_layer(x)
         x = self.dropout(x)
         x = self.relu(x)
@@ -110,8 +103,6 @@ class FullyConnectedNetwork(nn.Module):
         # x = self.relu(x)
 
         x = self.output_layer(x)
-        # print(x.shape)
-        # sys.exit()
         x = self.dropout(x)
         x = self.final_activation(x)
 
