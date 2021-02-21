@@ -41,8 +41,6 @@ from torch.utils.data import Dataset
 import dataset_generation
 
 
-USE_CACHE = True
-
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 data_directory = pathlib.Path("data")
@@ -79,7 +77,11 @@ class ProteinSequences:
     between protein letters and one-hot encoding.
     """
 
-    def __init__(self, protein_letters):
+    def __init__(self):
+        stop_codon = ["*"]
+        extended_IUPAC_protein_letters = Bio.Alphabet.IUPAC.ExtendedIUPACProtein.letters
+        protein_letters = list(extended_IUPAC_protein_letters) + stop_codon
+
         # generate a categorical data type for protein letters
         protein_letters = sorted(protein_letters)
         self.protein_letters_categorical_datatype = pd.CategoricalDtype(
@@ -134,8 +136,7 @@ class SequenceDataset(Dataset):
         print(" Done.")
 
         print("Generating protein sequences object...", end="")
-        protein_letters = get_protein_letters()
-        self.protein_sequences = ProteinSequences(protein_letters)
+        self.protein_sequences = ProteinSequences()
         print(" Done.")
 
         print()
@@ -169,29 +170,26 @@ class SequenceDataset(Dataset):
         return item
 
 
-def get_protein_letters():
+def get_unique_protein_letters():
     """
-    Generate and return a list of protein letters that occur in the dataset and
-    those that can potentially be used.
+    Generate and return a list of the unique protein letters that occur in the dataset.
     """
     extended_IUPAC_protein_letters = Bio.Alphabet.IUPAC.ExtendedIUPACProtein.letters
+    stop_codon = ["*"]
 
-    # cache the following operation, as it's very expensive in time and space
-    if USE_CACHE:
-        extra_letters = ["*"]
-    else:
-        data = dataset_generation.load_data()
+    data = dataset_generation.load_data()
 
-        # generate a list of all protein letters that occur in the dataset
-        dataset_letters = set(data["sequence"].str.cat())
+    # generate a list of all protein letters that occur in the dataset
+    dataset_letters = set(data["sequence"].str.cat())
 
-        extra_letters = [
-            letter
-            for letter in dataset_letters
-            if letter not in extended_IUPAC_protein_letters
-        ]
+    extra_letters = [
+        letter
+        for letter in dataset_letters
+        if letter not in extended_IUPAC_protein_letters
+    ]
+    assert extra_letters == stop_codon
 
-    protein_letters = list(extended_IUPAC_protein_letters) + extra_letters
+    protein_letters = list(extended_IUPAC_protein_letters) + stop_codon
     assert len(protein_letters) == 27, protein_letters
 
     return protein_letters
