@@ -31,7 +31,6 @@ import time
 
 # third party imports
 import numpy as np
-import pandas as pd
 import torch
 import torch.nn as nn
 
@@ -110,7 +109,11 @@ class FullyConnectedNetwork(nn.Module):
 
 
 def train_network(
-    network, training_session, training_loader, validation_loader, verbose=False,
+    network,
+    training_session,
+    training_loader,
+    validation_loader,
+    verbose=False,
 ):
     tensorboard_log_dir = (
         f"runs/{training_session.num_most_frequent_symbols}/{training_session.datetime}"
@@ -279,7 +282,9 @@ def test_network(network, training_session, test_loader, print_sample_prediction
             num_samples += len(predictions)
             running_test_accuracy = num_correct_predictions / num_samples
 
-            print(f"batch {batch_number:{num_batches_length}} of {num_batches} | running test accuracy: {running_test_accuracy:.4f}")
+            print(
+                f"batch {batch_number:{num_batches_length}} of {num_batches} | running test accuracy: {running_test_accuracy:.4f}"
+            )
     print()
 
     # print statistics
@@ -370,19 +375,27 @@ def main():
     main function
     """
     argument_parser = argparse.ArgumentParser()
-    argument_parser.add_argument("--random_state", type=int)
-    argument_parser.add_argument("--num_most_frequent_symbols", type=int)
     argument_parser.add_argument("--train", action="store_true")
     argument_parser.add_argument("--test", action="store_true")
     argument_parser.add_argument("--load")
-    argument_parser.add_argument("--datetime")
     argument_parser.add_argument("--save_network")
+    argument_parser.add_argument("--datetime")
+    argument_parser.add_argument("--random_state", type=int)
+    argument_parser.add_argument("--num_most_frequent_symbols", type=int)
+    argument_parser.add_argument(
+        "--sequence_length",
+        type=int,
+        help="constant length to pad or truncate all sequences",
+    )
+    argument_parser.add_argument(
+        "--batch_size", type=int, help="training and test batch size"
+    )
+    argument_parser.add_argument("--learning_rate", type=float, help="learning rate")
+    argument_parser.add_argument(
+        "--num_epochs", type=int, help="number of epochs to train the network"
+    )
 
     args = argument_parser.parse_args()
-
-    # DEBUG
-    # pd.options.display.max_columns = None
-    # pd.options.display.max_rows = None
 
     if args.save_network:
         checkpoint_path = pathlib.Path(args.save_network)
@@ -395,12 +408,11 @@ def main():
     print(f"{torch.__version__=}")
     print(f"{torch.version.cuda=}")
 
-    # print CUDA environment information
     # os.environ["CUDA_VISIBLE_DEVICES"] = "0,1"
 
+    print(f"{DEVICE=}")
     print(f"{torch.backends.cudnn.enabled=}")
     print(f"{torch.cuda.is_available()=}")
-    print(f"{DEVICE=}")
     if torch.cuda.is_available():
         print(f"{torch.cuda.device_count()=}")
         print(f"{torch.cuda.get_device_properties(DEVICE)}")
@@ -417,7 +429,34 @@ def main():
         print(" Done.")
         print()
     else:
-        training_session = TrainingSession(args)
+        if args.num_most_frequent_symbols == 3:
+            test_ratio = 0.2
+            validation_ratio = 0.2
+        elif args.num_most_frequent_symbols in {101, 1013}:
+            test_ratio = 0.1
+            validation_ratio = 0.1
+        else:
+            test_ratio = 0.05
+            validation_ratio = 0.05
+
+        # larger patience for short epochs and smaller patience for longer epochs
+        if args.num_most_frequent_symbols in {3, 101, 1013}:
+            patience = 11
+        else:
+            patience = 7
+
+        training_session = TrainingSession(
+            args.datetime,
+            args.random_state,
+            args.num_most_frequent_symbols,
+            test_ratio,
+            validation_ratio,
+            args.sequence_length,
+            args.batch_size,
+            args.learning_rate,
+            args.num_epochs,
+            patience,
+        )
 
         # training_session.hidden_size = 128
         # training_session.hidden_size = 256
@@ -448,8 +487,7 @@ def main():
 
         network.to(DEVICE)
 
-    if training_session.random_state is not None:
-        torch.manual_seed(training_session.random_state)
+    torch.manual_seed(training_session.random_state)
 
     # load data, generate datasets
     ############################################################################
@@ -540,7 +578,11 @@ def main():
         verbose = True
 
         train_network(
-            network, training_session, training_loader, validation_loader, verbose,
+            network,
+            training_session,
+            training_loader,
+            validation_loader,
+            verbose,
         )
 
     # test trained network

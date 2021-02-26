@@ -1,56 +1,84 @@
 #!/usr/bin/env bash
 
 
-#TARGET_SCRIPT="lstm_pipeline.py"
-#TARGET_SCRIPT="cnn_pipeline.py"
-#TARGET_SCRIPT="fully_connected_pipeline.py"
-TARGET_SCRIPT="$1"
+#target_script="fully_connected_pipeline.py"
+#target_script="lstm_pipeline.py"
+target_script="$1"
 
-
-PIPELINE_SCRIPTS=(
-    "lstm_pipeline.py"
-    "cnn_pipeline.py"
+# validate training pipeline script name
+pipeline_scripts=(
     "fully_connected_pipeline.py"
+    "lstm_pipeline.py"
 )
 
-VALID_SCRIPT=false
-for PIPELINE_SCRIPT in "${PIPELINE_SCRIPTS[@]}"; do
-    if [[ "$TARGET_SCRIPT" = "$PIPELINE_SCRIPT" ]]; then
-        VALID_SCRIPT=true
+valid_script=false
+for pipeline_script in "${pipeline_scripts[@]}"; do
+    if [[ "$target_script" = "$pipeline_script" ]]; then
+        valid_script=true
     fi
 done
 
-if [[ $VALID_SCRIPT != true ]]; then
+if [[ $valid_script != true ]]; then
     echo "pass one of the pipeline scripts as an argument:"
     echo "{"
-    for PIPELINE_SCRIPT in "${PIPELINE_SCRIPTS[@]}"; do
-        echo "    \"$PIPELINE_SCRIPT\","
+    for pipeline_script in "${pipeline_scripts[@]}"; do
+        echo "    \"$pipeline_script\","
     done
     echo "}"
     exit
 fi
 
-DATETIME=$(date +%Y-%m-%d_%H:%M:%S)
+datetime=$(date +%Y-%m-%d_%H:%M:%S)
 
-NUM_MOST_FREQUENT_SYMBOLS=3
-#NUM_MOST_FREQUENT_SYMBOLS=101
-#NUM_MOST_FREQUENT_SYMBOLS=1013
-#NUM_MOST_FREQUENT_SYMBOLS=10059
-#NUM_MOST_FREQUENT_SYMBOLS=20147
-#NUM_MOST_FREQUENT_SYMBOLS=25028
-#NUM_MOST_FREQUENT_SYMBOLS=26007
-#NUM_MOST_FREQUENT_SYMBOLS=27137
-#NUM_MOST_FREQUENT_SYMBOLS=28197
-#NUM_MOST_FREQUENT_SYMBOLS=29041
-#NUM_MOST_FREQUENT_SYMBOLS=30591
+random_state=5
+#random_state=7
+#random_state=11
 
-RANDOM_STATE=5
-#RANDOM_STATE=7
-#RANDOM_STATE=11
+#num_most_frequent_symbols=3
+num_most_frequent_symbols=101
+#num_most_frequent_symbols=1013
+#num_most_frequent_symbols=10059
+#num_most_frequent_symbols=20147
+#num_most_frequent_symbols=25028
+#num_most_frequent_symbols=26007
+#num_most_frequent_symbols=27137
+#num_most_frequent_symbols=28197
+#num_most_frequent_symbols=29041
+#num_most_frequent_symbols=30591
 
-# train directly on a GPU node, disable buffering in Python script output, save output to a file with tee
-if [[ -z "$RANDOM_STATE" ]]; then
-    python -u "$TARGET_SCRIPT" --datetime "$DATETIME" --num_most_frequent_symbols $NUM_MOST_FREQUENT_SYMBOLS --train --test | tee -a "networks/n=${NUM_MOST_FREQUENT_SYMBOLS}_${DATETIME}.log"
-else
-    python -u "$TARGET_SCRIPT" --datetime "$DATETIME" --random_state $RANDOM_STATE --num_most_frequent_symbols $NUM_MOST_FREQUENT_SYMBOLS --train --test | tee -a "networks/n=${NUM_MOST_FREQUENT_SYMBOLS}_${DATETIME}.log"
-fi
+#sequence_length=750
+sequence_length=1000
+#sequence_length=1500
+#sequence_length=2000
+
+#batch_size=32
+#batch_size=64
+#batch_size=128
+#batch_size=256
+#batch_size=512
+#batch_size=1024
+batch_size=2048
+#batch_size=4096
+#batch_size=8192
+
+learning_rate=0.001
+#learning_rate=0.01
+
+#num_epochs=1
+num_epochs=3
+#num_epochs=10
+#num_epochs=100
+#num_epochs=1000
+
+# train directly on a compute node, disable buffering in Python script output, save output to a file with tee
+python -u "$target_script" \
+    --train \
+    --test \
+    --datetime "$datetime" \
+    --random_state $random_state \
+    --num_most_frequent_symbols $num_most_frequent_symbols \
+    --sequence_length $sequence_length \
+    --batch_size $batch_size \
+    --learning_rate $learning_rate \
+    --num_epochs $num_epochs \
+    | tee -a "networks/n=${num_most_frequent_symbols}_${datetime}.log"
