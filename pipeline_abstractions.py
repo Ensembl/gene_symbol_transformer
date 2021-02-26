@@ -308,70 +308,37 @@ class EarlyStopping:
 
 
 class TrainingSession:
-    def __init__(self, args):
-        self.datetime = args.datetime
+    def __init__(
+        self,
+        datetime,
+        random_state,
+        num_most_frequent_symbols,
+        test_ratio,
+        validation_ratio,
+        sequence_length,
+        batch_size,
+        learning_rate,
+        num_epochs,
+        patience,
+        loss_delta=0.001,
+    ):
+        # training parameters
+        self.datetime = datetime
+        self.random_state = random_state
+        self.num_most_frequent_symbols = num_most_frequent_symbols
+        self.test_ratio = test_ratio
+        self.validation_ratio = validation_ratio
 
-        # self.random_state = None
-        # self.random_state = 5
-        # self.random_state = 7
-        # self.random_state = 11
-        self.random_state = args.random_state
+        # hyperparameters
+        self.sequence_length = sequence_length
+        self.batch_size = batch_size
+        self.learning_rate = learning_rate
 
-        # self.num_most_frequent_symbols = 3
-        # self.num_most_frequent_symbols = 101
-        # self.num_most_frequent_symbols = 1013
-        # self.num_most_frequent_symbols = 10059
-        # self.num_most_frequent_symbols = 20147
-        # self.num_most_frequent_symbols = 25028
-        # self.num_most_frequent_symbols = 26007
-        # self.num_most_frequent_symbols = 27137
-        # self.num_most_frequent_symbols = 28197
-        # self.num_most_frequent_symbols = 29041
-        # self.num_most_frequent_symbols = 30591
-        self.num_most_frequent_symbols = args.num_most_frequent_symbols
-
-        # padding or truncating length
-        self.sequence_length = 1000
-        # self.sequence_length = 2000
-
-        if self.num_most_frequent_symbols == 3:
-            self.test_ratio = 0.2
-            self.validation_ratio = 0.2
-        elif self.num_most_frequent_symbols in {101, 1013}:
-            self.test_ratio = 0.1
-            self.validation_ratio = 0.1
-        else:
-            self.test_ratio = 0.05
-            self.validation_ratio = 0.05
-
-        # self.batch_size = 32
-        # self.batch_size = 64
-        # self.batch_size = 128
-        # self.batch_size = 256
-        # self.batch_size = 512
-        # self.batch_size = 1024
-        self.batch_size = 2048
-        # self.batch_size = 4096
-        # self.batch_size = 8192
-
-        self.learning_rate = 0.001
-        # self.learning_rate = 0.01
-
-        # self.num_epochs = 1
-        # self.num_epochs = 3
-        # self.num_epochs = 10
-        self.num_epochs = 100
-        # self.num_epochs = 1000
-
+        # training epochs and early stopping
+        self.num_epochs = num_epochs
         self.num_complete_epochs = 0
-
-        # larger patience for short epochs and smaller patience for longer epochs
-        if self.num_most_frequent_symbols in {3, 101, 1013}:
-            self.patience = 11
-        else:
-            self.patience = 7
-
-        self.loss_delta = 0.001
+        self.patience = patience
+        self.loss_delta = loss_delta
 
         self.checkpoint_filename = (
             f"n={self.num_most_frequent_symbols}_{self.datetime}.pth"
