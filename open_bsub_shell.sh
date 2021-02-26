@@ -16,6 +16,15 @@
 # limitations under the License.
 
 
+JOB_TYPE=standard
+#JOB_TYPE=gpu
+#JOB_TYPE=parallel
+
+MEM_LIMIT=16384
+#MEM_LIMIT=32768
+#MEM_LIMIT=65536
+
+
 # bsub
 # https://www.ibm.com/support/knowledgecenter/SSWRJV_10.1.0/lsf_command_ref/bsub.man_top.1.html
 # -Is [-tty]
@@ -24,22 +33,8 @@
 # Submits a parallel job and specifies the number of tasks in the job.
 # -M mem_limit [!]
 # Sets a memory limit for all the processes that belong to the job.
-# -q "queue_name ..."
-# Submits the job to one of the specified queues.
 # -R "res_req" [-R "res_req" ...]
 # Runs the job on a host that meets the specified resource requirements.
-
-JOB_TYPE=standard
-#JOB_TYPE=gpu
-#JOB_TYPE=parallel
-
-#QUEUE=research-rh74
-QUEUE=production-rh74
-
-MEM_LIMIT=16384
-#MEM_LIMIT=20000
-#MEM_LIMIT=32768
-#MEM_LIMIT=65536
 
 
 # stardard compute node shell
@@ -56,6 +51,7 @@ if [[ "$JOB_TYPE" = "standard" ]]; then
 fi
 ################################################################################
 
+
 # GPU node shell
 ################################################################################
 # https://sysinf.ebi.ac.uk/doku.php?id=ebi_cluster_good_computing_guide#gpu_hosts
@@ -69,9 +65,10 @@ NUM_GPUS=1
 #NUM_GPUS=4
 
 if [[ "$JOB_TYPE" = "gpu" ]]; then
-    bsub -q $QUEUE -P gpu -gpu "num=$NUM_GPUS:j_exclusive=yes" -m ${COMPUTE_NODE}.ebi.ac.uk -Is -tty -M $MEM_LIMIT -R"select[mem>$MEM_LIMIT] rusage[mem=$MEM_LIMIT] span[hosts=1]" $SHELL
+    bsub -P gpu -gpu "num=$NUM_GPUS:j_exclusive=yes" -m ${COMPUTE_NODE}.ebi.ac.uk -Is -tty -M $MEM_LIMIT -R"select[mem>$MEM_LIMIT] rusage[mem=$MEM_LIMIT] span[hosts=1]" $SHELL
 fi
 ################################################################################
+
 
 # parallel jobs shell
 ################################################################################
