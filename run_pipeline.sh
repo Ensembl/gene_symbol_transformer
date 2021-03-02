@@ -34,8 +34,8 @@ random_state=5
 #random_state=7
 #random_state=11
 
-#num_most_frequent_symbols=3
-num_most_frequent_symbols=101
+num_most_frequent_symbols=3
+#num_most_frequent_symbols=101
 #num_most_frequent_symbols=1013
 #num_most_frequent_symbols=10059
 #num_most_frequent_symbols=20147
