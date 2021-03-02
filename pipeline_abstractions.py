@@ -35,6 +35,7 @@ import pandas as pd
 import torch
 import torch.nn as nn
 
+from loguru import logger
 from torch.utils.data import Dataset
 
 # project imports
@@ -105,16 +106,15 @@ class SequenceDataset(Dataset):
     """
 
     def __init__(self, num_most_frequent_symbols, sequence_length):
-        print(
-            f"Loading {num_most_frequent_symbols} most frequent symbols sequences dataset...",
-            end="",
+        logger.info(
+            f"Loading {num_most_frequent_symbols} most frequent symbols sequences dataset..."
         )
         data_pickle_path = (
             data_directory / f"most_frequent_{num_most_frequent_symbols}.pickle"
         )
         data = pd.read_pickle(data_pickle_path)
-        print(" Done.")
-        print()
+        logger.info(f"{num_most_frequent_symbols} most frequent symbols sequences dataset loaded")
+        # print()
 
         # only the sequences and the symbols are needed as features and labels
         self.data = data[["sequence", "symbol"]]
@@ -130,16 +130,16 @@ class SequenceDataset(Dataset):
             )
             self.data["sequence"] = self.data["sequence"].str.slice(stop=sequence_length)
 
-        print("Generating gene symbols object...", end="")
+        logger.info("Generating gene symbols object...")
         labels = self.data["symbol"].unique().tolist()
         self.gene_symbols = GeneSymbols(labels)
-        print(" Done.")
+        logger.info("Gene symbols objects generated.")
 
-        print("Generating protein sequences object...", end="")
+        logger.info("Generating protein sequences object...")
         self.protein_sequences = ProteinSequences()
-        print(" Done.")
+        logger.info("Protein sequences object generated.")
 
-        print()
+        # print()
 
     def __len__(self):
         return len(self.data)
@@ -231,17 +231,13 @@ class SuppressSettingWithCopyWarning:
         pd.options.mode.chained_assignment = self.original_setting
 
 
-def load_checkpoint(checkpoint_path, verbose=False):
+def load_checkpoint(checkpoint_path):
     """
     Load saved training checkpoint.
     """
-    if verbose:
-        print(f'Loading training checkpoint "{checkpoint_path}"...', end="")
-
+    logger.info(f'Loading training checkpoint "{checkpoint_path}"...', end="")
     checkpoint = torch.load(checkpoint_path, map_location=DEVICE)
-
-    if verbose:
-        print(" Done.")
+    logger.info(" Done.")
 
     return checkpoint
 
@@ -276,8 +272,8 @@ class EarlyStopping:
     def __call__(self, network, training_session, validation_loss):
         if self.min_validation_loss == np.Inf:
             self.min_validation_loss = validation_loss
-            print("saving initial network checkpoint...")
-            print()
+            logger.info("saving initial network checkpoint...")
+            # print()
             save_training_checkpoint(network, training_session, self.checkpoint_path)
             return False
 
@@ -286,10 +282,10 @@ class EarlyStopping:
             assert (
                 validation_loss_decrease > 0
             ), f"{validation_loss_decrease=}, should be a positive number"
-            print(
+            logger.info(
                 f"validation loss decreased by {validation_loss_decrease:.4f}, saving network checkpoint..."
             )
-            print()
+            # print()
             save_training_checkpoint(network, training_session, self.checkpoint_path)
             self.min_validation_loss = validation_loss
             self.no_progress = 0
@@ -297,13 +293,13 @@ class EarlyStopping:
 
         else:
             self.no_progress += 1
-            print()
+            # print()
 
             if self.no_progress == self.patience:
-                print(
+                logger.info(
                     f"{self.no_progress} calls with no validation loss improvement. Stopping training."
                 )
-                print()
+                # print()
                 return True
 
 

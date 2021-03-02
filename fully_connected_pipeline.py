@@ -35,6 +35,7 @@ import torch
 import torch.nn as nn
 
 from colorama import Fore
+from loguru import logger
 from torch.utils.data import DataLoader, random_split
 from torch.utils.tensorboard import SummaryWriter
 
@@ -134,8 +135,8 @@ def train_network(
     stop_early = EarlyStopping(
         checkpoint_path, training_session.patience, training_session.loss_delta
     )
-    print(f"checkpoints of the network being trained saved to {checkpoint_path}")
-    print()
+    logger.info(f"checkpoints of the network being trained saved to {checkpoint_path}")
+    # print()
 
     num_epochs_length = len(str(num_epochs))
 
@@ -196,7 +197,7 @@ def train_network(
                 average_training_loss = np.average(training_losses)
 
                 training_progress = f"epoch {epoch:{num_epochs_length}} of {num_epochs}, batch {batch_number:{num_batches_length}} of {num_batches} | average training loss: {average_training_loss:.4f}"
-                print(training_progress)
+                logger.info(training_progress)
 
         training_session.num_complete_epochs += 1
 
@@ -230,7 +231,7 @@ def train_network(
                 f"batch {batch_number:{num_batches_length}} of {num_batches} "
             )
         training_progress += f"| average training loss: {average_training_loss:.4f}, average validation loss: {average_validation_loss:.4f}"
-        print(training_progress)
+        logger.info(training_progress)
 
         if stop_early(network, training_session, average_validation_loss):
             summary_writer.flush()
@@ -282,12 +283,13 @@ def test_network(network, training_session, test_loader, print_sample_prediction
             num_samples += len(predictions)
             running_test_accuracy = num_correct_predictions / num_samples
 
-            print(
+            logger.info(
                 f"batch {batch_number:{num_batches_length}} of {num_batches} | running test accuracy: {running_test_accuracy:.4f}"
             )
-    print()
+    # print()
 
     # print statistics
+    print()
     print("average test loss: {:.4f}".format(np.mean(test_losses)))
 
     # test predictions accuracy
@@ -399,35 +401,34 @@ def main():
 
     if args.save_network:
         checkpoint_path = pathlib.Path(args.save_network)
-        print(f'Loading checkpoint "{checkpoint_path}" ...')
+        logger.info(f'Loading checkpoint "{checkpoint_path}" ...')
         network_path = save_network_from_checkpoint(checkpoint_path)
-        print(f'Saved network at "{network_path}"')
+        logger.info(f'Saved network at "{network_path}"')
         return
 
     # print PyTorch version information
-    print(f"{torch.__version__=}")
-    print(f"{torch.version.cuda=}")
-
+    logger.info(f"{torch.__version__=}")
+    # specify GPU devices visible to CUDA applications
+    # https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#env-vars
     # os.environ["CUDA_VISIBLE_DEVICES"] = "0,1"
+    logger.info(f"{DEVICE=}")
 
-    print(f"{DEVICE=}")
-    print(f"{torch.backends.cudnn.enabled=}")
-    print(f"{torch.cuda.is_available()=}")
+    logger.debug(f"{torch.version.cuda=}")
+    logger.debug(f"{torch.backends.cudnn.enabled=}")
+    logger.debug(f"{torch.cuda.is_available()=}")
     if torch.cuda.is_available():
-        print(f"{torch.cuda.device_count()=}")
-        print(f"{torch.cuda.get_device_properties(DEVICE)}")
+        logger.debug(f"{torch.cuda.device_count()=}")
+        logger.debug(f"{torch.cuda.get_device_properties(DEVICE)}")
         # print(f"{torch.cuda.memory_summary(DEVICE)}")
-    print()
 
     # load training checkpoint or generate new training session
     if args.load:
         checkpoint_path = pathlib.Path(args.load)
-        print(f'Loading training checkpoint "{checkpoint_path}"...', end="")
+        logger.info(f'Loading training checkpoint "{checkpoint_path}"...')
         checkpoint = load_checkpoint(checkpoint_path)
         network = checkpoint["network"]
         training_session = checkpoint["training_session"]
-        print(" Done.")
-        print()
+        logger.info(f'"{checkpoint_path}" training checkpoint loaded')
     else:
         if args.num_most_frequent_symbols == 3:
             test_ratio = 0.2
@@ -501,13 +502,13 @@ def main():
     pandas_symbols_categories = (
         dataset.gene_symbols.symbol_categorical_datatype.categories
     )
-    print("gene symbols:")
-    print(
+    logger.info(
+        "gene symbols:\n",
         pandas_symbols_categories.to_series(
             index=range(len(pandas_symbols_categories)), name="gene symbols"
-        )
+        ),
     )
-    print()
+    # print()
 
     # split dataset into train, validation, and test datasets
     validation_size = int(training_session.validation_ratio * len(dataset))
@@ -525,10 +526,10 @@ def main():
         ),
     )
 
-    print(
+    logger.info(
         f"dataset split to train ({training_session.training_size}), validation ({training_session.validation_size}), and test ({training_session.test_size}) datasets"
     )
-    print()
+    # print()
 
     # set the batch size to the size of the smallest dataset if larger than that
     min_dataset_size = min(
@@ -563,17 +564,15 @@ def main():
     )
     ############################################################################
 
-    print("network:")
-    print(network)
-    print()
-    print("training_session:")
-    print(training_session)
-    print()
+    logger.info("network:\n", network)
+    # print()
+    logger.info("training_session:\n", training_session)
+    # print()
 
     # train network
     if args.train:
-        print(f"training neural network")
-        print()
+        logger.info(f"training neural network")
+        # print()
 
         verbose = True
 
@@ -589,7 +588,7 @@ def main():
     if args.test:
         if args.train:
             checkpoint_path = networks_directory / training_session.checkpoint_filename
-            checkpoint = load_checkpoint(checkpoint_path, verbose=True)
+            checkpoint = load_checkpoint(checkpoint_path)
             network = checkpoint["network"]
             training_session = checkpoint["training_session"]
         test_network(
