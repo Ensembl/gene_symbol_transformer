@@ -17,4 +17,4 @@
 
 NETWORK_FILENAME="$1"
 
-python -u fully_connected_pipeline.py --load "networks/$NETWORK_FILENAME.pth" --test | tee -a "networks/$NETWORK_FILENAME.log"
+python -u fully_connected_pipeline.py --load_checkpoint "$NETWORK_FILENAME" --test | tee -a "networks/$NETWORK_FILENAME.log"

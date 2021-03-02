@@ -379,7 +379,7 @@ def main():
     argument_parser = argparse.ArgumentParser()
     argument_parser.add_argument("--train", action="store_true")
     argument_parser.add_argument("--test", action="store_true")
-    argument_parser.add_argument("--load")
+    argument_parser.add_argument("--load_checkpoint")
     argument_parser.add_argument("--save_network")
     argument_parser.add_argument("--datetime")
     argument_parser.add_argument("--random_state", type=int)
@@ -399,6 +399,15 @@ def main():
 
     args = argument_parser.parse_args()
 
+    # add a log file as a log sink
+    if args.datetime and args.num_most_frequent_symbols:
+        log_path = networks_directory / f"n={args.num_most_frequent_symbols}_{args.datetime}.log"
+        logger.add(log_path)
+    elif args.load_checkpoint:
+        log_path = networks_directory / f"{args.load_checkpoint}.log"
+        logger.add(log_path)
+
+    # save network
     if args.save_network:
         checkpoint_path = pathlib.Path(args.save_network)
         logger.info(f'Loading checkpoint "{checkpoint_path}" ...')
@@ -422,13 +431,11 @@ def main():
         # print(f"{torch.cuda.memory_summary(DEVICE)}")
 
     # load training checkpoint or generate new training session
-    if args.load:
-        checkpoint_path = pathlib.Path(args.load)
-        logger.info(f'Loading training checkpoint "{checkpoint_path}"...')
+    if args.load_checkpoint:
+        checkpoint_path = networks_directory / f"{args.load_checkpoint}.pth"
         checkpoint = load_checkpoint(checkpoint_path)
         network = checkpoint["network"]
         training_session = checkpoint["training_session"]
-        logger.info(f'"{checkpoint_path}" training checkpoint loaded')
     else:
         if args.num_most_frequent_symbols == 3:
             test_ratio = 0.2
@@ -503,10 +510,11 @@ def main():
         dataset.gene_symbols.symbol_categorical_datatype.categories
     )
     logger.info(
-        "gene symbols:\n",
-        pandas_symbols_categories.to_series(
-            index=range(len(pandas_symbols_categories)), name="gene symbols"
-        ),
+        "gene symbols:\n{}".format(
+            pandas_symbols_categories.to_series(
+                index=range(len(pandas_symbols_categories)), name="gene symbols"
+            )
+        )
     )
     # print()
 
@@ -564,14 +572,14 @@ def main():
     )
     ############################################################################
 
-    logger.info("network:\n", network)
+    logger.info(f"network:\n{network}")
     # print()
-    logger.info("training_session:\n", training_session)
+    logger.info(f"training_session:\n{training_session}")
     # print()
 
     # train network
     if args.train:
-        logger.info(f"training neural network")
+        logger.info(f"training started")
         # print()
 
         verbose = True
