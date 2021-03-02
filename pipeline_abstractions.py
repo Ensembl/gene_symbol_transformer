@@ -235,9 +235,9 @@ def load_checkpoint(checkpoint_path):
     """
     Load saved training checkpoint.
     """
-    logger.info(f'Loading training checkpoint "{checkpoint_path}"...', end="")
+    logger.info(f'Loading training checkpoint "{checkpoint_path}"...')
     checkpoint = torch.load(checkpoint_path, map_location=DEVICE)
-    logger.info(" Done.")
+    logger.info(f'"{checkpoint_path}" training checkpoint loaded')
 
     return checkpoint
 
