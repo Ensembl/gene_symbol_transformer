@@ -338,13 +338,9 @@ def test_network(network, training_session, test_loader, log_file_path, print_sa
         logger.info("-----------------------")
         for prediction, label in zip(predictions, labels):
             if prediction == label:
-                # unicode "CHECK MARK"
-                correctness = "\u2713"
-                logger.info(f"{prediction:10} | {label:10}    {correctness}")
+                logger.info(f"{prediction:>10} | {label:>10}")
             else:
-                # unicode "BALLOT X"
-                correctness = "\u2717"
-                logger.info(f"{prediction:10} | {label:10}    {correctness}")
+                logger.info(f"{prediction:>10} | {label:>10}  !!!")
 
 
 def save_network_from_checkpoint(checkpoint_path):
