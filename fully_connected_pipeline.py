@@ -34,7 +34,6 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-from colorama import Fore
 from loguru import logger
 from torch.utils.data import DataLoader, random_split
 from torch.utils.tensorboard import SummaryWriter
@@ -48,6 +47,8 @@ from pipeline_abstractions import (
     TrainingSession,
 )
 
+
+LOGURU_FORMAT = "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{message}</level>"
 
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -135,8 +136,7 @@ def train_network(
     stop_early = EarlyStopping(
         checkpoint_path, training_session.patience, training_session.loss_delta
     )
-    logger.info(f"checkpoints of the network being trained saved to {checkpoint_path}")
-    # print()
+    logger.info(f"training started, session checkpoints saved to {checkpoint_path}")
 
     num_epochs_length = len(str(num_epochs))
 
@@ -240,7 +240,7 @@ def train_network(
             break
 
 
-def test_network(network, training_session, test_loader, print_sample_predictions=False):
+def test_network(network, training_session, test_loader, log_file_path, print_sample_predictions=False):
     """
     Calculate test loss and generate metrics.
     """
@@ -286,15 +286,19 @@ def test_network(network, training_session, test_loader, print_sample_prediction
             logger.info(
                 f"batch {batch_number:{num_batches_length}} of {num_batches} | running test accuracy: {running_test_accuracy:.4f}"
             )
-    # print()
 
-    # print statistics
-    print()
-    print("average test loss: {:.4f}".format(np.mean(test_losses)))
+    # log statistics
+
+    # reset logger, add format for statistics
+    logger.remove()
+    logger.add(sys.stderr, format="{message}")
+    logger.add(log_file_path, format="{message}")
+
+    logger.info("\n" + "average test loss: {:.4f}".format(np.mean(test_losses)))
 
     # test predictions accuracy
     test_accuracy = num_correct_predictions / num_samples
-    print("test accuracy: {:.3f}".format(test_accuracy))
+    logger.info("test accuracy: {:.3f}".format(test_accuracy) + "\n")
 
     if print_sample_predictions:
         # num_sample_predictions = 10
@@ -329,32 +333,18 @@ def test_network(network, training_session, test_loader, print_sample_prediction
         )
         labels = training_session.gene_symbols.one_hot_encoding_to_symbol(labels)
 
-        print()
-        print("sample predictions")
-        print("prediction | true label")
-        print("-----------------------")
+        logger.info("sample predictions")
+        logger.info("prediction | true label")
+        logger.info("-----------------------")
         for prediction, label in zip(predictions, labels):
             if prediction == label:
                 # unicode "CHECK MARK"
                 correctness = "\u2713"
-                print(
-                    f"{prediction:10} | {label:10}    "
-                    + Fore.GREEN
-                    + f"{correctness}"
-                    + Fore.RESET
-                )
+                logger.info(f"{prediction:10} | {label:10}    {correctness}")
             else:
                 # unicode "BALLOT X"
                 correctness = "\u2717"
-                print(
-                    Fore.RED
-                    + f"{prediction:10}"
-                    + Fore.RESET
-                    + " | "
-                    + Fore.RED
-                    + f"{label:10}    {correctness}"
-                    + Fore.RESET
-                )
+                logger.info(f"{prediction:10} | {label:10}    {correctness}")
 
 
 def save_network_from_checkpoint(checkpoint_path):
@@ -401,11 +391,12 @@ def main():
 
     # add a log file as a log sink
     if args.datetime and args.num_most_frequent_symbols:
-        log_path = networks_directory / f"n={args.num_most_frequent_symbols}_{args.datetime}.log"
-        logger.add(log_path)
+        log_file_path = networks_directory / f"n={args.num_most_frequent_symbols}_{args.datetime}.log"
     elif args.load_checkpoint:
-        log_path = networks_directory / f"{args.load_checkpoint}.log"
-        logger.add(log_path)
+        log_file_path = networks_directory / f"{args.load_checkpoint}.log"
+    logger.remove()
+    logger.add(sys.stderr, format=LOGURU_FORMAT)
+    logger.add(log_file_path, format=LOGURU_FORMAT)
 
     # save network
     if args.save_network:
@@ -415,7 +406,7 @@ def main():
         logger.info(f'Saved network at "{network_path}"')
         return
 
-    # print PyTorch version information
+    # log PyTorch version information
     logger.info(f"{torch.__version__=}")
     # specify GPU devices visible to CUDA applications
     # https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#env-vars
@@ -428,7 +419,7 @@ def main():
     if torch.cuda.is_available():
         logger.debug(f"{torch.cuda.device_count()=}")
         logger.debug(f"{torch.cuda.get_device_properties(DEVICE)}")
-        # print(f"{torch.cuda.memory_summary(DEVICE)}")
+        # logger.debug(f"{torch.cuda.memory_summary(DEVICE)}")
 
     # load training checkpoint or generate new training session
     if args.load_checkpoint:
@@ -516,7 +507,6 @@ def main():
             )
         )
     )
-    # print()
 
     # split dataset into train, validation, and test datasets
     validation_size = int(training_session.validation_ratio * len(dataset))
@@ -537,7 +527,6 @@ def main():
     logger.info(
         f"dataset split to train ({training_session.training_size}), validation ({training_session.validation_size}), and test ({training_session.test_size}) datasets"
     )
-    # print()
 
     # set the batch size to the size of the smallest dataset if larger than that
     min_dataset_size = min(
@@ -573,15 +562,10 @@ def main():
     ############################################################################
 
     logger.info(f"network:\n{network}")
-    # print()
     logger.info(f"training_session:\n{training_session}")
-    # print()
 
     # train network
     if args.train:
-        logger.info(f"training started")
-        # print()
-
         verbose = True
 
         train_network(
@@ -600,7 +584,7 @@ def main():
             network = checkpoint["network"]
             training_session = checkpoint["training_session"]
         test_network(
-            network, training_session, test_loader, print_sample_predictions=True
+            network, training_session, test_loader, log_file_path, print_sample_predictions=True
         )
 
 
@@ -608,6 +592,5 @@ if __name__ == "__main__":
     try:
         main()
     except KeyboardInterrupt:
-        print()
-        print("Interrupted with CTRL-C, exiting...")
+        logger.info("Interrupted with CTRL-C, exiting...")
         sys.exit()
