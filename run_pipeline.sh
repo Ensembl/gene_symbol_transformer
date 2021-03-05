@@ -70,8 +70,8 @@ num_epochs=1
 #num_epochs=100
 #num_epochs=1000
 
-# train directly on a compute node, disable buffering in Python script output, save output to a file with tee
-python -u "$target_script" \
+# train directly on a compute node
+python "$target_script" \
     --train \
     --test \
     --datetime "$datetime" \
@@ -80,5 +80,4 @@ python -u "$target_script" \
     --sequence_length $sequence_length \
     --batch_size $batch_size \
     --learning_rate $learning_rate \
-    --num_epochs $num_epochs \
-    | tee -a "networks/n=${num_most_frequent_symbols}_${datetime}.log"
+    --num_epochs $num_epochs
