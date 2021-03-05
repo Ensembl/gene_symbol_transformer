@@ -61,8 +61,8 @@ batch_size=2048
 #batch_size=4096
 #batch_size=8192
 
-learning_rate=0.001
 #learning_rate=0.01
+learning_rate=0.001
 
 num_epochs=1
 #num_epochs=3
