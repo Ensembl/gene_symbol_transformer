@@ -13,6 +13,7 @@ matplotlib = "^3.2.2"
 scikit-learn = "^0.23.2"
 colorama = "^0.4.4"
 loguru = "^0.5.3"
+PyYAML = "^5.4.1"
 
 [tool.poetry.dev-dependencies]
 jupyterlab = "^2.1.4"
