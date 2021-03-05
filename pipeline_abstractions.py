@@ -24,9 +24,9 @@ Generic training and testing pipeline functions and classes.
 
 # standard library imports
 import pathlib
-import sys
-
 import pprint
+import sys
+import warnings
 
 # third party imports
 import Bio
@@ -42,7 +42,9 @@ from torch.utils.data import Dataset
 import dataset_generation
 
 
-DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+with warnings.catch_warnings():
+    warnings.simplefilter("ignore")
+    DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 data_directory = pathlib.Path("data")
 networks_directory = pathlib.Path("networks")

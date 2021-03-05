@@ -28,6 +28,7 @@ import math
 import pathlib
 import sys
 import time
+import warnings
 
 # third party imports
 import numpy as np
@@ -50,8 +51,10 @@ from pipeline_abstractions import (
 
 LOGURU_FORMAT = "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{message}</level>"
 
-DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
+with warnings.catch_warnings():
+    warnings.simplefilter("ignore")
+    DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 class FullyConnectedNetwork(nn.Module):
     """
