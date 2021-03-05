@@ -248,7 +248,9 @@ def train_network(
             break
 
 
-def test_network(network, training_session, test_loader, log_file_path, print_sample_predictions=False):
+def test_network(
+    network, training_session, test_loader, log_file_path, print_sample_predictions=False
+):
     """
     Calculate test loss and generate metrics.
     """
@@ -397,7 +399,9 @@ def main():
     elif args.load_checkpoint:
         log_file_path = networks_directory / f"{args.load_checkpoint}.log"
     else:
-        raise Exception("Missing argument: one of `experiment_settings` or `load_checkpoint` paths is required.")
+        raise Exception(
+            "Missing argument: one of `experiment_settings` or `load_checkpoint` paths is required."
+        )
 
     # set up logger
     logger.remove()
@@ -590,7 +594,11 @@ def main():
             network = checkpoint["network"]
             training_session = checkpoint["training_session"]
         test_network(
-            network, training_session, test_loader, log_file_path, print_sample_predictions=True
+            network,
+            training_session,
+            test_loader,
+            log_file_path,
+            print_sample_predictions=True,
         )
 
 

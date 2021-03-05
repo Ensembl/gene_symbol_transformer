@@ -110,12 +110,8 @@ class SequenceDataset(Dataset):
     """
 
     def __init__(self, num_symbols, sequence_length):
-        logger.info(
-            f"Loading {num_symbols} most frequent symbols sequences dataset..."
-        )
-        data_pickle_path = (
-            data_directory / f"most_frequent_{num_symbols}.pickle"
-        )
+        logger.info(f"Loading {num_symbols} most frequent symbols sequences dataset...")
+        data_pickle_path = data_directory / f"most_frequent_{num_symbols}.pickle"
         data = pd.read_pickle(data_pickle_path)
         logger.info(f"{num_symbols} most frequent symbols sequences dataset loaded")
         # print()
@@ -224,6 +220,7 @@ class PrettySimpleNamespace(SimpleNamespace):
     This will most probably not be needed from Python version 3.9 on, as support
     for pretty-printing types.SimpleNamespace has been added to pprint in that version.
     """
+
     def __str__(self):
         return pprint.pformat(self.__dict__, sort_dicts=False)
 
@@ -352,9 +349,7 @@ class TrainingSession:
         self.patience = patience
         self.loss_delta = loss_delta
 
-        self.checkpoint_filename = (
-            f"n={self.num_symbols}_{self.datetime}.pth"
-        )
+        self.checkpoint_filename = f"n={self.num_symbols}_{self.datetime}.pth"
 
     def __str__(self):
         return pprint.pformat(self.__dict__, sort_dicts=False)
