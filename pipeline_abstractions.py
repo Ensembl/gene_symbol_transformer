@@ -28,6 +28,8 @@ import pprint
 import sys
 import warnings
 
+from types import SimpleNamespace
+
 # third party imports
 import Bio
 import numpy as np
@@ -107,15 +109,15 @@ class SequenceDataset(Dataset):
     Custom Dataset for raw sequences.
     """
 
-    def __init__(self, num_most_frequent_symbols, sequence_length):
+    def __init__(self, num_symbols, sequence_length):
         logger.info(
-            f"Loading {num_most_frequent_symbols} most frequent symbols sequences dataset..."
+            f"Loading {num_symbols} most frequent symbols sequences dataset..."
         )
         data_pickle_path = (
-            data_directory / f"most_frequent_{num_most_frequent_symbols}.pickle"
+            data_directory / f"most_frequent_{num_symbols}.pickle"
         )
         data = pd.read_pickle(data_pickle_path)
-        logger.info(f"{num_most_frequent_symbols} most frequent symbols sequences dataset loaded")
+        logger.info(f"{num_symbols} most frequent symbols sequences dataset loaded")
         # print()
 
         # only the sequences and the symbols are needed as features and labels
@@ -214,6 +216,18 @@ def pad_or_truncate_sequence(sequence, normalized_length):
     return normalized_sequence
 
 
+class PrettySimpleNamespace(SimpleNamespace):
+    """
+    Add a pretty formatting printing to the SimpleNamespace.
+
+    NOTE
+    This will most probably not be needed from Python version 3.9 on, as support
+    for pretty-printing types.SimpleNamespace has been added to pprint in that version.
+    """
+    def __str__(self):
+        return pprint.pformat(self.__dict__, sort_dicts=False)
+
+
 class SuppressSettingWithCopyWarning:
     """
     Suppress SettingWithCopyWarning warning.
@@ -310,7 +324,7 @@ class TrainingSession:
         self,
         datetime,
         random_state,
-        num_most_frequent_symbols,
+        num_symbols,
         test_ratio,
         validation_ratio,
         sequence_length,
@@ -323,7 +337,7 @@ class TrainingSession:
         # training parameters
         self.datetime = datetime
         self.random_state = random_state
-        self.num_most_frequent_symbols = num_most_frequent_symbols
+        self.num_symbols = num_symbols
         self.test_ratio = test_ratio
         self.validation_ratio = validation_ratio
 
@@ -339,7 +353,7 @@ class TrainingSession:
         self.loss_delta = loss_delta
 
         self.checkpoint_filename = (
-            f"n={self.num_most_frequent_symbols}_{self.datetime}.pth"
+            f"n={self.num_symbols}_{self.datetime}.pth"
         )
 
     def __str__(self):

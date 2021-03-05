@@ -24,8 +24,10 @@ Fully connected neural network pipeline.
 
 # standard library imports
 import argparse
+import datetime as dt
 import math
 import pathlib
+import pprint
 import sys
 import time
 import warnings
@@ -34,6 +36,7 @@ import warnings
 import numpy as np
 import torch
 import torch.nn as nn
+import yaml
 
 from loguru import logger
 from torch.utils.data import DataLoader, random_split
@@ -44,6 +47,7 @@ from pipeline_abstractions import (
     load_checkpoint,
     networks_directory,
     EarlyStopping,
+    PrettySimpleNamespace,
     SequenceDataset,
     TrainingSession,
 )
@@ -56,6 +60,7 @@ with warnings.catch_warnings():
     warnings.simplefilter("ignore")
     DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
+
 class FullyConnectedNetwork(nn.Module):
     """
     A fully connected neural network for gene name classification of protein sequences
@@ -66,7 +71,7 @@ class FullyConnectedNetwork(nn.Module):
         self,
         sequence_length,
         num_protein_letters,
-        num_most_frequent_symbols,
+        num_symbols,
         dropout_probability,
     ):
         """
@@ -79,7 +84,7 @@ class FullyConnectedNetwork(nn.Module):
         num_connections = 512
         # num_connections = 1024
         # num_connections = 2048
-        output_size = num_most_frequent_symbols
+        output_size = num_symbols
 
         self.input_layer = nn.Linear(in_features=input_size, out_features=num_connections)
         # self.hidden_layer = nn.Linear(in_features=None, out_features=None)
@@ -121,7 +126,7 @@ def train_network(
     verbose=False,
 ):
     tensorboard_log_dir = (
-        f"runs/{training_session.num_most_frequent_symbols}/{training_session.datetime}"
+        f"runs/{training_session.num_symbols}/{training_session.datetime}"
     )
     summary_writer = SummaryWriter(log_dir=tensorboard_log_dir)
 
@@ -366,33 +371,35 @@ def main():
     main function
     """
     argument_parser = argparse.ArgumentParser()
-    argument_parser.add_argument("--train", action="store_true")
-    argument_parser.add_argument("--test", action="store_true")
-    argument_parser.add_argument("--load_checkpoint")
+    argument_parser.add_argument(
+        "-ex",
+        "--experiment_settings",
+        help="path to the experiment settings configuration file",
+    )
+    argument_parser.add_argument(
+        "--load_checkpoint",
+        help="name of the training session checkpoint",
+    )
+    argument_parser.add_argument("--train", action="store_true", help="train a network")
+    argument_parser.add_argument("--test", action="store_true", help="test a network")
     argument_parser.add_argument("--save_network")
-    argument_parser.add_argument("--datetime")
-    argument_parser.add_argument("--random_state", type=int)
-    argument_parser.add_argument("--num_most_frequent_symbols", type=int)
-    argument_parser.add_argument(
-        "--sequence_length",
-        type=int,
-        help="constant length to pad or truncate all sequences",
-    )
-    argument_parser.add_argument(
-        "--batch_size", type=int, help="training and test batch size"
-    )
-    argument_parser.add_argument("--learning_rate", type=float, help="learning rate")
-    argument_parser.add_argument(
-        "--num_epochs", type=int, help="number of epochs to train the network"
-    )
 
     args = argument_parser.parse_args()
 
-    # add a log file as a log sink
-    if args.datetime and args.num_most_frequent_symbols:
-        log_file_path = networks_directory / f"n={args.num_most_frequent_symbols}_{args.datetime}.log"
+    # load experiment settings and generate the log file path
+    if args.experiment_settings:
+        with open(args.experiment_settings) as f:
+            experiment = PrettySimpleNamespace(**yaml.safe_load(f))
+
+        datetime = dt.datetime.now().isoformat(sep="_", timespec="seconds")
+
+        log_file_path = networks_directory / f"n={experiment.num_symbols}_{datetime}.log"
     elif args.load_checkpoint:
         log_file_path = networks_directory / f"{args.load_checkpoint}.log"
+    else:
+        raise Exception("Missing argument: one of `experiment_settings` or `load_checkpoint` paths is required.")
+
+    # set up logger
     logger.remove()
     logger.add(sys.stderr, format=LOGURU_FORMAT)
     logger.add(log_file_path, format=LOGURU_FORMAT)
@@ -427,10 +434,10 @@ def main():
         network = checkpoint["network"]
         training_session = checkpoint["training_session"]
     else:
-        if args.num_most_frequent_symbols == 3:
+        if experiment.num_symbols == 3:
             test_ratio = 0.2
             validation_ratio = 0.2
-        elif args.num_most_frequent_symbols in {101, 1013}:
+        elif experiment.num_symbols in {101, 1013}:
             test_ratio = 0.1
             validation_ratio = 0.1
         else:
@@ -438,21 +445,21 @@ def main():
             validation_ratio = 0.05
 
         # larger patience for short epochs and smaller patience for longer epochs
-        if args.num_most_frequent_symbols in {3, 101, 1013}:
+        if experiment.num_symbols in {3, 101, 1013}:
             patience = 11
         else:
             patience = 7
 
         training_session = TrainingSession(
-            args.datetime,
-            args.random_state,
-            args.num_most_frequent_symbols,
+            datetime,
+            experiment.random_state,
+            experiment.num_symbols,
             test_ratio,
             validation_ratio,
-            args.sequence_length,
-            args.batch_size,
-            args.learning_rate,
-            args.num_epochs,
+            experiment.sequence_length,
+            experiment.batch_size,
+            experiment.learning_rate,
+            experiment.num_epochs,
             patience,
         )
 
@@ -477,7 +484,7 @@ def main():
         network = FullyConnectedNetwork(
             training_session.sequence_length,
             num_protein_letters,
-            training_session.num_most_frequent_symbols,
+            training_session.num_symbols,
             training_session.dropout_probability,
         )
         ############################################################################
@@ -490,7 +497,7 @@ def main():
     # load data, generate datasets
     ############################################################################
     dataset = SequenceDataset(
-        training_session.num_most_frequent_symbols, training_session.sequence_length
+        training_session.num_symbols, training_session.sequence_length
     )
 
     training_session.gene_symbols = dataset.gene_symbols
@@ -536,7 +543,7 @@ def main():
     if training_session.batch_size > min_dataset_size:
         training_session.batch_size = min_dataset_size
 
-    if training_session.num_most_frequent_symbols in {3, 101}:
+    if training_session.num_symbols in {3, 101}:
         training_session.drop_last = False
     else:
         training_session.drop_last = True
