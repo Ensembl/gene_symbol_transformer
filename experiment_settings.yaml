@@ -2,8 +2,8 @@ random_state: 5
 #random_state: 7
 #random_state: 11
 
-#num_symbols: 3
-num_symbols: 101
+num_symbols: 3
+#num_symbols: 101
 #num_symbols: 1013
 #num_symbols: 10059
 #num_symbols: 20147
