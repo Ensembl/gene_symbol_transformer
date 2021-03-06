@@ -462,9 +462,9 @@ def main():
             patience = 7
 
         training_session = TrainingSession(
+            experiment.num_symbols,
             datetime,
             experiment.random_state,
-            experiment.num_symbols,
             test_ratio,
             validation_ratio,
             experiment.sequence_length,

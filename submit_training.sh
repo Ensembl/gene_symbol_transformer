@@ -16,11 +16,8 @@
 # limitations under the License.
 
 
-datetime=$(date +%Y-%m-%d_%H:%M:%S)
-
-pipeline_command="python fully_connected_pipeline.py --datetime $datetime -ex experiment_settings.yaml --train --test"
-
-
+# editable variables
+################################################################################
 job_type=standard
 #job_type=gpu
 #job_type=parallel
@@ -34,8 +31,31 @@ min_tasks=8
 mem_limit=16384
 #mem_limit=32768
 #mem_limit=65536
+################################################################################
 
-job_name="$datetime"
+
+# save the first argument as the experiment settings file path; use the default
+# path if unspecified
+if [[ -n "$1" ]]; then
+    experiment_settings="$1"
+else
+    experiment_settings="experiment_settings.yaml"
+fi
+
+
+function parse_yaml() {
+    python -c "import yaml; print(yaml.safe_load(open('$1'))['$2'])"
+}
+
+
+num_symbols=$(parse_yaml "$experiment_settings" "num_symbols")
+
+# generate a local naive datetime string
+datetime=$(date +%Y-%m-%d_%H:%M:%S)
+
+job_name="n=${num_symbols}_${datetime}"
+
+pipeline_command="python fully_connected_pipeline.py --datetime $datetime -ex $experiment_settings --train --test"
 
 
 # stardard compute node shell

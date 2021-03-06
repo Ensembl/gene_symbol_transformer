@@ -319,9 +319,9 @@ class EarlyStopping:
 class TrainingSession:
     def __init__(
         self,
+        num_symbols,
         datetime,
         random_state,
-        num_symbols,
         test_ratio,
         validation_ratio,
         sequence_length,
