@@ -25,18 +25,6 @@ MEM_LIMIT=16384
 #MEM_LIMIT=65536
 
 
-# bsub
-# https://www.ibm.com/support/knowledgecenter/SSWRJV_10.1.0/lsf_command_ref/bsub.man_top.1.html
-# -Is [-tty]
-# Submits an interactive job and creates a pseudo-terminal with shell mode when the job starts.
-# -n min_tasks[,max_tasks]
-# Submits a parallel job and specifies the number of tasks in the job.
-# -M mem_limit [!]
-# Sets a memory limit for all the processes that belong to the job.
-# -R "res_req" [-R "res_req" ...]
-# Runs the job on a host that meets the specified resource requirements.
-
-
 # stardard compute node shell
 ################################################################################
 if [[ "$JOB_TYPE" = "standard" ]]; then

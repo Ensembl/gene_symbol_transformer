@@ -16,61 +16,43 @@
 # limitations under the License.
 
 
-#NUM_MOST_FREQUENT_SYMBOLS=3
-#NUM_MOST_FREQUENT_SYMBOLS=101
-#NUM_MOST_FREQUENT_SYMBOLS=1013
-#NUM_MOST_FREQUENT_SYMBOLS=10059
-#NUM_MOST_FREQUENT_SYMBOLS=20147
-#NUM_MOST_FREQUENT_SYMBOLS=25028
-#NUM_MOST_FREQUENT_SYMBOLS=26007
-#NUM_MOST_FREQUENT_SYMBOLS=27137
-#NUM_MOST_FREQUENT_SYMBOLS=28197
-#NUM_MOST_FREQUENT_SYMBOLS=29041
-#NUM_MOST_FREQUENT_SYMBOLS=30591
+datetime=$(date +%Y-%m-%d_%H:%M:%S)
 
-# submit training job with bsub
-#export DATETIME="2020-11-19T23:11"; export NUM_MOST_FREQUENT_SYMBOLS=20147; RANDOM_STATE=5; bash submit_training.sh python sequence_pipeline.py --datetime $DATETIME --random_state $RANDOM_STATE --num_most_frequent_symbols $NUM_MOST_FREQUENT_SYMBOLS --train --test"
-
-# directly on a GPU node
-#DATETIME="2020-11-19T23:11"; NUM_MOST_FREQUENT_SYMBOLS=20147; RANDOM_STATE=5; python sequence_pipeline.py --datetime $DATETIME --random_state $RANDOM_STATE --num_most_frequent_symbols $NUM_MOST_FREQUENT_SYMBOLS --train --test"
+pipeline_command="python fully_connected_pipeline.py --datetime $datetime -ex experiment_settings.yaml --train --test"
 
 
-if [[ -z "$1" ]]; then
-    echo "Nothing to run, pass the command to run with bsub as an argument."
-    exit
-fi
+job_type=standard
+#job_type=gpu
+#job_type=parallel
 
-if [[ -z "${NUM_MOST_FREQUENT_SYMBOLS}" ]]; then
-    echo "please pass the NUM_MOST_FREQUENT_SYMBOLS value"
-    exit
-fi
+compute_node=gpu-009
+#compute_node=gpu-011
 
-if [[ -z "${DATETIME}" ]]; then
-    echo "please pass the DATETIME value"
-    exit
-fi
+min_tasks=8
+#min_tasks=16
 
-JOB_NAME="n=${NUM_MOST_FREQUENT_SYMBOLS}_${DATETIME}"
+mem_limit=16384
+#mem_limit=32768
+#mem_limit=65536
+
+job_name="$datetime"
 
 
-#QUEUE=research-rh74
-QUEUE=production-rh74
-
-GPU_NODE="V100"
-#GPU_NODE="any"
-
-MEM_LIMIT=16384
-#MEM_LIMIT=32768
-#MEM_LIMIT=65536
-
-if [[ "$GPU_NODE" = "any" ]]; then
-    bsub -q $QUEUE -P gpu -gpu "num=1:j_exclusive=yes" -M $MEM_LIMIT -R"select[mem>$MEM_LIMIT] rusage[mem=$MEM_LIMIT] span[hosts=1]" -o "${JOB_NAME}.stdout.txt" -e "${JOB_NAME}.stderr.txt" "$@"
-fi
-
-# specify compute node
-#COMPUTE_NODE=gpu-009
-COMPUTE_NODE=gpu-011
-
-if [[ "$GPU_NODE" = "V100" ]]; then
-    bsub -q $QUEUE -P gpu -gpu "num=1:j_exclusive=yes" -m ${COMPUTE_NODE}.ebi.ac.uk -M $MEM_LIMIT -R"select[mem>$MEM_LIMIT] rusage[mem=$MEM_LIMIT] span[hosts=1]" -o "${JOB_NAME}.stdout.txt" -e "${JOB_NAME}.stderr.txt" "$@"
+# stardard compute node shell
+if [[ "$job_type" = "standard" ]]; then
+    bsub -M $mem_limit -R"select[mem>$mem_limit] rusage[mem=$mem_limit]" \
+        -o "experiments/${job_name}.stdout.log" -e "experiments/${job_name}.stderr.log" \
+        "$pipeline_command"
+elif [[ "$job_type" = "gpu" ]]; then
+    bsub -P gpu -gpu "num=1:j_exclusive=yes" -m ${compute_node}.ebi.ac.uk \
+        -M $mem_limit -R"select[mem>$mem_limit] rusage[mem=$mem_limit]" \
+        -o "experiments/${job_name}.stdout.log" -e "experiments/${job_name}.stderr.log" \
+        "$pipeline_command"
+elif [[ "$job_type" = "parallel" ]]; then
+    bsub -n $min_tasks -R"span[hosts=1]" \
+        -M $mem_limit -R"select[mem>$mem_limit] rusage[mem=$mem_limit]" \
+        -o "experiments/${job_name}.stdout.log" -e "experiments/${job_name}.stderr.log" \
+        "$pipeline_command"
+else
+    echo "Error: specify a valid job type."
 fi
