@@ -22,14 +22,14 @@
 # PNG images
 *.png
 
+*.ipynb
+*.yaml
+*.csv
+*.fasta
+
+.nfs*
+
 data
 experiments
 more
 runs
-
-query.fasta
-results.csv
-
-*.ipynb
-
-.nfs*
