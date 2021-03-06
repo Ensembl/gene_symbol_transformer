@@ -30,7 +30,6 @@ import pathlib
 import pprint
 import sys
 import time
-import warnings
 
 # third party imports
 import numpy as np
@@ -46,6 +45,7 @@ from torch.utils.tensorboard import SummaryWriter
 from pipeline_abstractions import (
     load_checkpoint,
     experiments_directory,
+    specify_device,
     EarlyStopping,
     PrettySimpleNamespace,
     SequenceDataset,
@@ -56,9 +56,7 @@ from pipeline_abstractions import (
 LOGURU_FORMAT = "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{message}</level>"
 
 
-with warnings.catch_warnings():
-    warnings.simplefilter("ignore")
-    DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+DEVICE = specify_device()
 
 
 class FullyConnectedNetwork(nn.Module):
