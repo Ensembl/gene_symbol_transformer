@@ -23,9 +23,9 @@
 *.png
 
 data
-networks
-runs
+experiments
 more
+runs
 
 query.fasta
 results.csv

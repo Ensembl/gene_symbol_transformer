@@ -45,7 +45,7 @@ from torch.utils.tensorboard import SummaryWriter
 # project imports
 from pipeline_abstractions import (
     load_checkpoint,
-    networks_directory,
+    experiments_directory,
     EarlyStopping,
     PrettySimpleNamespace,
     SequenceDataset,
@@ -140,7 +140,7 @@ def train_network(
 
     clip_max_norm = 5
 
-    checkpoint_path = networks_directory / training_session.checkpoint_filename
+    checkpoint_path = experiments_directory / training_session.checkpoint_filename
     stop_early = EarlyStopping(
         checkpoint_path, training_session.patience, training_session.loss_delta
     )
@@ -374,6 +374,10 @@ def main():
     """
     argument_parser = argparse.ArgumentParser()
     argument_parser.add_argument(
+        "--datetime",
+        help="datetime string; if set this will be used instead of generating a new one",
+    )
+    argument_parser.add_argument(
         "-ex",
         "--experiment_settings",
         help="path to the experiment settings configuration file",
@@ -393,11 +397,14 @@ def main():
         with open(args.experiment_settings) as f:
             experiment = PrettySimpleNamespace(**yaml.safe_load(f))
 
-        datetime = dt.datetime.now().isoformat(sep="_", timespec="seconds")
+        if args.datetime is None:
+            datetime = dt.datetime.now().isoformat(sep="_", timespec="seconds")
+        else:
+            datetime = args.datetime
 
-        log_file_path = networks_directory / f"n={experiment.num_symbols}_{datetime}.log"
+        log_file_path = experiments_directory / f"n={experiment.num_symbols}_{datetime}.log"
     elif args.load_checkpoint:
-        log_file_path = networks_directory / f"{args.load_checkpoint}.log"
+        log_file_path = experiments_directory / f"{args.load_checkpoint}.log"
     else:
         raise Exception(
             "Missing argument: one of `experiment_settings` or `load_checkpoint` paths is required."
@@ -433,7 +440,7 @@ def main():
 
     # load training checkpoint or generate new training session
     if args.load_checkpoint:
-        checkpoint_path = networks_directory / f"{args.load_checkpoint}.pth"
+        checkpoint_path = experiments_directory / f"{args.load_checkpoint}.pth"
         checkpoint = load_checkpoint(checkpoint_path)
         network = checkpoint["network"]
         training_session = checkpoint["training_session"]
@@ -589,7 +596,7 @@ def main():
     # test trained network
     if args.test:
         if args.train:
-            checkpoint_path = networks_directory / training_session.checkpoint_filename
+            checkpoint_path = experiments_directory / training_session.checkpoint_filename
             checkpoint = load_checkpoint(checkpoint_path)
             network = checkpoint["network"]
             training_session = checkpoint["training_session"]

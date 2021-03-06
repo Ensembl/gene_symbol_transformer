@@ -49,7 +49,7 @@ with warnings.catch_warnings():
     DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 data_directory = pathlib.Path("data")
-networks_directory = pathlib.Path("networks")
+experiments_directory = pathlib.Path("experiments")
 
 
 class GeneSymbols:
