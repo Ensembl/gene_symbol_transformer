@@ -338,24 +338,34 @@ class TrainingSession:
         validation_ratio,
         sequence_length,
         batch_size,
+        num_connections,
+        dropout_probability,
         learning_rate,
         num_epochs,
         patience,
         loss_delta=0.001,
     ):
-        # training parameters
+        # dataset
+        self.num_symbols = num_symbols
+
+        # experiment parameters
         self.datetime = datetime
         self.random_state = random_state
-        self.num_symbols = num_symbols
+
+        # test and validation sets
         self.test_ratio = test_ratio
         self.validation_ratio = validation_ratio
 
-        # hyperparameters
+        # samples and batches
         self.sequence_length = sequence_length
         self.batch_size = batch_size
+
+        # network
+        self.num_connections = num_connections
+        self.dropout_probability = dropout_probability
         self.learning_rate = learning_rate
 
-        # training epochs and early stopping
+        # training length and early stopping
         self.num_epochs = num_epochs
         self.num_complete_epochs = 0
         self.patience = patience

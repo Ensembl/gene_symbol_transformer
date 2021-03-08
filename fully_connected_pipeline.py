@@ -27,7 +27,6 @@ import argparse
 import datetime as dt
 import math
 import pathlib
-import pprint
 import sys
 import time
 
@@ -55,7 +54,6 @@ from pipeline_abstractions import (
 
 LOGURU_FORMAT = "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{message}</level>"
 
-
 DEVICE = specify_device()
 
 
@@ -70,6 +68,7 @@ class FullyConnectedNetwork(nn.Module):
         sequence_length,
         num_protein_letters,
         num_symbols,
+        num_connections,
         dropout_probability,
     ):
         """
@@ -78,14 +77,9 @@ class FullyConnectedNetwork(nn.Module):
         super().__init__()
 
         input_size = sequence_length * num_protein_letters
-        # num_connections = 256
-        num_connections = 512
-        # num_connections = 1024
-        # num_connections = 2048
         output_size = num_symbols
 
         self.input_layer = nn.Linear(in_features=input_size, out_features=num_connections)
-        # self.hidden_layer = nn.Linear(in_features=None, out_features=None)
         self.output_layer = nn.Linear(
             in_features=num_connections, out_features=output_size
         )
@@ -105,9 +99,6 @@ class FullyConnectedNetwork(nn.Module):
         x = self.input_layer(x)
         x = self.dropout(x)
         x = self.relu(x)
-
-        # x = self.hidden_layer(x)
-        # x = self.relu(x)
 
         x = self.output_layer(x)
         x = self.dropout(x)
@@ -467,20 +458,12 @@ def main():
             validation_ratio,
             experiment.sequence_length,
             experiment.batch_size,
+            experiment.num_connections,
+            experiment.dropout_probability,
             experiment.learning_rate,
             experiment.num_epochs,
             patience,
         )
-
-        # training_session.hidden_size = 128
-        # training_session.hidden_size = 256
-        # training_session.hidden_size = 512
-        # training_session.hidden_size = 1024
-
-        training_session.dropout_probability = 0
-        # training_session.dropout_probability = 0.05
-        # training_session.dropout_probability = 0.1
-        # training_session.dropout_probability = 0.2
 
         # loss function
         training_session.criterion = nn.NLLLoss()
@@ -494,6 +477,7 @@ def main():
             training_session.sequence_length,
             num_protein_letters,
             training_session.num_symbols,
+            training_session.num_connections,
             training_session.dropout_probability,
         )
         ############################################################################
