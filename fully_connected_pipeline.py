@@ -93,8 +93,12 @@ class FullyConnectedNetwork(nn.Module):
         """
         Perform a forward pass of the network.
         """
-        num_samples = len(x)
-        x = x.view(num_samples, -1)
+        # flatten sample values to one dimension
+        # original x.shape: torch.Size([batch_size, sequence_length, num_protein_letters])
+        # e.g. torch.Size([512, 1000, 27])
+        # flattened x.shape: torch.Size([batch_size, sequence_length * num_protein_letters])
+        # e.g. torch.Size([512, 27000])
+        x = torch.flatten(x, start_dim=1)
 
         x = self.input_layer(x)
         x = self.dropout(x)
