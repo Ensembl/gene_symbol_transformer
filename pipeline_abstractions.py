@@ -132,7 +132,6 @@ class SequenceDataset(Dataset):
 
         # pad or truncate all sequences to size `sequence_length`
         with SuppressSettingWithCopyWarning():
-            # self.data["sequence"] = self.data["sequence"].map(lambda x: pad_or_truncate_sequence(x, sequence_length))
             self.data["sequence"] = self.data["sequence"].str.pad(
                 width=sequence_length, side="left", fillchar=" "
             )
@@ -201,21 +200,18 @@ def get_unique_protein_letters():
     return protein_letters
 
 
-def pad_or_truncate_sequence(sequence, normalized_length):
+def pad_or_truncate_string(string, normalized_length):
     """
-    Pad or truncate `sequence` to be exactly `normalized_length` letters long.
-
-    NOTE
-    Maybe use this inside a DataLoader.
+    Pad or truncate string to be exactly `normalized_length` letters long.
     """
-    sequence_length = len(sequence)
+    string_length = len(string)
 
-    if sequence_length <= normalized_length:
-        normalized_sequence = " " * (normalized_length - sequence_length) + sequence
+    if string_length <= normalized_length:
+        string = " " * (normalized_length - string_length) + string
     else:
-        normalized_sequence = sequence[:normalized_length]
+        string = string[:normalized_length]
 
-    return normalized_sequence
+    return string
 
 
 def transform_sequences(sequences, normalized_length):
@@ -226,7 +222,7 @@ def transform_sequences(sequences, normalized_length):
 
     one_hot_sequences = []
     for sequence in sequences:
-        sequence = pad_or_truncate_sequence(sequence, normalized_length)
+        sequence = pad_or_truncate_string(sequence, normalized_length)
 
         one_hot_sequence = protein_sequences.protein_letters_to_one_hot_encoding(sequence)
 

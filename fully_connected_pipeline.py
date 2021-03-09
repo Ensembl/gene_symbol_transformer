@@ -71,13 +71,17 @@ class FullyConnectedNetwork(nn.Module):
         num_symbols,
         num_connections,
         dropout_probability,
+        gene_symbols,
     ):
         """
         Initialize the neural network.
         """
         super().__init__()
 
-        input_size = sequence_length * num_protein_letters
+        self.sequence_length = sequence_length
+        self.gene_symbols = gene_symbols
+
+        input_size = self.sequence_length * num_protein_letters
         output_size = num_symbols
 
         self.input_layer = nn.Linear(in_features=input_size, out_features=num_connections)
@@ -109,6 +113,27 @@ class FullyConnectedNetwork(nn.Module):
         x = self.final_activation(x)
 
         return x
+
+    def predict(self, sequences):
+        """
+        Get predictions of symbol names for a list of sequences.
+        """
+        # breakpoint()
+        tensor_sequences = transform_sequences(sequences, self.sequence_length)
+        tensor_sequences = tensor_sequences.to(DEVICE)
+
+        # run inference
+        with torch.no_grad():
+            self.eval()
+            output = self.forward(tensor_sequences)
+
+        # get predicted labels from output
+        predicted_probabilities = torch.exp(output)
+        predictions = torch.argmax(predicted_probabilities, dim=1)
+
+        predictions = self.gene_symbols.one_hot_encoding_to_symbol(predictions)
+
+        return predictions
 
 
 def train_network(
@@ -333,10 +358,10 @@ def test_network(
             # get class indexes from the one-hot encoded labels
             labels = torch.argmax(labels, dim=1)
 
-        predictions = training_session.gene_symbols.one_hot_encoding_to_symbol(
+        predictions = network.gene_symbols.one_hot_encoding_to_symbol(
             predictions
         )
-        labels = training_session.gene_symbols.one_hot_encoding_to_symbol(labels)
+        labels = network.gene_symbols.one_hot_encoding_to_symbol(labels)
 
         logger.info("sample predictions")
         logger.info("prediction | true label")
@@ -346,28 +371,6 @@ def test_network(
                 logger.info(f"{prediction:>10} | {label:>10}")
             else:
                 logger.info(f"{prediction:>10} | {label:>10}  !!!")
-
-
-def get_predictions(network, training_session, sequences):
-    """
-    Get predictions of symbol names for a list of sequences.
-    """
-    # breakpoint()
-    tensor_sequences = transform_sequences(sequences, training_session.sequence_length)
-    tensor_sequences = tensor_sequences.to(DEVICE)
-
-    # run inference
-    with torch.no_grad():
-        network.eval()
-        output = network(tensor_sequences)
-
-    # get predicted labels from output
-    predicted_probabilities = torch.exp(output)
-    predictions = torch.argmax(predicted_probabilities, dim=1)
-
-    predictions = training_session.gene_symbols.one_hot_encoding_to_symbol(predictions)
-
-    return predictions
 
 
 def save_network_from_checkpoint(checkpoint_path):
@@ -447,11 +450,7 @@ def main():
         network = checkpoint["network"]
         training_session = checkpoint["training_session"]
         from sequences import sequences
-        predictions = get_predictions(
-            network,
-            training_session,
-            sequences,
-        )
+        predictions = network.predict(sequences)
         print(predictions)
         sys.exit()
 
@@ -511,6 +510,15 @@ def main():
         # loss function
         training_session.criterion = nn.NLLLoss()
 
+    torch.manual_seed(training_session.random_state)
+
+    # load data, generate datasets
+    ############################################################################
+    dataset = SequenceDataset(
+        training_session.num_symbols, training_session.sequence_length
+    )
+
+    if not args.load_checkpoint:
         # neural network instantiation
         ############################################################################
         # num_protein_letters = len(dataset.protein_letters)
@@ -522,22 +530,12 @@ def main():
             training_session.num_symbols,
             training_session.num_connections,
             training_session.dropout_probability,
+            dataset.gene_symbols,
         )
         ############################################################################
         training_session.device = DEVICE
 
         network.to(DEVICE)
-
-    torch.manual_seed(training_session.random_state)
-
-    # load data, generate datasets
-    ############################################################################
-    dataset = SequenceDataset(
-        training_session.num_symbols, training_session.sequence_length
-    )
-
-    training_session.gene_symbols = dataset.gene_symbols
-    training_session.protein_sequences = dataset.protein_sequences
 
     pandas_symbols_categories = (
         dataset.gene_symbols.symbol_categorical_datatype.categories
