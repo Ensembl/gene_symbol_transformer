@@ -45,6 +45,7 @@ from pipeline_abstractions import (
     load_checkpoint,
     experiments_directory,
     specify_device,
+    transform_sequences,
     EarlyStopping,
     PrettySimpleNamespace,
     SequenceDataset,
@@ -86,7 +87,6 @@ class FullyConnectedNetwork(nn.Module):
         self.dropout = nn.Dropout(dropout_probability)
 
         self.relu = nn.ReLU()
-        # self.final_activation = nn.LogSoftmax(dim=2)
         self.final_activation = nn.LogSoftmax(dim=1)
 
     def forward(self, x):
@@ -164,6 +164,10 @@ def train_network(
         for batch_number, (inputs, labels) in enumerate(training_loader, start=1):
             epoch_end = batch_number == num_batches
 
+            # inputs.shape: torch.Size([batch_size, sequence_length, num_protein_letters])
+            # e.g. torch.Size([512, 1000, 27])
+            # inputs[i].shape: torch.Size([sequence_length, num_protein_letters])
+            # e.g. torch.Size([1000, 27])
             inputs, labels = inputs.to(DEVICE), labels.to(DEVICE)
 
             # zero accumulated gradients
@@ -261,7 +265,6 @@ def test_network(
         for batch_number, (inputs, labels) in enumerate(test_loader, start=1):
             inputs, labels = inputs.to(DEVICE), labels.to(DEVICE)
 
-            # get output values
             output = network(inputs)
 
             # get predicted labels from output
@@ -317,7 +320,6 @@ def test_network(
             inputs = inputs[permutation[0:num_sample_predictions]]
             labels = labels[permutation[0:num_sample_predictions]]
 
-            # get output values
             output = network(inputs)
 
             # get predicted labels from output
@@ -340,6 +342,28 @@ def test_network(
                 logger.info(f"{prediction:>10} | {label:>10}")
             else:
                 logger.info(f"{prediction:>10} | {label:>10}  !!!")
+
+
+def get_predictions(network, training_session, sequences):
+    """
+    Get predictions of symbol names for a list of sequences.
+    """
+    # breakpoint()
+    tensor_sequences = transform_sequences(sequences, training_session.sequence_length)
+    tensor_sequences = tensor_sequences.to(DEVICE)
+
+    # run inference
+    with torch.no_grad():
+        network.eval()
+        output = network(tensor_sequences)
+
+    # get predicted labels from output
+    predicted_probabilities = torch.exp(output)
+    predictions = torch.argmax(predicted_probabilities, dim=1)
+
+    predictions = training_session.gene_symbols.one_hot_encoding_to_symbol(predictions)
+
+    return predictions
 
 
 def save_network_from_checkpoint(checkpoint_path):
@@ -377,6 +401,7 @@ def main():
     )
     argument_parser.add_argument("--train", action="store_true", help="train a network")
     argument_parser.add_argument("--test", action="store_true", help="test a network")
+    argument_parser.add_argument("--predict", action="store_true", help="run inference on input samples")
     argument_parser.add_argument("--save_network")
 
     args = argument_parser.parse_args()
@@ -411,6 +436,20 @@ def main():
         network_path = save_network_from_checkpoint(checkpoint_path)
         logger.info(f'Saved network at "{network_path}"')
         return
+
+    if args.predict:
+        checkpoint_path = experiments_directory / f"{args.load_checkpoint}.pth"
+        checkpoint = load_checkpoint(checkpoint_path)
+        network = checkpoint["network"]
+        training_session = checkpoint["training_session"]
+        from sequences import sequences
+        predictions = get_predictions(
+            network,
+            training_session,
+            sequences,
+        )
+        print(predictions)
+        sys.exit()
 
     # log PyTorch version information
     logger.info(f"{torch.__version__=}")
