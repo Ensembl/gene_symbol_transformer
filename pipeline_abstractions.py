@@ -126,13 +126,9 @@ class SequenceDataset(Dataset):
         data_pickle_path = data_directory / f"most_frequent_{num_symbols}.pickle"
         data = pd.read_pickle(data_pickle_path)
         logger.info(f"{num_symbols} most frequent symbols sequences dataset loaded")
-        # print()
 
         # only the sequences and the symbols are needed as features and labels
         self.data = data[["sequence", "symbol"]]
-
-        # sequence length statistics
-        # print(self.data["sequence"].str.len().describe())
 
         # pad or truncate all sequences to size `sequence_length`
         with SuppressSettingWithCopyWarning():
@@ -150,8 +146,6 @@ class SequenceDataset(Dataset):
         logger.info("Generating protein sequences object...")
         self.protein_sequences = ProteinSequences()
         logger.info("Protein sequences object generated.")
-
-        # print()
 
     def __len__(self):
         return len(self.data)
@@ -222,6 +216,34 @@ def pad_or_truncate_sequence(sequence, normalized_length):
         normalized_sequence = sequence[:normalized_length]
 
     return normalized_sequence
+
+
+def transform_sequences(sequences, normalized_length):
+    """
+    Convert a list of protein sequences to an one-hot encoded sequences tensor.
+    """
+    protein_sequences = ProteinSequences()
+
+    one_hot_sequences = []
+    for sequence in sequences:
+        sequence = pad_or_truncate_sequence(sequence, normalized_length)
+
+        one_hot_sequence = protein_sequences.protein_letters_to_one_hot_encoding(sequence)
+
+        # convert features and labels to NumPy arrays
+        one_hot_sequence = one_hot_sequence.to_numpy()
+
+        # cast the arrays to `np.float32` data type, so that the PyTorch tensors
+        # will be generated with type `torch.FloatTensor`.
+        one_hot_sequence = one_hot_sequence.astype(np.float32)
+
+        one_hot_sequences.append(one_hot_sequence)
+
+    one_hot_sequences = np.stack(one_hot_sequences)
+
+    one_hot_tensor_sequences = torch.from_numpy(one_hot_sequences)
+
+    return one_hot_tensor_sequences
 
 
 class PrettySimpleNamespace(SimpleNamespace):
@@ -298,7 +320,6 @@ class EarlyStopping:
         if self.min_validation_loss == np.Inf:
             self.min_validation_loss = validation_loss
             logger.info("saving initial network checkpoint...")
-            # print()
             save_training_checkpoint(network, training_session, self.checkpoint_path)
             return False
 
@@ -310,7 +331,6 @@ class EarlyStopping:
             logger.info(
                 f"validation loss decreased by {validation_loss_decrease:.4f}, saving network checkpoint..."
             )
-            # print()
             save_training_checkpoint(network, training_session, self.checkpoint_path)
             self.min_validation_loss = validation_loss
             self.no_progress = 0
@@ -318,13 +338,11 @@ class EarlyStopping:
 
         else:
             self.no_progress += 1
-            # print()
 
             if self.no_progress == self.patience:
                 logger.info(
                     f"{self.no_progress} calls with no validation loss improvement. Stopping training."
                 )
-                # print()
                 return True
 
 
