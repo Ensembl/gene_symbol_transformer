@@ -58,16 +58,18 @@ job_name="n=${num_symbols}_${datetime}"
 pipeline_command="python fully_connected_pipeline.py --datetime $datetime -ex $experiment_settings --train --test"
 
 
-# stardard compute node shell
+# submit job to a stardard compute node
 if [[ "$job_type" = "standard" ]]; then
     bsub -M $mem_limit -R"select[mem>$mem_limit] rusage[mem=$mem_limit]" \
         -o "experiments/${job_name}.stdout.log" -e "experiments/${job_name}.stderr.log" \
         "$pipeline_command"
+# submit job to a GPU node
 elif [[ "$job_type" = "gpu" ]]; then
     bsub -P gpu -gpu "num=1:j_exclusive=yes" -m ${compute_node}.ebi.ac.uk \
         -M $mem_limit -R"select[mem>$mem_limit] rusage[mem=$mem_limit]" \
         -o "experiments/${job_name}.stdout.log" -e "experiments/${job_name}.stderr.log" \
         "$pipeline_command"
+# submit a parallel job to a compute node
 elif [[ "$job_type" = "parallel" ]]; then
     bsub -n $min_tasks -R"span[hosts=1]" \
         -M $mem_limit -R"select[mem>$mem_limit] rusage[mem=$mem_limit]" \
