@@ -233,6 +233,51 @@ def load_data():
     return data
 
 
+def save_sample_fasta_files():
+    num_samples = 100
+
+    num_symbols_list = [
+        3,
+        101,
+        1013,
+        10059,
+        20147,
+        25028,
+        26007,
+        27137,
+        28197,
+        29041,
+        30591,
+    ]
+
+    for num_symbols in num_symbols_list:
+        save_sample_fasta(num_samples, num_symbols)
+
+
+def save_sample_fasta(num_samples, num_symbols):
+    data_pickle_path = data_directory / f"most_frequent_{num_symbols}.pickle"
+
+    dataset = pd.read_pickle(data_pickle_path)
+
+    # get num_samples random samples
+    data = dataset.sample(num_samples)
+
+    # only the sequences and the symbols are needed as features and labels
+    data = data[["stable_id", "symbol", "sequence"]]
+
+    # save sequences to a FASTA file
+    fasta_path = data_directory / f"{num_symbols}_symbols-{num_samples}_samples.fasta"
+    with open(fasta_path, "w+") as fasta_file:
+        for entry in data.itertuples():
+            entry_dict = entry._asdict()
+
+            stable_id = entry_dict["stable_id"]
+            symbol = entry_dict["symbol"]
+            sequence = entry_dict["sequence"]
+
+            fasta_file.write(f">{stable_id};{symbol}\n{sequence}\n")
+
+
 def main():
     """
     main function
@@ -243,6 +288,7 @@ def main():
     argument_parser.add_argument("--save_most_frequent_n", action="store_true")
     argument_parser.add_argument("--num_most_frequent_symbols", type=int)
     argument_parser.add_argument("--max_frequency", type=int)
+    argument_parser.add_argument("--save_sample_fasta_files", type=int)
 
     args = argument_parser.parse_args()
 
@@ -254,6 +300,8 @@ def main():
         save_most_frequent_n(
             n=args.num_most_frequent_symbols, max_frequency=args.max_frequency
         )
+    elif args.save_sample_fasta_files:
+        save_sample_fasta_files()
     else:
         print("nothing to do")
 
