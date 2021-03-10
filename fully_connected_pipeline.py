@@ -27,6 +27,7 @@ import argparse
 import datetime as dt
 import math
 import pathlib
+import pprint
 import sys
 import time
 
@@ -36,20 +37,21 @@ import torch
 import torch.nn as nn
 import yaml
 
+from Bio import SeqIO
 from loguru import logger
 from torch.utils.data import DataLoader, random_split
 from torch.utils.tensorboard import SummaryWriter
 
 # project imports
 from pipeline_abstractions import (
-    load_checkpoint,
-    experiments_directory,
-    specify_device,
-    transform_sequences,
     EarlyStopping,
     PrettySimpleNamespace,
     SequenceDataset,
     TrainingSession,
+    experiments_directory,
+    load_checkpoint,
+    specify_device,
+    transform_sequences,
 )
 
 
@@ -116,7 +118,7 @@ class FullyConnectedNetwork(nn.Module):
 
     def predict(self, sequences):
         """
-        Get predictions of symbol names for a list of sequences.
+        Get predictions of symbols for a list of protein sequences.
         """
         # breakpoint()
         tensor_sequences = transform_sequences(sequences, self.sequence_length)
@@ -132,6 +134,7 @@ class FullyConnectedNetwork(nn.Module):
         predictions = torch.argmax(predicted_probabilities, dim=1)
 
         predictions = self.gene_symbols.one_hot_encoding_to_symbol(predictions)
+        predictions = predictions.tolist()
 
         return predictions
 
@@ -358,9 +361,7 @@ def test_network(
             # get class indexes from the one-hot encoded labels
             labels = torch.argmax(labels, dim=1)
 
-        predictions = network.gene_symbols.one_hot_encoding_to_symbol(
-            predictions
-        )
+        predictions = network.gene_symbols.one_hot_encoding_to_symbol(predictions)
         labels = network.gene_symbols.one_hot_encoding_to_symbol(labels)
 
         logger.info("sample predictions")
@@ -408,7 +409,10 @@ def main():
     )
     argument_parser.add_argument("--train", action="store_true", help="train a network")
     argument_parser.add_argument("--test", action="store_true", help="test a network")
-    argument_parser.add_argument("--predict", action="store_true", help="run inference on input samples")
+    argument_parser.add_argument(
+        "--get_predictions",
+        help="get symbol predictions for protein sequences in FASTA file",
+    )
     argument_parser.add_argument("--save_network")
 
     args = argument_parser.parse_args()
@@ -423,7 +427,9 @@ def main():
         else:
             datetime = args.datetime
 
-        log_file_path = experiments_directory / f"n={experiment.num_symbols}_{datetime}.log"
+        log_file_path = (
+            experiments_directory / f"n={experiment.num_symbols}_{datetime}.log"
+        )
     elif args.load_checkpoint:
         log_file_path = experiments_directory / f"{args.load_checkpoint}.log"
     else:
@@ -444,14 +450,33 @@ def main():
         logger.info(f'Saved network at "{network_path}"')
         return
 
-    if args.predict:
+    if args.get_predictions:
         checkpoint_path = experiments_directory / f"{args.load_checkpoint}.pth"
         checkpoint = load_checkpoint(checkpoint_path)
         network = checkpoint["network"]
         training_session = checkpoint["training_session"]
-        from sequences import sequences
+
+        fasta_path = args.get_predictions
+        logger.info("reading FASTA file")
+        with open(fasta_path) as fasta_file:
+            sequences = [
+                fasta_record[1]
+                for fasta_record in SeqIO.FastaIO.SimpleFastaParser(fasta_file)
+            ]
+        logger.info("FASTA file reading complete")
+
+        logger.info("running inference")
         predictions = network.predict(sequences)
-        print(predictions)
+        logger.info("inference complete")
+
+        # reset logger, add format for statistics
+        logger.remove()
+        logger.add(sys.stderr, format="{message}")
+        logger.add(log_file_path, format="{message}")
+
+        predictions_formatted = pprint.pformat(predictions)
+
+        logger.info(predictions_formatted)
         sys.exit()
 
     # log PyTorch version information
