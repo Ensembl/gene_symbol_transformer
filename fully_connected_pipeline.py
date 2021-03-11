@@ -24,10 +24,11 @@ Fully connected neural network pipeline.
 
 # standard library imports
 import argparse
+import csv
 import datetime as dt
+import itertools
 import math
 import pathlib
-import pprint
 import sys
 import time
 
@@ -322,7 +323,7 @@ def test_network(
 
     # log statistics
 
-    # reset logger, add format for statistics
+    # reset logger, add raw messages format
     logger.remove()
     logger.add(sys.stderr, format="{message}")
     logger.add(log_file_path, format="{message}")
@@ -409,8 +410,12 @@ def main():
     argument_parser.add_argument("--train", action="store_true", help="train a network")
     argument_parser.add_argument("--test", action="store_true", help="test a network")
     argument_parser.add_argument(
-        "--get_predictions",
-        help="get symbol predictions for protein sequences in FASTA file",
+        "--predict_fasta",
+        help="path of FASTA file with protein sequences to generate symbol predictions for",
+    )
+    argument_parser.add_argument(
+        "--predictions_csv",
+        help="path of CSV file to save the generated symbol predictions",
     )
     argument_parser.add_argument("--save_network")
 
@@ -449,33 +454,57 @@ def main():
         logger.info(f'Saved network at "{network_path}"')
         return
 
-    if args.get_predictions:
+    if args.predict_fasta:
+        fasta_path = args.predict_fasta
+        csv_path = args.predictions_csv
+
         checkpoint_path = experiments_directory / f"{args.load_checkpoint}.pth"
         checkpoint = load_checkpoint(checkpoint_path)
         network = checkpoint["network"]
         training_session = checkpoint["training_session"]
 
-        fasta_path = args.get_predictions
-        logger.info("reading FASTA file")
+        logger.info("generating predictions...")
+
+        # number of sequences in each chunk of the FASTA file read
+        num_sequences_chunk = 1024
+        # Count the number of sequences in the FASTA file up to the maximum
+        # of the num_sequences_chunk chunk size. If the FASTA file has fewer entries
+        # than num_sequences_chunk, re-assign the latter to that smaller value.
         with open(fasta_path) as fasta_file:
-            sequences = [
-                fasta_record[1]
-                for fasta_record in SeqIO.FastaIO.SimpleFastaParser(fasta_file)
-            ]
-        logger.info("FASTA file reading complete")
+            num_entries_counter = 0
+            for _ in SeqIO.FastaIO.SimpleFastaParser(fasta_file):
+                num_entries_counter += 1
+                if num_entries_counter == num_sequences_chunk:
+                    break
+            else:
+                num_sequences_chunk = num_entries_counter
+        logger.info(f"{num_sequences_chunk=}")
 
-        logger.info("running inference")
-        predictions = network.predict(sequences)
-        logger.info("inference complete")
+        # read the FASTA file in chunks and generate predictions
+        with open(fasta_path) as fasta_file, open(csv_path, "w+") as csv_file:
+            fasta_generator = SeqIO.FastaIO.SimpleFastaParser(fasta_file)
+            args = [fasta_generator] * num_sequences_chunk
+            fasta_chunks_iterator = itertools.zip_longest(*args)
 
-        # reset logger, add format for statistics
-        logger.remove()
-        logger.add(sys.stderr, format="{message}")
-        logger.add(log_file_path, format="{message}")
+            # generate a csv writer, create the CSV file with a header
+            field_names = ["stable_id", "symbol"]
+            csv_writer = csv.writer(csv_file, delimiter="\t")
+            csv_writer.writerow(field_names)
 
-        predictions_formatted = pprint.pformat(predictions)
+            for fasta_entries in fasta_chunks_iterator:
+                stable_ids = [
+                    fasta_entry[0].split(";")[0] for fasta_entry in fasta_entries
+                ]
+                sequences = [fasta_entry[1] for fasta_entry in fasta_entries]
 
-        logger.info(predictions_formatted)
+                logger.debug("inference start")
+                predictions = network.predict(sequences)
+                logger.debug("inference complete")
+
+                # write predictions to the CSV file
+                csv_writer.writerows(zip(stable_ids, predictions))
+                logger.debug(f"predictions saved at {csv_path}")
+
         sys.exit()
 
     # log PyTorch version information

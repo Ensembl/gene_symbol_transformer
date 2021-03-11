@@ -149,17 +149,25 @@ def data_wrangling():
     print("picking the most frequent capitalization for each symbol...")
     # store symbol names in lower case
     data["symbol_lower_case"] = data["symbol_original"].str.lower()
-    symbols_capitalization_mapping = data.groupby(["symbol_lower_case"])["symbol_original"].agg(lambda x: pd.Series.mode(x)[0]).to_dict()
+    symbols_capitalization_mapping = (
+        data.groupby(["symbol_lower_case"])["symbol_original"]
+        .agg(lambda x: pd.Series.mode(x)[0])
+        .to_dict()
+    )
     data["symbol"] = data["symbol_lower_case"].map(symbols_capitalization_mapping)
 
     # NOTE
     # this pickled dictionary is to be used for networks trained with datasets without
     # the most frequent capitalization for each symbol; delete when it's not needed anymore
-    symbols_capitalization_mapping_pickle_path = data_directory / "symbols_capitalization_mapping.pickle"
+    symbols_capitalization_mapping_pickle_path = (
+        data_directory / "symbols_capitalization_mapping.pickle"
+    )
     print("saving symbols_capitalization_mapping dictionary...")
     with open(symbols_capitalization_mapping_pickle_path, "wb") as f:
         pickle.dump(symbols_capitalization_mapping, f)
-    print(f"symbols_capitalization_mapping dictionary saved to {symbols_capitalization_mapping_pickle_path}")
+    print(
+        f"symbols_capitalization_mapping dictionary saved to {symbols_capitalization_mapping_pickle_path}"
+    )
 
     # filter out "Clone-based (Ensembl) gene" examples
     print(

@@ -81,7 +81,9 @@ class GeneSymbols:
 
         # load the symbols_capitalization_mapping dictionary to use to retrieve
         # the most frequent capitalization for the predicted symbol
-        symbols_capitalization_mapping_pickle_path = experiments_directory / "symbols_capitalization_mapping.pickle"
+        symbols_capitalization_mapping_pickle_path = (
+            experiments_directory / "symbols_capitalization_mapping.pickle"
+        )
         with open(symbols_capitalization_mapping_pickle_path, "rb") as f:
             self.symbols_capitalization_mapping = pickle.load(f)
 
@@ -99,7 +101,9 @@ class GeneSymbols:
             symbol = [self.symbols_capitalization_mapping[s] for s in symbol_lower_case]
             symbol = np.array(symbol)
         else:
-            raise TypeError(f"Expected type str or numpy.array for symbol_lower_case, got {type(symbol_lower_case)} instead.")
+            raise TypeError(
+                f"Expected type str or numpy.array for symbol_lower_case, got {type(symbol_lower_case)} instead."
+            )
         return symbol
 
 
