@@ -24,6 +24,7 @@ Generic training and testing pipeline functions and classes.
 
 # standard library imports
 import pathlib
+import pickle
 import pprint
 import sys
 import warnings
@@ -56,6 +57,7 @@ def specify_device():
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    return DEVICE
 
 
 DEVICE = specify_device()
@@ -77,6 +79,12 @@ class GeneSymbols:
             categories=labels, ordered=True
         )
 
+        # load the symbols_capitalization_mapping dictionary to use to retrieve
+        # the most frequent capitalization for the predicted symbol
+        symbols_capitalization_mapping_pickle_path = experiments_directory / "symbols_capitalization_mapping.pickle"
+        with open(symbols_capitalization_mapping_pickle_path, "rb") as f:
+            self.symbols_capitalization_mapping = pickle.load(f)
+
     def symbol_to_one_hot_encoding(self, symbol):
         symbol_categorical = pd.Series(symbol, dtype=self.symbol_categorical_datatype)
         one_hot_symbol = pd.get_dummies(symbol_categorical, prefix="symbol")
@@ -84,7 +92,14 @@ class GeneSymbols:
         return one_hot_symbol
 
     def one_hot_encoding_to_symbol(self, one_hot_symbol):
-        symbol = self.symbol_categorical_datatype.categories[one_hot_symbol]
+        symbol_lower_case = self.symbol_categorical_datatype.categories[one_hot_symbol]
+        if type(symbol_lower_case) is str:
+            symbol = self.symbols_capitalization_mapping[symbol_lower_case]
+        elif type(symbol_lower_case) is np.ndarray:
+            symbol = [self.symbols_capitalization_mapping[s] for s in symbol_lower_case]
+            symbol = np.array(symbol)
+        else:
+            raise TypeError(f"Expected type str or numpy.array for symbol_lower_case, got {type(symbol_lower_case)} instead.")
         return symbol
 
 
