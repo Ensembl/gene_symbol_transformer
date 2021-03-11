@@ -120,7 +120,6 @@ class FullyConnectedNetwork(nn.Module):
         """
         Get predictions of symbols for a list of protein sequences.
         """
-        # breakpoint()
         tensor_sequences = transform_sequences(sequences, self.sequence_length)
         tensor_sequences = tensor_sequences.to(DEVICE)
 
