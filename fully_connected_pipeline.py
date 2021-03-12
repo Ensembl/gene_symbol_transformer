@@ -405,7 +405,7 @@ def main():
     )
     argument_parser.add_argument(
         "--load_checkpoint",
-        help="name of the training session checkpoint",
+        help="path to the training session checkpoint to load",
     )
     argument_parser.add_argument("--train", action="store_true", help="train a network")
     argument_parser.add_argument("--test", action="store_true", help="test a network")
@@ -435,7 +435,7 @@ def main():
             experiments_directory / f"n={experiment.num_symbols}_{datetime}.log"
         )
     elif args.load_checkpoint:
-        log_file_path = experiments_directory / f"{args.load_checkpoint}.log"
+        log_file_path = pathlib.Path(args.load_checkpoint).with_suffix(".log")
     else:
         raise Exception(
             "Missing argument: one of `experiment_settings` or `load_checkpoint` paths is required."
@@ -458,7 +458,7 @@ def main():
         fasta_path = args.predict_fasta
         csv_path = args.predictions_csv
 
-        checkpoint_path = experiments_directory / f"{args.load_checkpoint}.pth"
+        checkpoint_path = pathlib.Path(args.load_checkpoint)
         checkpoint = load_checkpoint(checkpoint_path)
         network = checkpoint["network"]
         training_session = checkpoint["training_session"]
@@ -524,7 +524,7 @@ def main():
 
     # load training checkpoint or generate new training session
     if args.load_checkpoint:
-        checkpoint_path = experiments_directory / f"{args.load_checkpoint}.pth"
+        checkpoint_path = pathlib.Path(args.load_checkpoint)
         checkpoint = load_checkpoint(checkpoint_path)
         network = checkpoint["network"]
         training_session = checkpoint["training_session"]
