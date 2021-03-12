@@ -11,12 +11,12 @@ biopython = "^1.77"
 torch = {url = "https://download.pytorch.org/whl/cu101/torch-1.7.1%2Bcu101-cp38-cp38-linux_x86_64.whl"}
 loguru = "^0.5.3"
 PyYAML = "^5.4.1"
+tensorboard = "^2.4.1"
 
 [tool.poetry.dev-dependencies]
 jupyterlab = "^2.1.4"
 pudb = "^2019.2"
 jupyterlab-git = "^0.21.1"
-tensorboard = "^2.4.0"
 pytest = "^6.1.2"
 matplotlib = "^3.3.4"
 
