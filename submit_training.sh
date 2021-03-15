@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 
 
-# Copyright 2020 EMBL-European Bioinformatics Institute
+# See the NOTICE file distributed with this work for additional information
+# regarding copyright ownership.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,6 +15,15 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+
+# Submit an LSF job to run training and testing on a trained network.
+# usage:
+# bash submit_training.sh <experiment settings yaml file path>
+
+
+# exit on any error
+set -e
 
 
 # editable variables
@@ -34,13 +44,14 @@ mem_limit=16384
 ################################################################################
 
 
-# save the first argument as the experiment settings file path; use the default
-# path if unspecified
-if [[ -n "$1" ]]; then
-    experiment_settings="$1"
-else
-    experiment_settings="experiment_settings.yaml"
+if [[ -z $1 ]]; then
+    echo -e "usage:\n\tbash submit_training.sh <experiment settings yaml file path>"
+    kill -INT $$
 fi
+
+
+# save the first argument as the experiment settings file path
+experiment_settings="$1"
 
 
 function parse_yaml() {
