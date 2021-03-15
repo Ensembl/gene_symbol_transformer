@@ -493,19 +493,23 @@ def main():
             csv_writer.writerow(field_names)
 
             for fasta_entries in fasta_chunks_iterator:
+                if fasta_entries is None:
+                    break
+
                 stable_ids = [
                     fasta_entry[0].split(" ")[0] for fasta_entry in fasta_entries
                 ]
                 sequences = [fasta_entry[1] for fasta_entry in fasta_entries]
 
-                logger.debug("inference start")
+                start = time.time()
                 predictions = network.predict(sequences)
-                logger.debug("inference complete")
+                end = time.time()
+                inference_duration = end - start
+                logger.debug(f"inference call took {inference_duration:.3f} seconds")
 
                 # write predictions to the CSV file
                 csv_writer.writerows(zip(stable_ids, predictions))
-                logger.debug(f"predictions saved at {csv_path}")
-
+        logger.debug(f"predictions saved at {csv_path}")
         sys.exit()
 
     # log PyTorch version information
