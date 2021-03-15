@@ -493,8 +493,11 @@ def main():
             csv_writer.writerow(field_names)
 
             for fasta_entries in fasta_chunks_iterator:
-                if fasta_entries is None:
-                    break
+                if fasta_entries[-1] is None:
+                    fasta_entries = [
+                        fasta_entry
+                        for fasta_entry in fasta_entries if fasta_entry is not None
+                    ]
 
                 stable_ids = [
                     fasta_entry[0].split(" ")[0] for fasta_entry in fasta_entries
