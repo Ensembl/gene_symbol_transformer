@@ -297,7 +297,7 @@ def save_sample_fasta(num_samples, num_symbols):
             symbol = entry_dict["symbol"]
             sequence = entry_dict["sequence"]
 
-            fasta_file.write(f">{stable_id};{symbol}\n{sequence}\n")
+            fasta_file.write(f">{stable_id} {symbol}\n{sequence}\n")
 
 
 def main():
@@ -310,7 +310,7 @@ def main():
     argument_parser.add_argument("--save_most_frequent_n", action="store_true")
     argument_parser.add_argument("--num_most_frequent_symbols", type=int)
     argument_parser.add_argument("--max_frequency", type=int)
-    argument_parser.add_argument("--save_sample_fasta_files", type=int)
+    argument_parser.add_argument("--save_sample_fasta_files", action="store_true")
 
     args = argument_parser.parse_args()
 

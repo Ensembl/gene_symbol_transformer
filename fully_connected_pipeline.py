@@ -494,7 +494,7 @@ def main():
 
             for fasta_entries in fasta_chunks_iterator:
                 stable_ids = [
-                    fasta_entry[0].split(";")[0] for fasta_entry in fasta_entries
+                    fasta_entry[0].split(" ")[0] for fasta_entry in fasta_entries
                 ]
                 sequences = [fasta_entry[1] for fasta_entry in fasta_entries]
 
