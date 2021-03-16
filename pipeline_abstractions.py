@@ -143,7 +143,7 @@ class SequenceDataset(Dataset):
 
     def __init__(self, num_symbols, sequence_length):
         logger.info(f"Loading {num_symbols} most frequent symbols sequences dataset...")
-        data_pickle_path = data_directory / f"most_frequent_{num_symbols}.pickle"
+        data_pickle_path = data_directory / f"{num_symbols}_symbols.pickle"
         data = pd.read_pickle(data_pickle_path)
         logger.info(f"{num_symbols} most frequent symbols sequences dataset loaded")
 
