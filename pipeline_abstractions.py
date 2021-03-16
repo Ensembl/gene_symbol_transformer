@@ -42,7 +42,7 @@ from loguru import logger
 from torch.utils.data import Dataset
 
 # project imports
-import dataset_generation
+from dataset_generation import load_data
 
 
 def specify_device():
@@ -82,7 +82,7 @@ class GeneSymbols:
         # load the symbols_capitalization_mapping dictionary to use to retrieve
         # the most frequent capitalization for the predicted symbol
         symbols_capitalization_mapping_pickle_path = (
-            experiments_directory / "symbols_capitalization_mapping.pickle"
+            data / "symbols_capitalization_mapping.pickle"
         )
         with open(symbols_capitalization_mapping_pickle_path, "rb") as f:
             self.symbols_capitalization_mapping = pickle.load(f)
@@ -201,7 +201,7 @@ def get_unique_protein_letters():
     extended_IUPAC_protein_letters = Bio.Alphabet.IUPAC.ExtendedIUPACProtein.letters
     stop_codon = ["*"]
 
-    data = dataset_generation.load_data()
+    data = load_data()
 
     # generate a list of all protein letters that occur in the dataset
     dataset_letters = set(data["sequence"].str.cat())
