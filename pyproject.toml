@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "gene_symbol_classifier"
-version = "0.1.0"
+version = "0.5.0"
 description = ""
 authors = ["William Stark <william@ebi.ac.uk>"]
 
@@ -9,18 +9,16 @@ python = "^3.8"
 pandas = "^1.0.4"
 biopython = "^1.77"
 torch = {url = "https://download.pytorch.org/whl/cu101/torch-1.7.1%2Bcu101-cp38-cp38-linux_x86_64.whl"}
-matplotlib = "^3.2.2"
-scikit-learn = "^0.23.2"
-colorama = "^0.4.4"
 loguru = "^0.5.3"
 PyYAML = "^5.4.1"
+tensorboard = "^2.4.1"
 
 [tool.poetry.dev-dependencies]
 jupyterlab = "^2.1.4"
 pudb = "^2019.2"
 jupyterlab-git = "^0.21.1"
-tensorboard = "^2.4.0"
 pytest = "^6.1.2"
+matplotlib = "^3.3.4"
 
 [build-system]
 requires = ["poetry>=0.12"]

@@ -438,9 +438,8 @@ def main():
     elif args.load_checkpoint:
         log_file_path = pathlib.Path(args.load_checkpoint).with_suffix(".log")
     else:
-        raise Exception(
-            "Missing argument: one of `experiment_settings` or `load_checkpoint` paths is required."
-        )
+        argument_parser.print_help()
+        sys.exit()
 
     # set up logger
     logger.remove()
