@@ -30,7 +30,6 @@ import pickle
 import sys
 
 # third party imports
-import Bio
 import pandas as pd
 
 from Bio import SeqIO
@@ -157,19 +156,6 @@ def data_wrangling():
     )
     data["symbol"] = data["symbol_lower_case"].map(symbols_capitalization_mapping)
 
-    # NOTE
-    # this pickled dictionary is to be used for networks trained with datasets without
-    # the most frequent capitalization for each symbol; delete when it's not needed anymore
-    symbols_capitalization_mapping_pickle_path = (
-        data_directory / "symbols_capitalization_mapping.pickle"
-    )
-    print("saving symbols_capitalization_mapping dictionary...")
-    with open(symbols_capitalization_mapping_pickle_path, "wb") as f:
-        pickle.dump(symbols_capitalization_mapping, f)
-    print(
-        f"symbols_capitalization_mapping dictionary saved to {symbols_capitalization_mapping_pickle_path}"
-    )
-
     # filter out "Clone-based (Ensembl) gene" examples
     print(
         'creating "include" column and filtering out "Clone-based (Ensembl) gene" examples'
@@ -181,52 +167,51 @@ def data_wrangling():
     data.to_pickle(data_pickle_path)
 
 
-def save_most_frequent_n(n, max_frequency=None):
+def save_all_datasets():
     """
-    Save the examples of the n most frequent symbols to a pickled dataframe and
-    a FASTA file.
-
-    Specify the max_frequency of the n symbols to run an extra validation check.
+    Save the examples for each num_symbols to a pickled dataframe and a FASTA file.
     """
-    n_max_frequencies = {
-        3: 335,
-        101: 297,
-        1013: 252,
-        10059: 165,
-        20147: 70,
-        25028: 23,
-        26007: 17,
-        27137: 13,
-        28197: 10,
-        29041: 8,
-        30591: 5,
-    }
-
-    assert (
-        n in n_max_frequencies.keys()
-    ), f"got {n} for n, should be one of {n_max_frequencies.keys()}"
-
-    if max_frequency is not None:
-        assert max_frequency == n_max_frequencies[n]
+    num_symbols_max_frequencies = [
+        [3, 335],
+        [101, 297],
+        [1013, 252],
+        [10059, 165],
+        [20147, 70],
+        [25028, 23],
+        [26007, 17],
+        [27137, 13],
+        [28197, 10],
+        [29041, 8],
+        [30591, 5],
+    ]
 
     data = load_data()
 
+    for (num_symbols, max_frequency) in num_symbols_max_frequencies:
+        print(f"saving {num_symbols} symbols dataset")
+        save_dataset(data, num_symbols, max_frequency)
+
+
+def save_dataset(data, num_symbols, max_frequency):
+    """
+    Save a training and testin
+    """
     symbol_counts = data["symbol"].value_counts()
 
-    # verify that max_frequency is the cutoff limit for selected symbols
+    # verify that max_frequency is the cutoff limit for the selected symbols
     if max_frequency is not None:
-        assert all(symbol_counts[:n] == symbol_counts[symbol_counts >= max_frequency])
-        assert symbol_counts[n] < max_frequency
+        assert all(symbol_counts[:num_symbols] == symbol_counts[symbol_counts >= max_frequency])
+        assert symbol_counts[num_symbols] < max_frequency
 
-    most_frequent_n = data[data["symbol"].isin(symbol_counts[:n].index)]
+    most_frequent_n = data[data["symbol"].isin(symbol_counts[:num_symbols].index)]
 
     # save dataframe to a pickle file
-    pickle_path = data_directory / f"most_frequent_{n}.pickle"
+    pickle_path = data_directory / f"{num_symbols}_symbols.pickle"
     most_frequent_n.to_pickle(pickle_path)
-    print(f"pickle file of the most {n} frequent symbol sequences saved at {pickle_path}")
+    print(f"pickle file of the most {num_symbols} frequent symbol sequences saved at {pickle_path}")
 
     # save sequences to a FASTA file
-    fasta_path = data_directory / f"most_frequent_{n}.fasta"
+    fasta_path = data_directory / f"{num_symbols}_symbols.fasta"
     with open(fasta_path, "w+") as fasta_file:
         for entry in most_frequent_n.itertuples():
             entry_dict = entry._asdict()
@@ -237,7 +222,7 @@ def save_most_frequent_n(n, max_frequency=None):
 
             fasta_file.write(f">{stable_id};{symbol}\n{sequence}\n")
 
-    print(f"FASTA file of the most {n} frequent symbol sequences saved at {fasta_path}")
+    print(f"FASTA file of the most {num_symbols} frequent symbol sequences saved at {fasta_path}")
 
 
 def load_data():
@@ -255,8 +240,8 @@ def load_data():
     return data
 
 
-def save_sample_fasta_files():
-    num_samples = 100
+def save_all_sample_fasta_files():
+    num_samples = 1000
 
     num_symbols_list = [
         3,
@@ -273,11 +258,12 @@ def save_sample_fasta_files():
     ]
 
     for num_symbols in num_symbols_list:
+        print(f"saving {num_symbols} sample fasta file")
         save_sample_fasta(num_samples, num_symbols)
 
 
 def save_sample_fasta(num_samples, num_symbols):
-    data_pickle_path = data_directory / f"most_frequent_{num_symbols}.pickle"
+    data_pickle_path = data_directory / f"{num_symbols}_symbols.pickle"
 
     dataset = pd.read_pickle(data_pickle_path)
 
@@ -307,10 +293,8 @@ def main():
     argument_parser = argparse.ArgumentParser()
     argument_parser.add_argument("--merge_metadata_sequences", action="store_true")
     argument_parser.add_argument("--data_wrangling", action="store_true")
-    argument_parser.add_argument("--save_most_frequent_n", action="store_true")
-    argument_parser.add_argument("--num_most_frequent_symbols", type=int)
-    argument_parser.add_argument("--max_frequency", type=int)
-    argument_parser.add_argument("--save_sample_fasta_files", action="store_true")
+    argument_parser.add_argument("--save_all_datasets", action="store_true")
+    argument_parser.add_argument("--save_all_sample_fasta_files", action="store_true")
 
     args = argument_parser.parse_args()
 
@@ -318,12 +302,10 @@ def main():
         merge_metadata_sequences()
     elif args.data_wrangling:
         data_wrangling()
-    elif args.save_most_frequent_n:
-        save_most_frequent_n(
-            n=args.num_most_frequent_symbols, max_frequency=args.max_frequency
-        )
-    elif args.save_sample_fasta_files:
-        save_sample_fasta_files()
+    elif args.save_all_datasets:
+        save_all_datasets()
+    elif args.save_all_sample_fasta_files:
+        save_all_sample_fasta_files()
     else:
         print("nothing to do")
 
