@@ -90,16 +90,20 @@ def main():
 
     args = argument_parser.parse_args()
 
-    # set up logger
-    logger.remove()
-    logger.add(sys.stderr, format=LOGURU_FORMAT)
-
     if args.sequences_fasta is None or args.predictions_csv is None:
         argument_parser.print_help()
         sys.exit()
 
     sequences_fasta_path = pathlib.Path(args.sequences_fasta)
     predictions_csv_path = pathlib.Path(args.predictions_csv)
+
+    # set up logger
+    logger.remove()
+    logger.add(sys.stderr, format=LOGURU_FORMAT)
+    log_file_path = pathlib.Path(
+        f"{predictions_csv_path.parent}/{predictions_csv_path.stem}_assignments.log"
+    )
+    logger.add(log_file_path, format=LOGURU_FORMAT)
 
     assignments = []
     with open(predictions_csv_path, "r") as predictions_file:
@@ -114,6 +118,10 @@ def main():
                     if "gene_symbol" in title_part:
                         # 12 = len("gene_symbol") + 1
                         xref_symbol = title_part[12:]
+                        break
+                else:
+                    # "gene_symbol" not found in the FASTA entry title
+                    continue
 
                 csv_stable_id = csv_row[0]
                 classifier_symbol = csv_row[1]
@@ -135,10 +143,13 @@ def main():
 
     num_assignments = len(assignments_df)
 
-    num_equal_assignments = assignments_df["classifier_symbol"].eq(assignments_df["xref_symbol"]).sum()
+    assignments_df["classifier_symbol_lowercase"] = assignments_df["classifier_symbol"].str.lower()
+    assignments_df["xref_symbol_lowercase"] = assignments_df["xref_symbol"].str.lower()
+
+    num_equal_assignments = assignments_df["classifier_symbol_lowercase"].eq(assignments_df["xref_symbol_lowercase"]).sum()
 
     matching_percentage = (num_equal_assignments / num_assignments) * 100
-    logger.info(f"{num_equal_assignments} matching out of {num_assignments} assignments ({matching_percentage}%)")
+    logger.info(f"{num_equal_assignments} matching out of {num_assignments} assignments ({matching_percentage:.2f}%)")
 
 
 if __name__ == "__main__":

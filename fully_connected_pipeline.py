@@ -166,7 +166,7 @@ def train_network(
     stop_early = EarlyStopping(
         checkpoint_path, training_session.patience, training_session.loss_delta
     )
-    logger.info(f"training started, session checkpoints saved to {checkpoint_path}")
+    logger.info(f"training started, session checkpoints saved at {checkpoint_path}")
 
     num_epochs_length = len(str(num_epochs))
 
