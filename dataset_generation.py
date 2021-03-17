@@ -122,9 +122,9 @@ def merge_metadata_sequences():
 def data_wrangling():
     """
     - simplify some column names
-    - use symbol names in lower case
+    - use symbol names in lowercase
     267536 unique original symbol names
-    233824 unique lower case symbol names
+    233824 unique lowercase symbol names
     12.6% reduction
 
     - filter out "Clone-based (Ensembl) gene" examples
@@ -147,14 +147,14 @@ def data_wrangling():
 
     # pick the most frequent capitalization for each symbol
     print("picking the most frequent capitalization for each symbol...")
-    # store symbol names in lower case
-    data["symbol_lower_case"] = data["symbol_original"].str.lower()
+    # store symbol names in lowercase
+    data["symbol_lowercase"] = data["symbol_original"].str.lower()
     symbols_capitalization_mapping = (
-        data.groupby(["symbol_lower_case"])["symbol_original"]
+        data.groupby(["symbol_lowercase"])["symbol_original"]
         .agg(lambda x: pd.Series.mode(x)[0])
         .to_dict()
     )
-    data["symbol"] = data["symbol_lower_case"].map(symbols_capitalization_mapping)
+    data["symbol"] = data["symbol_lowercase"].map(symbols_capitalization_mapping)
 
     # filter out "Clone-based (Ensembl) gene" examples
     print(
