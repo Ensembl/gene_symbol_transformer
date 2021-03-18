@@ -98,40 +98,16 @@ def parse_fasta_description(fasta_description):
     return description
 
 
-def main():
+def compare_with_fasta(assignments_csv, sequences_fasta):
     """
-    main function
+    Compare classifier assignments with the gene symbols in the FASTA file.
     """
-    argument_parser = argparse.ArgumentParser()
-    argument_parser.add_argument(
-        "--sequences_fasta",
-        help="protein sequences FASTA file path",
-    )
-    argument_parser.add_argument(
-        "--predictions_csv",
-        help="predictions CSV file path",
-    )
+    assignments_csv_path = pathlib.Path(assignments_csv)
+    sequences_fasta_path = pathlib.Path(sequences_fasta)
 
-    args = argument_parser.parse_args()
-
-    if args.sequences_fasta is None or args.predictions_csv is None:
-        argument_parser.print_help()
-        sys.exit()
-
-    sequences_fasta_path = pathlib.Path(args.sequences_fasta)
-    predictions_csv_path = pathlib.Path(args.predictions_csv)
-
-    # set up logger
-    logger.remove()
-    logger.add(sys.stderr, format=LOGURU_FORMAT)
-    log_file_path = pathlib.Path(
-        f"{predictions_csv_path.parent}/{predictions_csv_path.stem}_assignments.log"
-    )
-    logger.add(log_file_path, format=LOGURU_FORMAT)
-
-    assignments = []
-    with open(predictions_csv_path, "r") as predictions_file:
-        csv_reader = csv.reader(predictions_file, delimiter="\t")
+    comparisons = []
+    with open(assignments_csv_path, "r") as assignments_file:
+        csv_reader = csv.reader(assignments_file, delimiter="\t")
         csv_field_names = next(csv_reader)
 
         for fasta_entries in read_fasta_in_chunks(sequences_fasta_path):
@@ -155,28 +131,79 @@ def main():
 
                 assert fasta_stable_id == csv_stable_id, f"{fasta_stable_id=}, {csv_stable_id=}"
 
-                assignments.append(
+                comparisons.append(
                     (fasta_stable_id, classifier_symbol, xref_symbol)
                 )
 
     dataframe_columns = ["stable_id", "classifier_symbol","xref_symbol"]
-    assignments_df = pd.DataFrame(assignments, columns=dataframe_columns)
+    comparisons_df = pd.DataFrame(comparisons, columns=dataframe_columns)
 
-    assignments_csv_path = pathlib.Path(
-        f"{predictions_csv_path.parent}/{predictions_csv_path.stem}_assignments.csv"
+    comparisons_csv_path = pathlib.Path(
+        f"{assignments_csv_path.parent}/{assignments_csv_path.stem}_comparisons.csv"
     )
-    assignments_df.to_csv(assignments_csv_path, sep="\t", index=False)
-    logger.info(f"assignments CSV saved at {assignments_csv_path}")
+    comparisons_df.to_csv(comparisons_csv_path, sep="\t", index=False)
+    logger.info(f"comparisons CSV saved at {comparisons_csv_path}")
 
-    num_assignments = len(assignments_df)
+    num_assignments = len(comparisons_df)
 
-    assignments_df["classifier_symbol_lowercase"] = assignments_df["classifier_symbol"].str.lower()
-    assignments_df["xref_symbol_lowercase"] = assignments_df["xref_symbol"].str.lower()
+    comparisons_df["classifier_symbol_lowercase"] = comparisons_df["classifier_symbol"].str.lower()
+    comparisons_df["xref_symbol_lowercase"] = comparisons_df["xref_symbol"].str.lower()
 
-    num_equal_assignments = assignments_df["classifier_symbol_lowercase"].eq(assignments_df["xref_symbol_lowercase"]).sum()
+    num_equal_assignments = comparisons_df["classifier_symbol_lowercase"].eq(comparisons_df["xref_symbol_lowercase"]).sum()
 
     matching_percentage = (num_equal_assignments / num_assignments) * 100
     logger.info(f"{num_equal_assignments} matching out of {num_assignments} assignments ({matching_percentage:.2f}%)")
+
+
+def compare_with_database(assignments_csv, ensembl_species_database):
+    """
+    Compare classifier assignments with the gene symbols in the species database on
+    the public Ensembl MySQL server.
+    """
+    pass
+
+
+def main():
+    """
+    main function
+    """
+    argument_parser = argparse.ArgumentParser()
+    argument_parser.add_argument(
+        "--assignments_csv",
+        help="assignments CSV file path",
+    )
+    argument_parser.add_argument(
+        "--sequences_fasta",
+        help="protein sequences FASTA file path that includes gene symbols to compare the classifier assignments to",
+    )
+    argument_parser.add_argument(
+        "--ensembl_species_database",
+        help="species database name on the public Ensembl MySQL server",
+    )
+
+    args = argument_parser.parse_args()
+
+    if args.assignments_csv is None:
+        argument_parser.print_help()
+        sys.exit()
+
+    # set up logger
+    logger.remove()
+    logger.add(sys.stderr, format=LOGURU_FORMAT)
+    assignments_csv_path = pathlib.Path(args.assignments_csv)
+    log_file_path = pathlib.Path(
+        f"{assignments_csv_path.parent}/{assignments_csv_path.stem}_comparison.log"
+    )
+    logger.add(log_file_path, format=LOGURU_FORMAT)
+
+    if args.sequences_fasta:
+        compare_with_fasta(args.assignments_csv, args.sequences_fasta)
+    elif args.ensembl_species_database:
+        compare_with_database(args.assignments_csv, args.ensembl_species_database)
+    else:
+        print("Error: one of --sequences_fasta and --ensembl_species_database arguments is required:\n")
+        argument_parser.print_help()
+        sys.exit()
 
 
 if __name__ == "__main__":
