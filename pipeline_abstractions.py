@@ -255,7 +255,7 @@ class PrettySimpleNamespace(SimpleNamespace):
     for pretty-printing types.SimpleNamespace has been added to pprint in that version.
     """
 
-    def __str__(self):
+    def __repr__(self):
         return pprint.pformat(self.__dict__, sort_dicts=False)
 
 
@@ -391,7 +391,7 @@ class TrainingSession:
 
         self.checkpoint_filename = f"n={self.num_symbols}_{self.datetime}.pth"
 
-    def __str__(self):
+    def __repr__(self):
         return pprint.pformat(self.__dict__, sort_dicts=False)
 
 

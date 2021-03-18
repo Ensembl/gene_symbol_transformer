@@ -37,6 +37,7 @@ from Bio import SeqIO
 from loguru import logger
 
 # project imports
+from pipeline_abstractions import PrettySimpleNamespace
 
 
 LOGURU_FORMAT = "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{message}</level>"
@@ -72,6 +73,29 @@ def read_fasta_in_chunks(fasta_file_path, num_entries_in_chunk=1024):
             if fasta_entries[-1] is None:
                 fasta_entries = [entry for entry in fasta_entries if entry is not None]
             yield fasta_entries
+
+
+def parse_fasta_description(fasta_description):
+    """
+    Parse a FASTA entry description string, generating an object with a number
+    of attributes if they exist.
+    """
+    fields = ["gene", "transcript", "gene_biotype", "transcript_biotype", "gene_symbol"]
+    description = PrettySimpleNamespace()
+
+    description_parts = fasta_description.split()
+
+    description.stable_id = description_parts[0]
+
+    for description_part in description_parts:
+        if ":" in description_part:
+            elements = description_part.split(":")
+            key = elements[0]
+            value = elements[1]
+            if key in fields:
+                setattr(description, key, value)
+
+    return description
 
 
 def main():
@@ -112,16 +136,19 @@ def main():
 
         for fasta_entries in read_fasta_in_chunks(sequences_fasta_path):
             for fasta_entry, csv_row in zip(fasta_entries, csv_reader):
-                fasta_description_parts = fasta_entry[0].split()
-                fasta_stable_id = fasta_description_parts[0]
-                for description_part in fasta_description_parts:
-                    if "gene_symbol" in description_part:
-                        # 12 = len("gene_symbol") + 1
-                        xref_symbol = description_part[12:]
-                        break
-                else:
-                    # "gene_symbol" not found in the FASTA entry description
+                description = parse_fasta_description(fasta_entry[0])
+
+                if not hasattr(description, "gene_symbol"):
                     continue
+
+                if not hasattr(description, "gene_biotype"):
+                    continue
+
+                if description.gene_biotype != "protein_coding":
+                    continue
+
+                fasta_stable_id = description.stable_id
+                xref_symbol = description.gene_symbol
 
                 csv_stable_id = csv_row[0]
                 classifier_symbol = csv_row[1]
