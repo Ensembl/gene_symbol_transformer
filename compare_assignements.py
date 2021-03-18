@@ -45,7 +45,7 @@ LOGURU_FORMAT = "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{message}</l
 def read_fasta_in_chunks(fasta_file_path, num_entries_in_chunk=1024):
     """
     Read a FASTA file in chunks, returning a TODO of tuples of two strings,
-    the FASTA title line without the leading ">" character, and
+    the FASTA description line without the leading ">" character, and
     the sequence with any whitespace removed.
 
     num_entries_in_chunk: number of entries in each chunk
@@ -112,15 +112,15 @@ def main():
 
         for fasta_entries in read_fasta_in_chunks(sequences_fasta_path):
             for fasta_entry, csv_row in zip(fasta_entries, csv_reader):
-                fasta_title_parts = fasta_entry[0].split()
-                fasta_stable_id = fasta_title_parts[0]
-                for title_part in fasta_title_parts:
-                    if "gene_symbol" in title_part:
+                fasta_description_parts = fasta_entry[0].split()
+                fasta_stable_id = fasta_description_parts[0]
+                for description_part in fasta_description_parts:
+                    if "gene_symbol" in description_part:
                         # 12 = len("gene_symbol") + 1
-                        xref_symbol = title_part[12:]
+                        xref_symbol = description_part[12:]
                         break
                 else:
-                    # "gene_symbol" not found in the FASTA entry title
+                    # "gene_symbol" not found in the FASTA entry description
                     continue
 
                 csv_stable_id = csv_row[0]
