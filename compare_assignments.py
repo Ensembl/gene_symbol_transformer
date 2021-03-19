@@ -32,6 +32,7 @@ import sys
 
 # third party imports
 import pandas as pd
+import pymysql
 
 from Bio import SeqIO
 from loguru import logger
@@ -152,7 +153,7 @@ def compare_with_fasta(assignments_csv, sequences_fasta):
     comparisons_df = pd.DataFrame(comparisons, columns=dataframe_columns)
 
     comparisons_csv_path = pathlib.Path(
-        f"{assignments_csv_path.parent}/{assignments_csv_path.stem}_comparisons.csv"
+        f"{assignments_csv_path.parent}/{assignments_csv_path.stem}_compare_fasta.csv"
     )
     comparisons_df.to_csv(comparisons_csv_path, sep="\t", index=False)
     logger.info(f"comparisons CSV saved at {comparisons_csv_path}")
@@ -176,12 +177,79 @@ def compare_with_fasta(assignments_csv, sequences_fasta):
     )
 
 
-def compare_with_database(assignments_csv, ensembl_species_database):
+def compare_with_database(assignments_csv, ensembldb_species_database):
     """
     Compare classifier assignments with the gene symbols in the species database on
     the public Ensembl MySQL server.
     """
-    pass
+    assignments_csv_path = pathlib.Path(assignments_csv)
+
+    host = "ensembldb.ensembl.org"
+    user = "anonymous"
+    connection = pymysql.connect(
+        host=host,
+        user=user,
+        database=ensembldb_species_database,
+        # cursorclass=pymysql.cursors.DictCursor,
+    )
+
+    # read SQL query from sql file
+    sql_query_filepath = "sql_query.sql"
+    with open(sql_query_filepath) as f:
+        sql_query = f.read()
+
+    with connection:
+        with connection.cursor() as cursor:
+            cursor.execute(sql_query)
+            db_response = cursor.fetchall()
+
+    db_response_dict = dict(db_response)
+
+    comparisons = []
+    with open(assignments_csv_path, "r") as assignments_file:
+        csv_reader = csv.reader(assignments_file, delimiter="\t")
+        csv_field_names = next(csv_reader)
+
+        for csv_row in csv_reader:
+            csv_stable_id = csv_row[0]
+            classifier_symbol = csv_row[1]
+
+            translation_stable_id = csv_stable_id[:-2]
+
+            if translation_stable_id in db_response_dict:
+                xref_symbol = db_response_dict[translation_stable_id]
+                comparisons.append((csv_stable_id, classifier_symbol, xref_symbol))
+
+    dataframe_columns = [
+        "csv_stable_id",
+        "classifier_symbol",
+        "xref_symbol",
+    ]
+    comparisons_df = pd.DataFrame(comparisons, columns=dataframe_columns)
+
+    comparisons_csv_path = pathlib.Path(
+        f"{assignments_csv_path.parent}/{assignments_csv_path.stem}_compare_database.csv"
+    )
+    comparisons_df.to_csv(comparisons_csv_path, sep="\t", index=False)
+    logger.info(f"comparisons CSV saved at {comparisons_csv_path}")
+
+    num_assignments = len(comparisons_df)
+
+    comparisons_df["classifier_symbol_lowercase"] = comparisons_df[
+        "classifier_symbol"
+    ].str.lower()
+    comparisons_df["xref_symbol_lowercase"] = comparisons_df["xref_symbol"].str.lower()
+
+    num_equal_assignments = (
+        comparisons_df["classifier_symbol_lowercase"]
+        .eq(comparisons_df["xref_symbol_lowercase"])
+        .sum()
+    )
+
+    matching_percentage = (num_equal_assignments / num_assignments) * 100
+    logger.info(
+        f"{num_equal_assignments} matching out of {num_assignments} assignments ({matching_percentage:.2f}%)"
+    )
 
 
 def main():
@@ -197,7 +265,7 @@ def main():
         help="protein sequences FASTA file path that includes gene symbols to compare the classifier assignments to",
     )
     argument_parser.add_argument(
-        "--ensembl_species_database",
+        "--ensembldb_species_database",
         help="species database name on the public Ensembl MySQL server",
     )
 
@@ -212,17 +280,17 @@ def main():
     logger.add(sys.stderr, format=LOGURU_FORMAT)
     assignments_csv_path = pathlib.Path(args.assignments_csv)
     log_file_path = pathlib.Path(
-        f"{assignments_csv_path.parent}/{assignments_csv_path.stem}_comparison.log"
+        f"{assignments_csv_path.parent}/{assignments_csv_path.stem}_compare.log"
     )
     logger.add(log_file_path, format=LOGURU_FORMAT)
 
     if args.sequences_fasta:
         compare_with_fasta(args.assignments_csv, args.sequences_fasta)
-    elif args.ensembl_species_database:
-        compare_with_database(args.assignments_csv, args.ensembl_species_database)
+    elif args.ensembldb_species_database:
+        compare_with_database(args.assignments_csv, args.ensembldb_species_database)
     else:
         print(
-            "Error: one of --sequences_fasta and --ensembl_species_database arguments is required:\n"
+            "Error: one of --sequences_fasta and --ensembldb_species_database arguments is required:\n"
         )
         argument_parser.print_help()
         sys.exit()
