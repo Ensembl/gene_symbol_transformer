@@ -85,7 +85,7 @@ def parse_fasta_description(fasta_description):
 
     description_parts = fasta_description.split()
 
-    description.stable_id = description_parts[0]
+    description.translation_stable_id = description_parts[0]
 
     for description_part in description_parts:
         if ":" in description_part:
@@ -123,19 +123,32 @@ def compare_with_fasta(assignments_csv, sequences_fasta):
                 if description.gene_biotype != "protein_coding":
                     continue
 
-                fasta_stable_id = description.stable_id
+                translation_stable_id = description.translation_stable_id
+                transcript_stable_id = description.transcript
                 xref_symbol = description.gene_symbol
 
                 csv_stable_id = csv_row[0]
                 classifier_symbol = csv_row[1]
 
-                assert fasta_stable_id == csv_stable_id, f"{fasta_stable_id=}, {csv_stable_id=}"
+                assert (
+                    translation_stable_id == csv_stable_id
+                ), f"{translation_stable_id=}, {csv_stable_id=}"
 
                 comparisons.append(
-                    (fasta_stable_id, classifier_symbol, xref_symbol)
+                    (
+                        translation_stable_id,
+                        transcript_stable_id,
+                        classifier_symbol,
+                        xref_symbol,
+                    )
                 )
 
-    dataframe_columns = ["stable_id", "classifier_symbol","xref_symbol"]
+    dataframe_columns = [
+        "translation_stable_id",
+        "transcript_stable_id",
+        "classifier_symbol",
+        "xref_symbol",
+    ]
     comparisons_df = pd.DataFrame(comparisons, columns=dataframe_columns)
 
     comparisons_csv_path = pathlib.Path(
@@ -146,13 +159,21 @@ def compare_with_fasta(assignments_csv, sequences_fasta):
 
     num_assignments = len(comparisons_df)
 
-    comparisons_df["classifier_symbol_lowercase"] = comparisons_df["classifier_symbol"].str.lower()
+    comparisons_df["classifier_symbol_lowercase"] = comparisons_df[
+        "classifier_symbol"
+    ].str.lower()
     comparisons_df["xref_symbol_lowercase"] = comparisons_df["xref_symbol"].str.lower()
 
-    num_equal_assignments = comparisons_df["classifier_symbol_lowercase"].eq(comparisons_df["xref_symbol_lowercase"]).sum()
+    num_equal_assignments = (
+        comparisons_df["classifier_symbol_lowercase"]
+        .eq(comparisons_df["xref_symbol_lowercase"])
+        .sum()
+    )
 
     matching_percentage = (num_equal_assignments / num_assignments) * 100
-    logger.info(f"{num_equal_assignments} matching out of {num_assignments} assignments ({matching_percentage:.2f}%)")
+    logger.info(
+        f"{num_equal_assignments} matching out of {num_assignments} assignments ({matching_percentage:.2f}%)"
+    )
 
 
 def compare_with_database(assignments_csv, ensembl_species_database):
@@ -169,8 +190,7 @@ def main():
     """
     argument_parser = argparse.ArgumentParser()
     argument_parser.add_argument(
-        "--assignments_csv",
-        help="assignments CSV file path",
+        "--assignments_csv", help="assignments CSV file path",
     )
     argument_parser.add_argument(
         "--sequences_fasta",
@@ -201,7 +221,9 @@ def main():
     elif args.ensembl_species_database:
         compare_with_database(args.assignments_csv, args.ensembl_species_database)
     else:
-        print("Error: one of --sequences_fasta and --ensembl_species_database arguments is required:\n")
+        print(
+            "Error: one of --sequences_fasta and --ensembl_species_database arguments is required:\n"
+        )
         argument_parser.print_help()
         sys.exit()
 
