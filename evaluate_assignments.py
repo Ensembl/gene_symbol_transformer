@@ -26,7 +26,6 @@ Compare the classifier assigned symbols to the Xref assigned ones.
 # standard library imports
 import argparse
 import csv
-import itertools
 import pathlib
 import sys
 
@@ -34,46 +33,13 @@ import sys
 import pandas as pd
 import pymysql
 
-from Bio import SeqIO
 from loguru import logger
 
 # project imports
-from pipeline_abstractions import PrettySimpleNamespace
+from pipeline_abstractions import PrettySimpleNamespace, read_fasta_in_chunks
 
 
 LOGURU_FORMAT = "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{message}</level>"
-
-
-def read_fasta_in_chunks(fasta_file_path, num_entries_in_chunk=1024):
-    """
-    Read a FASTA file in chunks, returning a TODO of tuples of two strings,
-    the FASTA description line without the leading ">" character, and
-    the sequence with any whitespace removed.
-
-    num_entries_in_chunk: number of entries in each chunk
-    """
-    # Count the number of entries in the FASTA file up to the maximum of
-    # the num_entries_in_chunk chunk size. If the FASTA file has fewer entries
-    # than num_entries_in_chunk, re-assign the latter to that smaller value.
-    with open(fasta_file_path) as fasta_file:
-        num_entries_counter = 0
-        for _ in SeqIO.FastaIO.SimpleFastaParser(fasta_file):
-            num_entries_counter += 1
-            if num_entries_counter == num_entries_in_chunk:
-                break
-        else:
-            num_entries_in_chunk = num_entries_counter
-
-    # read the FASTA file in chunks
-    with open(fasta_file_path) as fasta_file:
-        fasta_generator = SeqIO.FastaIO.SimpleFastaParser(fasta_file)
-        args = [fasta_generator] * num_entries_in_chunk
-        fasta_chunks_iterator = itertools.zip_longest(*args)
-
-        for fasta_entries in fasta_chunks_iterator:
-            if fasta_entries[-1] is None:
-                fasta_entries = [entry for entry in fasta_entries if entry is not None]
-            yield fasta_entries
 
 
 def parse_fasta_description(fasta_description):
