@@ -120,7 +120,7 @@ class FullyConnectedNetwork(nn.Module):
 
     def predict(self, sequences):
         """
-        Get predictions of symbols for a list of protein sequences.
+        Get assignments of symbols for a list of protein sequences.
         """
         tensor_sequences = transform_sequences(sequences, self.sequence_length)
         tensor_sequences = tensor_sequences.to(DEVICE)
@@ -275,7 +275,7 @@ def train_network(
 
 
 def test_network(
-    network, training_session, test_loader, log_file_path, print_sample_predictions=False
+    network, training_session, test_loader, log_file_path, print_sample_assignments=False
 ):
     """
     Calculate test loss and generate metrics.
@@ -331,14 +331,14 @@ def test_network(
 
     logger.info("\n" + "average test loss: {:.4f}".format(np.mean(test_losses)))
 
-    # test predictions accuracy
+    # test assignments accuracy
     test_accuracy = num_correct_predictions / num_samples
     logger.info("test accuracy: {:.3f}".format(test_accuracy) + "\n")
 
-    if print_sample_predictions:
-        # num_sample_predictions = 10
-        # num_sample_predictions = 20
-        num_sample_predictions = 100
+    if print_sample_assignments:
+        # num_sample_assignments = 10
+        # num_sample_assignments = 20
+        num_sample_assignments = 100
 
         with torch.no_grad():
             network.eval()
@@ -350,8 +350,8 @@ def test_network(
                 torch.manual_seed(time.time() * 1000)
                 permutation = torch.randperm(len(inputs))
 
-            inputs = inputs[permutation[0:num_sample_predictions]]
-            labels = labels[permutation[0:num_sample_predictions]]
+            inputs = inputs[permutation[0:num_sample_assignments]]
+            labels = labels[permutation[0:num_sample_assignments]]
 
             output = network(inputs)
 
@@ -362,17 +362,17 @@ def test_network(
             # get class indexes from the one-hot encoded labels
             labels = torch.argmax(labels, dim=1)
 
-        predictions = network.gene_symbols.one_hot_encoding_to_symbol(predictions)
+        assignments = network.gene_symbols.one_hot_encoding_to_symbol(predictions)
         labels = network.gene_symbols.one_hot_encoding_to_symbol(labels)
 
-        logger.info("sample predictions")
-        logger.info("prediction | true label")
+        logger.info("sample assignments")
+        logger.info("assignment | true label")
         logger.info("-----------------------")
-        for prediction, label in zip(predictions, labels):
-            if prediction == label:
-                logger.info(f"{prediction:>10} | {label:>10}")
+        for assignment, label in zip(assignments, labels):
+            if assignment == label:
+                logger.info(f"{assignment:>10} | {label:>10}")
             else:
-                logger.info(f"{prediction:>10} | {label:>10}  !!!")
+                logger.info(f"{assignment:>10} | {label:>10}  !!!")
 
 
 def save_network_from_checkpoint(checkpoint_path):
@@ -411,12 +411,8 @@ def main():
     argument_parser.add_argument("--train", action="store_true", help="train a network")
     argument_parser.add_argument("--test", action="store_true", help="test a network")
     argument_parser.add_argument(
-        "--predict_fasta",
-        help="path of FASTA file with protein sequences to generate symbol predictions for",
-    )
-    argument_parser.add_argument(
-        "--predictions_csv",
-        help="path of CSV file to save the generated symbol predictions",
+        "--sequences_fasta",
+        help="path of FASTA file with protein sequences to generate symbol assignments for",
     )
     argument_parser.add_argument("--save_network")
 
@@ -454,16 +450,15 @@ def main():
         logger.info(f'Saved network at "{network_path}"')
         return
 
-    if args.predict_fasta:
-        fasta_path = args.predict_fasta
-        csv_path = args.predictions_csv
+    if args.sequences_fasta:
+        fasta_path = pathlib.Path(args.sequences_fasta)
 
         checkpoint_path = pathlib.Path(args.load_checkpoint)
         checkpoint = load_checkpoint(checkpoint_path)
         network = checkpoint["network"]
         training_session = checkpoint["training_session"]
 
-        logger.info("generating predictions...")
+        logger.info("assigning symbols...")
 
         # number of sequences in each chunk of the FASTA file read
         num_sequences_chunk = 1024
@@ -480,8 +475,9 @@ def main():
                 num_sequences_chunk = num_entries_counter
         logger.info(f"{num_sequences_chunk=}")
 
-        # read the FASTA file in chunks and generate predictions
-        with open(fasta_path) as fasta_file, open(csv_path, "w+") as csv_file:
+        assignments_csv_path = pathlib.Path(f"{fasta_path.parent}/{fasta_path.stem}_symbols.csv")
+        # read the FASTA file in chunks and assign symbols
+        with open(fasta_path) as fasta_file, open(assignments_csv_path, "w+") as csv_file:
             fasta_generator = SeqIO.FastaIO.SimpleFastaParser(fasta_file)
             args = [fasta_generator] * num_sequences_chunk
             fasta_chunks_iterator = itertools.zip_longest(*args)
@@ -504,14 +500,14 @@ def main():
                 sequences = [fasta_entry[1] for fasta_entry in fasta_entries]
 
                 start = time.time()
-                predictions = network.predict(sequences)
+                assignments = network.predict(sequences)
                 end = time.time()
                 inference_duration = end - start
                 logger.debug(f"inference call took {inference_duration:.3f} seconds")
 
-                # write predictions to the CSV file
-                csv_writer.writerows(zip(stable_ids, predictions))
-        logger.debug(f"predictions saved at {csv_path}")
+                # save assignments to the CSV file
+                csv_writer.writerows(zip(stable_ids, assignments))
+        logger.debug(f"symbol assignments saved at {assignments_csv_path}")
         sys.exit()
 
     # log PyTorch version information
@@ -688,7 +684,7 @@ def main():
             training_session,
             test_loader,
             log_file_path,
-            print_sample_predictions=True,
+            print_sample_assignments=True,
         )
 
 
