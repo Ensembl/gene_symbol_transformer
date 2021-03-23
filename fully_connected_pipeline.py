@@ -27,7 +27,6 @@ Fully connected neural network pipeline.
 import argparse
 import csv
 import datetime as dt
-import itertools
 import math
 import pathlib
 import sys
@@ -39,7 +38,6 @@ import torch
 import torch.nn as nn
 import yaml
 
-from Bio import SeqIO
 from loguru import logger
 from torch.utils.data import DataLoader, random_split
 from torch.utils.tensorboard import SummaryWriter
@@ -52,6 +50,7 @@ from pipeline_abstractions import (
     TrainingSession,
     experiments_directory,
     load_checkpoint,
+    read_fasta_in_chunks,
     specify_device,
     transform_sequences,
 )
@@ -460,34 +459,15 @@ def main():
 
         logger.info("assigning symbols...")
 
-        # number of sequences in each chunk of the FASTA file read
-        num_sequences_chunk = 1024
-        # Count the number of sequences in the FASTA file up to the maximum
-        # of the num_sequences_chunk chunk size. If the FASTA file has fewer entries
-        # than num_sequences_chunk, re-assign the latter to that smaller value.
-        with open(fasta_path) as fasta_file:
-            num_entries_counter = 0
-            for _ in SeqIO.FastaIO.SimpleFastaParser(fasta_file):
-                num_entries_counter += 1
-                if num_entries_counter == num_sequences_chunk:
-                    break
-            else:
-                num_sequences_chunk = num_entries_counter
-        logger.info(f"{num_sequences_chunk=}")
-
         assignments_csv_path = pathlib.Path(f"{fasta_path.parent}/{fasta_path.stem}_symbols.csv")
         # read the FASTA file in chunks and assign symbols
-        with open(fasta_path) as fasta_file, open(assignments_csv_path, "w+") as csv_file:
-            fasta_generator = SeqIO.FastaIO.SimpleFastaParser(fasta_file)
-            args = [fasta_generator] * num_sequences_chunk
-            fasta_chunks_iterator = itertools.zip_longest(*args)
-
+        with open(assignments_csv_path, "w+") as csv_file:
             # generate a csv writer, create the CSV file with a header
             field_names = ["stable_id", "symbol"]
             csv_writer = csv.writer(csv_file, delimiter="\t")
             csv_writer.writerow(field_names)
 
-            for fasta_entries in fasta_chunks_iterator:
+            for fasta_entries in read_fasta_in_chunks(fasta_path):
                 if fasta_entries[-1] is None:
                     fasta_entries = [
                         fasta_entry
