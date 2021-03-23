@@ -100,7 +100,7 @@ class ProteinSequences:
 
     def __init__(self):
         stop_codon = ["*"]
-        extended_IUPAC_protein_letters = Bio.Alphabet.IUPAC.ExtendedIUPACProtein.letters
+        extended_IUPAC_protein_letters = Bio.Data.IUPACData.extended_protein_letters
         protein_letters = list(extended_IUPAC_protein_letters) + stop_codon
 
         # generate a categorical data type for protein letters
@@ -183,7 +183,7 @@ def get_unique_protein_letters():
     """
     Generate and return a list of the unique protein letters that occur in the dataset.
     """
-    extended_IUPAC_protein_letters = Bio.Alphabet.IUPAC.ExtendedIUPACProtein.letters
+    extended_IUPAC_protein_letters = Bio.Data.IUPACData.extended_protein_letters
     stop_codon = ["*"]
 
     data = load_data()
