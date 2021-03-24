@@ -404,8 +404,8 @@ def main():
         help="path to the experiment settings configuration file",
     )
     argument_parser.add_argument(
-        "--load_checkpoint",
-        help="path to the training session checkpoint to load",
+        "--checkpoint",
+        help="training session checkpoint path",
     )
     argument_parser.add_argument("--train", action="store_true", help="train a network")
     argument_parser.add_argument("--test", action="store_true", help="test a network")
@@ -430,8 +430,8 @@ def main():
         log_file_path = (
             experiments_directory / f"n={experiment.num_symbols}_{datetime}.log"
         )
-    elif args.load_checkpoint:
-        log_file_path = pathlib.Path(args.load_checkpoint).with_suffix(".log")
+    elif args.checkpoint:
+        log_file_path = pathlib.Path(args.checkpoint).with_suffix(".log")
     else:
         argument_parser.print_help()
         sys.exit()
@@ -452,7 +452,7 @@ def main():
     if args.sequences_fasta:
         fasta_path = pathlib.Path(args.sequences_fasta)
 
-        checkpoint_path = pathlib.Path(args.load_checkpoint)
+        checkpoint_path = pathlib.Path(args.checkpoint)
         checkpoint = load_checkpoint(checkpoint_path)
         network = checkpoint["network"]
         training_session = checkpoint["training_session"]
@@ -506,8 +506,8 @@ def main():
         # logger.debug(f"{torch.cuda.memory_summary(DEVICE)}")
 
     # load training checkpoint or generate new training session
-    if args.load_checkpoint:
-        checkpoint_path = pathlib.Path(args.load_checkpoint)
+    if args.checkpoint:
+        checkpoint_path = pathlib.Path(args.checkpoint)
         checkpoint = load_checkpoint(checkpoint_path)
         network = checkpoint["network"]
         training_session = checkpoint["training_session"]
@@ -554,7 +554,7 @@ def main():
         training_session.num_symbols, training_session.sequence_length
     )
 
-    if not args.load_checkpoint:
+    if not args.checkpoint:
         # neural network instantiation
         ############################################################################
         # num_protein_letters = len(dataset.protein_letters)
