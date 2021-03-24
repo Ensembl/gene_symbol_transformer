@@ -1,0 +1,139 @@
+- name: human
+  scientific_name: homo_sapiens
+  protein_sequences: "http://ftp.ensembl.org/pub/release-103/fasta/homo_sapiens/pep/Homo_sapiens.GRCh38.pep.all.fa.gz"
+  ensembldb_database: homo_sapiens_core_103_38
+
+- name: mouse
+  scientific_name: mus_musculus
+  protein_sequences: "http://ftp.ensembl.org/pub/release-103/fasta/mus_musculus/pep/Mus_musculus.GRCm39.pep.all.fa.gz"
+  ensembldb_database: mus_musculus_core_103_39
+
+- name: zebrafish
+  scientific_name: danio_rerio
+  protein_sequences: "http://ftp.ensembl.org/pub/release-103/fasta/danio_rerio/pep/Danio_rerio.GRCz11.pep.all.fa.gz"
+  ensembldb_database: danio_rerio_core_103_11
+
+- name: beluga whale
+  scientific_name: delphinapterus_leucas
+  protein_sequences: "http://ftp.ensembl.org/pub/release-103/fasta/delphinapterus_leucas/pep/Delphinapterus_leucas.ASM228892v3.pep.all.fa.gz"
+  ensembldb_database: delphinapterus_leucas_core_103_3
+
+- name: blue whale
+  scientific_name: balaenoptera_musculus
+  protein_sequences: "http://ftp.ensembl.org/pub/release-103/fasta/balaenoptera_musculus/pep/Balaenoptera_musculus.mBalMus1.v2.pep.all.fa.gz"
+  ensembldb_database: balaenoptera_musculus_core_103_2
+
+- name: brown trout
+  scientific_name: oryctolagus_cuniculus
+  protein_sequences: "http://ftp.ensembl.org/pub/release-103/fasta/salmo_trutta/pep/Salmo_trutta.fSalTru1.1.pep.all.fa.gz"
+  ensembldb_database: salmo_trutta_core_103_11
+
+- name: caenorhabditis elegans
+  scientific_name: caenorhabditis_elegans
+  protein_sequences: "http://ftp.ensembl.org/pub/release-103/fasta/caenorhabditis_elegans/pep/Caenorhabditis_elegans.WBcel235.pep.all.fa.gz"
+  ensembldb_database: caenorhabditis_elegans_core_103_269
+
+- name: cat
+  scientific_name: felis_catus
+  protein_sequences: "http://ftp.ensembl.org/pub/release-103/fasta/felis_catus/pep/Felis_catus.Felis_catus_9.0.pep.all.fa.gz"
+  ensembldb_database: felis_catus_core_103_9
+
+- name: chicken
+  scientific_name: gallus_gallus
+  protein_sequences: "http://ftp.ensembl.org/pub/release-103/fasta/gallus_gallus/pep/Gallus_gallus.GRCg6a.pep.all.fa.gz"
+  ensembldb_database: gallus_gallus_core_103_6
+
+- name: chimpanzee
+  scientific_name: pan_troglodytes
+  protein_sequences: "http://ftp.ensembl.org/pub/release-103/fasta/pan_troglodytes/pep/Pan_troglodytes.Pan_tro_3.0.pep.all.fa.gz"
+  ensembldb_database: pan_troglodytes_core_103_3
+
+- name: common carp
+  scientific_name: cyprinus_carpio
+  protein_sequences: "http://ftp.ensembl.org/pub/release-103/fasta/cyprinus_carpio/pep/Cyprinus_carpio.common_carp_genome.pep.all.fa.gz"
+  ensembldb_database: cyprinus_carpio_core_103_2
+
+- name: cow
+  scientific_name: bos_taurus
+  protein_sequences: "http://ftp.ensembl.org/pub/release-103/fasta/bos_taurus/pep/Bos_taurus.ARS-UCD1.2.pep.all.fa.gz"
+  ensembldb_database: bos_taurus_core_103_12
+
+- name: dog
+  scientific_name: canis_lupus_familiaris
+  protein_sequences: "http://ftp.ensembl.org/pub/release-103/fasta/canis_lupus_familiaris/pep/Canis_lupus_familiaris.CanFam3.1.pep.all.fa.gz"
+  ensembldb_database: canis_lupus_familiaris_core_103_31
+
+- name: dolphin
+  scientific_name: tursiops_truncatus
+  protein_sequences: "http://ftp.ensembl.org/pub/release-103/fasta/tursiops_truncatus/pep/Tursiops_truncatus.turTru1.pep.all.fa.gz"
+  ensembldb_database: tursiops_truncatus_core_103_1
+
+- name: drosophila melanogaster
+  scientific_name: drosophila_melanogaster
+  protein_sequences: "http://ftp.ensembl.org/pub/release-103/fasta/drosophila_melanogaster/pep/Drosophila_melanogaster.BDGP6.32.pep.all.fa.gz"
+  ensembldb_database: drosophila_melanogaster_core_103_9
+
+- name: elephant
+  scientific_name: loxodonta_africana
+  protein_sequences: "http://ftp.ensembl.org/pub/release-103/fasta/loxodonta_africana/pep/Loxodonta_africana.loxAfr3.pep.all.fa.gz"
+  ensembldb_database: loxodonta_africana_core_103_3
+
+- name: giant panda
+  scientific_name: ailuropoda_melanoleuca
+  protein_sequences: "http://ftp.ensembl.org/pub/release-103/fasta/ailuropoda_melanoleuca/pep/Ailuropoda_melanoleuca.ASM200744v2.pep.all.fa.gz"
+  ensembldb_database: ailuropoda_melanoleuca_core_103_2
+
+- name: golden eagle
+  scientific_name: aquila_chrysaetos_chrysaetos
+  protein_sequences: "http://ftp.ensembl.org/pub/release-103/fasta/aquila_chrysaetos_chrysaetos/pep/Aquila_chrysaetos_chrysaetos.bAquChr1.2.pep.all.fa.gz"
+  ensembldb_database: aquila_chrysaetos_chrysaetos_core_103_12
+
+- name: gorilla
+  scientific_name: gorilla_gorilla
+  protein_sequences: "http://ftp.ensembl.org/pub/release-103/fasta/gorilla_gorilla/pep/Gorilla_gorilla.gorGor4.pep.all.fa.gz"
+  ensembldb_database: gorilla_gorilla_core_103_4
+
+- name: horse
+  scientific_name: equus_caballus
+  protein_sequences: "http://ftp.ensembl.org/pub/release-103/fasta/equus_caballus/pep/Equus_caballus.EquCab3.0.pep.all.fa.gz"
+  ensembldb_database: equus_caballus_core_103_3
+
+- name: komodo dragon
+  scientific_name: varanus_komodoensis
+  protein_sequences: "http://ftp.ensembl.org/pub/release-103/fasta/varanus_komodoensis/pep/Varanus_komodoensis.ASM479886v1.pep.all.fa.gz"
+  ensembldb_database: varanus_komodoensis_core_103_1
+
+- name: lion
+  scientific_name: panthera_leo
+  protein_sequences: "http://ftp.ensembl.org/pub/release-103/fasta/panthera_leo/pep/Panthera_leo.PanLeo1.0.pep.all.fa.gz"
+  ensembldb_database: panthera_leo_core_103_1
+
+- name: pig
+  scientific_name: sus_scrofa
+  protein_sequences: "http://ftp.ensembl.org/pub/release-103/fasta/sus_scrofa/pep/Sus_scrofa.Sscrofa11.1.pep.all.fa.gz"
+  ensembldb_database: sus_scrofa_bamei_core_103_1
+
+- name: rabbit
+  scientific_name: oryctolagus_cuniculus
+  protein_sequences: "http://ftp.ensembl.org/pub/release-103/fasta/oryctolagus_cuniculus/pep/Oryctolagus_cuniculus.OryCun2.0.pep.all.fa.gz"
+  ensembldb_database: oryctolagus_cuniculus_core_103_2
+
+- name: saccharomyces cerevisiae
+  scientific_name: saccharomyces_cerevisiae
+  protein_sequences: "http://ftp.ensembl.org/pub/release-103/fasta/saccharomyces_cerevisiae/pep/Saccharomyces_cerevisiae.R64-1-1.pep.all.fa.gz"
+  ensembldb_database: saccharomyces_cerevisiae_core_103_4
+
+- name: sheep
+  scientific_name: ovis_aries
+  protein_sequences: "http://ftp.ensembl.org/pub/release-103/fasta/ovis_aries/pep/Ovis_aries.Oar_v3.1.pep.all.fa.gz"
+  ensembldb_database: ovis_aries_core_103_31
+
+- name: sheep (texel)
+  scientific_name: ovis_aries_rambouillet
+  protein_sequences: "http://ftp.ensembl.org/pub/release-103/fasta/ovis_aries_rambouillet/pep/Ovis_aries_rambouillet.Oar_rambouillet_v1.0.pep.all.fa.gz"
+  ensembldb_database: ovis_aries_rambouillet_core_103_1
+
+- name: tiger
+  scientific_name: panthera_tigris_altaica
+  protein_sequences: "http://ftp.ensembl.org/pub/release-103/fasta/panthera_tigris_altaica/pep/Panthera_tigris_altaica.PanTig1.0.pep.all.fa.gz"
+  ensembldb_database: panthera_tigris_altaica_core_103_1

@@ -19,27 +19,36 @@
 
 
 """
-Compare the classifier assigned symbols to the Xref assigned ones.
+Evaluate trained network by comparing the classifier assigned symbols to
+the Xref assigned ones.
 """
 
 
 # standard library imports
 import argparse
 import csv
+import gzip
 import pathlib
+import pprint
 import sys
 
 # third party imports
 import pandas as pd
 import pymysql
+import requests
+import yaml
 
 from loguru import logger
 
 # project imports
-from pipeline_abstractions import PrettySimpleNamespace, read_fasta_in_chunks
+from fully_connected_pipeline import FullyConnectedNetwork
+from pipeline_abstractions import PrettySimpleNamespace, load_checkpoint, read_fasta_in_chunks
 
 
 LOGURU_FORMAT = "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{message}</level>"
+
+sequences_directory = pathlib.Path("protein_sequences")
+sequences_directory.mkdir(exist_ok=True)
 
 
 def parse_fasta_description(fasta_description):
@@ -218,6 +227,81 @@ def compare_with_database(assignments_csv, ensembldb_species_database):
     )
 
 
+def evaluate_network(checkpoint_path, species_data_path):
+    """
+    """
+    with open(species_data_path) as f:
+        species_data_list = yaml.safe_load(f)
+    # pprint.pprint(species_data_list, sort_dicts=False)
+    # sys.exit()
+
+    checkpoint = load_checkpoint(checkpoint_path)
+    network = checkpoint["network"]
+    training_session = checkpoint["training_session"]
+    # print(network)
+    # sys.exit()
+
+    for species_data_dict in species_data_list:
+        species_data = PrettySimpleNamespace(**species_data_dict)
+        # print(species_data)
+        # print(species_data.scientific_name)
+        # print(species_data.protein_sequences)
+        # download archived protein sequences FASTA file
+        archived_fasta_filename = species_data.protein_sequences.split("/")[-1]
+        # print(archived_fasta_filename)
+        archived_fasta_path = sequences_directory / archived_fasta_filename
+        # print(archived_fasta_path)
+        if not archived_fasta_path.exists():
+            response = requests.get(species_data.protein_sequences)
+            with open(archived_fasta_path, "wb+") as f:
+                f.write(response.content)
+            logger.info(f"downloaded {archived_fasta_filename}")
+        # extract archived protein sequences FASTA file
+        fasta_path = archived_fasta_path.with_suffix("")
+        # print(fasta_path)
+        if not fasta_path.exists():
+            with gzip.open(archived_fasta_path, "rb") as f:
+                file_content = f.read()
+            with open(fasta_path, "w+") as f:
+                f.write(file_content)
+            logger.info(f"extracted {fasta_path}")
+
+        assign_symbols(network, fasta_path)
+
+
+def assign_symbols(network, sequences_fasta):
+    """
+    Use the trained network to assign symbols to the sequences in the FASTA file.
+    """
+    fasta_path = pathlib.Path(sequences_fasta)
+    assignments_csv_path = pathlib.Path(f"{fasta_path.parent}/{fasta_path.stem}_symbols.csv")
+
+    # read the FASTA file in chunks and assign symbols
+    with open(assignments_csv_path, "w+") as csv_file:
+        # generate a csv writer, create the CSV file with a header
+        field_names = ["stable_id", "symbol"]
+        csv_writer = csv.writer(csv_file, delimiter="\t")
+        csv_writer.writerow(field_names)
+
+        for fasta_entries in read_fasta_in_chunks(fasta_path):
+            if fasta_entries[-1] is None:
+                fasta_entries = [
+                    fasta_entry
+                    for fasta_entry in fasta_entries if fasta_entry is not None
+                ]
+
+            stable_ids = [
+                fasta_entry[0].split(" ")[0] for fasta_entry in fasta_entries
+            ]
+            sequences = [fasta_entry[1] for fasta_entry in fasta_entries]
+
+            assignments = network.predict(sequences)
+
+            # save assignments to the CSV file
+            csv_writer.writerows(zip(stable_ids, assignments))
+    logger.info(f"symbol assignments for {species_data.scientific_name} saved at {assignments_csv_path}")
+
+
 def main():
     """
     main function
@@ -234,30 +318,39 @@ def main():
         "--ensembldb_species_database",
         help="species database name on the public Ensembl MySQL server",
     )
+    argument_parser.add_argument("--checkpoint", help="training session checkpoint path")
+    argument_parser.add_argument("--species_data", help="species data YAML file path")
 
     args = argument_parser.parse_args()
-
-    if args.assignments_csv is None:
-        argument_parser.print_help()
-        sys.exit()
 
     # set up logger
     logger.remove()
     logger.add(sys.stderr, format=LOGURU_FORMAT)
-    assignments_csv_path = pathlib.Path(args.assignments_csv)
-    log_file_path = pathlib.Path(
-        f"{assignments_csv_path.parent}/{assignments_csv_path.stem}_compare.log"
-    )
-    logger.add(log_file_path, format=LOGURU_FORMAT)
+    if args.assignments_csv:
+        assignments_csv_path = pathlib.Path(args.assignments_csv)
+        log_file_path = pathlib.Path(
+            f"{assignments_csv_path.parent}/{assignments_csv_path.stem}_compare.log"
+        )
+        logger.add(log_file_path, format=LOGURU_FORMAT)
+    elif args.species_data:
+        species_data_path = pathlib.Path(args.species_data)
+        log_file_path = pathlib.Path(
+            f"{species_data_path.parent}/{species_data_path.stem}_evaluate.log"
+        )
+        logger.add(log_file_path, format=LOGURU_FORMAT)
+    else:
+        print("Error: one of --assignments_csv or --species_data arguments is required:\n")
+        argument_parser.print_help()
+        sys.exit()
 
     if args.sequences_fasta:
         compare_with_fasta(args.assignments_csv, args.sequences_fasta)
     elif args.ensembldb_species_database:
         compare_with_database(args.assignments_csv, args.ensembldb_species_database)
+    elif args.checkpoint and args.species_data:
+        evaluate_network(args.checkpoint, args.species_data)
     else:
-        print(
-            "Error: one of --sequences_fasta and --ensembldb_species_database arguments is required:\n"
-        )
+        print("Error: one of --sequences_fasta, --ensembldb_species_database, or --checkpoint arguments is required:\n")
         argument_parser.print_help()
         sys.exit()
 
