@@ -266,7 +266,12 @@ def evaluate_network(checkpoint_path, species_data_path):
                 f.write(file_content)
             logger.info(f"extracted {fasta_path}")
 
-        assign_symbols(network, fasta_path)
+        # assign symbols
+        assignments_csv_path = pathlib.Path(f"{fasta_path.parent}/{fasta_path.stem}_symbols.csv")
+        if not assignments_csv_path.exists():
+            assign_symbols(network, fasta_path)
+
+        compare_with_database(assignments_csv_path, species_data.ensembldb_database)
 
 
 def assign_symbols(network, sequences_fasta):
