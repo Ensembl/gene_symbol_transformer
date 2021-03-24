@@ -262,7 +262,7 @@ def evaluate_network(checkpoint_path, species_data_path):
         if not fasta_path.exists():
             with gzip.open(archived_fasta_path, "rb") as f:
                 file_content = f.read()
-            with open(fasta_path, "w+") as f:
+            with open(fasta_path, "wb+") as f:
                 f.write(file_content)
             logger.info(f"extracted {fasta_path}")
 
@@ -299,7 +299,7 @@ def assign_symbols(network, sequences_fasta):
 
             # save assignments to the CSV file
             csv_writer.writerows(zip(stable_ids, assignments))
-    logger.info(f"symbol assignments for {species_data.scientific_name} saved at {assignments_csv_path}")
+    logger.info(f"symbol assignments saved at {assignments_csv_path}")
 
 
 def main():
