@@ -225,7 +225,7 @@ def compare_with_database(assignments_csv, ensembldb_database, scientific_name=N
 
     matching_percentage = (num_equal_assignments / num_assignments) * 100
     logger.info(
-        f"{num_equal_assignments} matching out of {num_assignments} assignments ({matching_percentage:.2f}%)"
+        f"{scientific_name}: {num_equal_assignments} matching out of {num_assignments} assignments ({matching_percentage:.2f}%)"
     )
 
 
@@ -259,13 +259,13 @@ def main():
         logger.add(log_file_path, format=LOGURU_FORMAT)
         compare_with_database(args.assignments_csv, args.ensembldb_database)
     elif args.checkpoint and args.species_data:
+        checkpoint_path = pathlib.Path(args.checkpoint)
         species_data_path = pathlib.Path(args.species_data)
         log_file_path = pathlib.Path(
-            f"{species_data_path.parent}/{species_data_path.stem}_evaluate.log"
+            f"{species_data_path.parent}/{checkpoint_path.stem}_evaluate.log"
         )
         logger.add(log_file_path, format=LOGURU_FORMAT)
 
-        checkpoint_path = pathlib.Path(args.checkpoint)
         evaluate_network(checkpoint_path, species_data_path)
     else:
         print("Error: missing argument.")
