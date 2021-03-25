@@ -232,33 +232,25 @@ def evaluate_network(checkpoint_path, species_data_path):
     """
     with open(species_data_path) as f:
         species_data_list = yaml.safe_load(f)
-    # pprint.pprint(species_data_list, sort_dicts=False)
-    # sys.exit()
 
     checkpoint = load_checkpoint(checkpoint_path)
     network = checkpoint["network"]
     training_session = checkpoint["training_session"]
-    # print(network)
-    # sys.exit()
 
     for species_data_dict in species_data_list:
         species_data = PrettySimpleNamespace(**species_data_dict)
-        # print(species_data)
-        # print(species_data.scientific_name)
-        # print(species_data.protein_sequences)
+
         # download archived protein sequences FASTA file
         archived_fasta_filename = species_data.protein_sequences.split("/")[-1]
-        # print(archived_fasta_filename)
         archived_fasta_path = sequences_directory / archived_fasta_filename
-        # print(archived_fasta_path)
         if not archived_fasta_path.exists():
             response = requests.get(species_data.protein_sequences)
             with open(archived_fasta_path, "wb+") as f:
                 f.write(response.content)
             logger.info(f"downloaded {archived_fasta_filename}")
+
         # extract archived protein sequences FASTA file
         fasta_path = archived_fasta_path.with_suffix("")
-        # print(fasta_path)
         if not fasta_path.exists():
             with gzip.open(archived_fasta_path, "rb") as f:
                 file_content = f.read()
@@ -355,7 +347,6 @@ def main():
     elif args.checkpoint and args.species_data:
         evaluate_network(args.checkpoint, args.species_data)
     else:
-        print("Error: one of --sequences_fasta, --ensembldb_species_database, or --checkpoint arguments is required:\n")
         argument_parser.print_help()
         sys.exit()
 
