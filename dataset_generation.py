@@ -37,9 +37,6 @@ from Bio import SeqIO
 # project imports
 
 
-# DEBUG = True
-DEBUG = False
-
 data_directory = pathlib.Path("data")
 
 
@@ -58,7 +55,7 @@ def fasta_to_dataframe(fasta_path):
     return records_dataframe
 
 
-def merge_metadata_sequences():
+def merge_metadata_sequences(debug=False):
     """
     Merge the metadata CSV file and the sequences FASTA file in a single CSV file.
     """
@@ -74,7 +71,7 @@ def merge_metadata_sequences():
 
     # read the metadata csv file to a pandas dataframe
     metadata = pd.read_csv(metadata_csv_path, sep="\t")
-    if DEBUG:
+    if debug:
         print(metadata.head())
         print()
         metadata.info()
@@ -85,7 +82,7 @@ def merge_metadata_sequences():
 
     # generate a pandas dataframe from the sequences FASTA file
     sequences = fasta_to_dataframe(sequences_fasta_path)
-    if DEBUG:
+    if debug:
         print(sequences.head())
         print()
         sequences.info()
@@ -98,7 +95,7 @@ def merge_metadata_sequences():
     merged_data = pd.merge(
         left=metadata, right=sequences, left_on="stable_id", right_on="description"
     )
-    if DEBUG:
+    if debug:
         print(merged_data.head())
         print()
         merged_data.info()
@@ -111,7 +108,7 @@ def merge_metadata_sequences():
 
     # remove duplicate description column
     merged_data.drop(columns=["description"], inplace=True)
-    if DEBUG:
+    if debug:
         merged_data.info()
         print()
 
