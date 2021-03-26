@@ -271,7 +271,6 @@ def main():
         print("Error: missing argument.")
         print(__doc__)
         argument_parser.print_help()
-        sys.exit()
 
 
 if __name__ == "__main__":
