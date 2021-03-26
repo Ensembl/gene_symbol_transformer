@@ -200,7 +200,9 @@ def save_dataset(data, num_symbols, max_frequency):
 
     # verify that max_frequency is the cutoff limit for the selected symbols
     if max_frequency is not None:
-        assert all(symbol_counts[:num_symbols] == symbol_counts[symbol_counts >= max_frequency])
+        assert all(
+            symbol_counts[:num_symbols] == symbol_counts[symbol_counts >= max_frequency]
+        )
         assert symbol_counts[num_symbols] < max_frequency
 
     most_frequent_n = data[data["symbol"].isin(symbol_counts[:num_symbols].index)]
@@ -208,7 +210,9 @@ def save_dataset(data, num_symbols, max_frequency):
     # save dataframe to a pickle file
     pickle_path = data_directory / f"{num_symbols}_symbols.pickle"
     most_frequent_n.to_pickle(pickle_path)
-    print(f"pickle file of the most {num_symbols} frequent symbol sequences saved at {pickle_path}")
+    print(
+        f"pickle file of the most {num_symbols} frequent symbol sequences saved at {pickle_path}"
+    )
 
     # save sequences to a FASTA file
     fasta_path = data_directory / f"{num_symbols}_symbols.fasta"
@@ -222,7 +226,9 @@ def save_dataset(data, num_symbols, max_frequency):
 
             fasta_file.write(f">{stable_id};{symbol}\n{sequence}\n")
 
-    print(f"FASTA file of the most {num_symbols} frequent symbol sequences saved at {fasta_path}")
+    print(
+        f"FASTA file of the most {num_symbols} frequent symbol sequences saved at {fasta_path}"
+    )
 
 
 def load_data():

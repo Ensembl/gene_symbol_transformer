@@ -140,11 +140,7 @@ class FullyConnectedNetwork(nn.Module):
 
 
 def train_network(
-    network,
-    training_session,
-    training_loader,
-    validation_loader,
-    verbose=False,
+    network, training_session, training_loader, validation_loader, verbose=False,
 ):
     tensorboard_log_dir = (
         f"runs/{training_session.num_symbols}/{training_session.datetime}"
@@ -404,8 +400,7 @@ def main():
         help="path to the experiment settings configuration file",
     )
     argument_parser.add_argument(
-        "--checkpoint",
-        help="training session checkpoint path",
+        "--checkpoint", help="training session checkpoint path",
     )
     argument_parser.add_argument("--train", action="store_true", help="train a network")
     argument_parser.add_argument("--test", action="store_true", help="test a network")
@@ -459,7 +454,9 @@ def main():
 
         logger.info("assigning symbols...")
 
-        assignments_csv_path = pathlib.Path(f"{fasta_path.parent}/{fasta_path.stem}_symbols.csv")
+        assignments_csv_path = pathlib.Path(
+            f"{fasta_path.parent}/{fasta_path.stem}_symbols.csv"
+        )
         # read the FASTA file in chunks and assign symbols
         with open(assignments_csv_path, "w+") as csv_file:
             # generate a csv writer, create the CSV file with a header
@@ -471,7 +468,8 @@ def main():
                 if fasta_entries[-1] is None:
                     fasta_entries = [
                         fasta_entry
-                        for fasta_entry in fasta_entries if fasta_entry is not None
+                        for fasta_entry in fasta_entries
+                        if fasta_entry is not None
                     ]
 
                 stable_ids = [
@@ -645,11 +643,7 @@ def main():
         verbose = True
 
         train_network(
-            network,
-            training_session,
-            training_loader,
-            validation_loader,
-            verbose,
+            network, training_session, training_loader, validation_loader, verbose,
         )
 
     # test trained network
