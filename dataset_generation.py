@@ -289,6 +289,59 @@ def save_sample_fasta(num_samples, num_symbols):
             fasta_file.write(f">{stable_id} {symbol}\n{sequence}\n")
 
 
+def sizeof_fmt(num, suffix="B"):
+    for unit in ["", "Ki", "Mi", "Gi", "Ti", "Pi", "Ei", "Zi"]:
+        if abs(num) < 1024:
+            return f"{num:3.1f}{unit}{suffix}"
+        num /= 1024
+    return f"{num:.1f}Yi{suffix}"
+
+
+def generate_dataset_statistics():
+    data = load_data()
+    print()
+
+    # data_memory_usage = sys.getsizeof(data)
+    # print("data memory usage: {}".format(sizeof_fmt(data_memory_usage)))
+    # 3.8GiB
+
+    num_sequences = len(data)
+    print(f"{num_sequences} sequences")
+    print()
+    # 3805809 sequences
+
+    # symbols occurrence frequency
+    symbol_counts = data["symbol"].value_counts()
+    print(symbol_counts)
+    print()
+    # nxpe3            378
+    # pla1a            339
+    # tbc1d9           335
+    # NXPH1            329
+    # CPNE3            323
+    #                 ...
+    # TRXH_1             1
+    # BnaA10g05860D      1
+    # BnaA03g11140D      1
+    # BnaA09g47630D      1
+    # BnaC04g10230D      1
+    # Name: symbol, Length: 229133, dtype: int64
+
+    symbol_counts_mean = symbol_counts.mean()
+    symbol_counts_median = symbol_counts.median()
+    symbol_counts_standard_deviation = symbol_counts.std()
+    print(f"symbol counts mean: {symbol_counts_mean:.2f}, median: {symbol_counts_median:.2f}, standard deviation: {symbol_counts_standard_deviation:.2f}")
+    print()
+    # symbol counts mean: 16.61, median: 1.00, standard deviation: 50.23
+
+    sequence_length_mean = data["sequence"].str.len().mean()
+    sequence_length_median = data["sequence"].str.len().median()
+    sequence_length_standard_deviation = data["sequence"].str.len().std()
+    print(f"sequence length mean: {sequence_length_mean:.2f}, median: {sequence_length_median:.2f}, standard deviation: {sequence_length_standard_deviation:.2f}")
+    print()
+    # sequence length mean: 576.49, median: 442.00, standard deviation: 511.25
+
+
 def main():
     """
     main function
@@ -298,6 +351,7 @@ def main():
     argument_parser.add_argument("--data_wrangling", action="store_true")
     argument_parser.add_argument("--save_all_datasets", action="store_true")
     argument_parser.add_argument("--save_all_sample_fasta_files", action="store_true")
+    argument_parser.add_argument("--generate_dataset_statistics", action="store_true")
 
     args = argument_parser.parse_args()
 
@@ -309,8 +363,12 @@ def main():
         save_all_datasets()
     elif args.save_all_sample_fasta_files:
         save_all_sample_fasta_files()
+    elif args.generate_dataset_statistics:
+        generate_dataset_statistics()
     else:
-        print("nothing to do")
+        print("Error: missing argument.")
+        print(__doc__)
+        argument_parser.print_help()
 
 
 if __name__ == "__main__":
