@@ -51,6 +51,7 @@ from loguru import logger
 from fully_connected_pipeline import FullyConnectedNetwork
 from pipeline_abstractions import (
     PrettySimpleNamespace,
+    data_directory,
     load_checkpoint,
     read_fasta_in_chunks,
 )
@@ -58,7 +59,7 @@ from pipeline_abstractions import (
 
 LOGURU_FORMAT = "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{message}</level>"
 
-sequences_directory = pathlib.Path("protein_sequences")
+sequences_directory = data_directory / "protein_sequences"
 sequences_directory.mkdir(exist_ok=True)
 
 
