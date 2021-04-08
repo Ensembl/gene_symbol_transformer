@@ -226,9 +226,12 @@ def compare_with_database(assignments_csv, ensembldb_database, scientific_name=N
     )
 
     matching_percentage = (num_equal_assignments / num_assignments) * 100
-    logger.info(
-        f"{scientific_name}: {num_equal_assignments} matching out of {num_assignments} assignments ({matching_percentage:.2f}%)"
-    )
+    if scientific_name is not None:
+        message = f"{scientific_name}: "
+    else:
+        message = ""
+    message += f"{num_equal_assignments} matching out of {num_assignments} assignments ({matching_percentage:.2f}%)"
+    logger.info(message)
 
 
 def main():
