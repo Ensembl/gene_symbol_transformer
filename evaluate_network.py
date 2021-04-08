@@ -117,6 +117,7 @@ def evaluate_network(checkpoint_path, species_data_path):
             f"{checkpoint_path.parent}/{checkpoint_path.stem}/{fasta_path.stem}_symbols.csv"
         )
         if not assignments_csv_path.exists():
+            logger.info(f"assigning gene symbols to {fasta_path}")
             assign_symbols(network, checkpoint_path, fasta_path)
 
         compare_with_database(
@@ -275,4 +276,8 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except KeyboardInterrupt:
+        logger.info("Interrupted with CTRL-C, exiting...")
+        sys.exit()
