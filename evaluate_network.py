@@ -114,7 +114,7 @@ def evaluate_network(checkpoint_path, species_data_path):
 
         # assign symbols
         assignments_csv_path = pathlib.Path(
-            f"{fasta_path.parent}/{fasta_path.stem}_{checkpoint_path.stem}_symbols.csv"
+            f"{checkpoint_path.parent}/{checkpoint_path.stem}/{fasta_path.stem}_symbols.csv"
         )
         if not assignments_csv_path.exists():
             assign_symbols(network, checkpoint_path, fasta_path)
@@ -132,7 +132,7 @@ def assign_symbols(network, checkpoint_path, sequences_fasta):
     """
     fasta_path = pathlib.Path(sequences_fasta)
     assignments_csv_path = pathlib.Path(
-        f"{fasta_path.parent}/{fasta_path.stem}_{checkpoint_path.stem}_symbols.csv"
+        f"{checkpoint_path.parent}/{checkpoint_path.stem}/{fasta_path.stem}_symbols.csv"
     )
 
     # read the FASTA file in chunks and assign symbols
