@@ -101,27 +101,18 @@ After training, the network is ready to assign gene symbols to protein sequences
 assign symbols to sequences in a FASTA file and save them to a CSV file
 ```
 python fully_connected_pipeline.py --checkpoint <checkpoint path> --sequences_fasta <FASTA file path>
-
-# e.g.
-python fully_connected_pipeline.py --checkpoint "experiments/n=25028_2021-03-11_17:12:48.pth" --sequences_fasta protein_sequences/Homo_sapiens.GRCh38.pep.all.fa
 ```
 
 ### evaluate a trained network
 
-A trained network can be evaluated by assigning gene symbols to a selection from the assembly annotations on the main Ensembl website and compared with the existing gene symbols. A list of annotations is included in a YAML file.
+A trained network can be evaluated by assigning gene symbols to a selection from the assembly annotations on the main Ensembl website and compared with the existing gene symbols. A list of annotations is included in the `species_data.yaml` file.
 
 evaluate a trained network
 ```
 python evaluate_network.py --checkpoint <checkpoint path> --species_data <species data YAML file path>
-
-# e.g.
-python evaluate_network.py --checkpoint "experiments/n=25028_2021-03-11_17:12:48.pth" --species_data species_data.yaml
 ```
 
 The gene symbol assignments of a classifier can also be directly compared with the existing gene symbols in an Ensembl release.
 ```
 python evaluate_network.py --assignments_csv <assignments CSV path> --ensembldb_species_database <species database name>
-
-# e.g.
-python evaluate_network.py --assignments_csv protein_sequences/Homo_sapiens.GRCh38.pep.all_symbols.csv --ensembldb_species_database homo_sapiens_core_103_38
 ```
