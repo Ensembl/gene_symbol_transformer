@@ -73,7 +73,7 @@ train directly on a compute node
 python fully_connected_pipeline.py -ex <experiment settings YAML file path> --train --test
 
 # e.g.
-python fully_connected_pipeline.py -ex experiment_settings.yaml --train --test
+python fully_connected_pipeline.py -ex experiment.yaml --train --test
 ```
 
 submit a training job with bsub
@@ -81,7 +81,7 @@ submit a training job with bsub
 bash submit_training.sh <experiment settings yaml file path>
 
 # e.g.
-bash submit_training.sh experiment_settings.yaml
+bash submit_training.sh experiment.yaml
 ```
 
 
