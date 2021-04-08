@@ -114,7 +114,7 @@ def evaluate_network(checkpoint_path, species_data_path):
 
         # assign symbols
         assignments_csv_path = pathlib.Path(
-            f"{checkpoint_path.parent}/{checkpoint_path.stem}/{fasta_path.stem}_symbols.csv"
+            f"{checkpoint_path.parent}/{fasta_path.stem}_symbols.csv"
         )
         if not assignments_csv_path.exists():
             logger.info(f"assigning gene symbols to {fasta_path}")
@@ -133,7 +133,7 @@ def assign_symbols(network, checkpoint_path, sequences_fasta):
     """
     fasta_path = pathlib.Path(sequences_fasta)
     assignments_csv_path = pathlib.Path(
-        f"{checkpoint_path.parent}/{checkpoint_path.stem}/{fasta_path.stem}_symbols.csv"
+        f"{checkpoint_path.parent}/{fasta_path.stem}_symbols.csv"
     )
 
     # read the FASTA file in chunks and assign symbols
@@ -207,7 +207,7 @@ def compare_with_database(assignments_csv, ensembldb_database, scientific_name=N
     comparisons_df = pd.DataFrame(comparisons, columns=dataframe_columns)
 
     comparisons_csv_path = pathlib.Path(
-        f"{assignments_csv_path.parent}/{assignments_csv_path.stem}_compare_database.csv"
+        f"{assignments_csv_path.parent}/{assignments_csv_path.stem}_compare.csv"
     )
     comparisons_df.to_csv(comparisons_csv_path, sep="\t", index=False)
     logger.info(f"comparisons CSV saved at {comparisons_csv_path}")
@@ -267,7 +267,7 @@ def main():
         checkpoint_path = pathlib.Path(args.checkpoint)
         species_data_path = pathlib.Path(args.species_data)
         log_file_path = pathlib.Path(
-            f"{species_data_path.parent}/{checkpoint_path.stem}_evaluate.log"
+            f"{checkpoint_path.parent}/{checkpoint_path.stem}_evaluate.log"
         )
         logger.add(log_file_path, format=LOGURU_FORMAT)
 
