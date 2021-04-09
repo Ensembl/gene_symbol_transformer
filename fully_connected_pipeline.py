@@ -140,7 +140,11 @@ class FullyConnectedNetwork(nn.Module):
 
 
 def train_network(
-    network, training_session, training_loader, validation_loader, verbose=False,
+    network,
+    training_session,
+    training_loader,
+    validation_loader,
+    verbose=False,
 ):
     tensorboard_log_dir = (
         f"runs/{training_session.num_symbols}/{training_session.datetime}"
@@ -400,7 +404,8 @@ def main():
         help="path to the experiment settings configuration file",
     )
     argument_parser.add_argument(
-        "--checkpoint", help="training session checkpoint path",
+        "--checkpoint",
+        help="training session checkpoint path",
     )
     argument_parser.add_argument("--train", action="store_true", help="train a network")
     argument_parser.add_argument("--test", action="store_true", help="test a network")
@@ -643,7 +648,11 @@ def main():
         verbose = True
 
         train_network(
-            network, training_session, training_loader, validation_loader, verbose,
+            network,
+            training_session,
+            training_loader,
+            validation_loader,
+            verbose,
         )
 
     # test trained network

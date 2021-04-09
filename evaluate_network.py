@@ -45,6 +45,7 @@ import pymysql
 import requests
 import yaml
 
+from icecream import ic
 from loguru import logger
 
 # project imports
@@ -64,6 +65,7 @@ sequences_directory.mkdir(exist_ok=True)
 
 
 get_xref_symbols_for_canonical_gene_transcripts = """
+-- Xref symbols for canonical translations
 SELECT
   translation.stable_id AS translation_stable_id,
   xref.display_label AS Xref_symbol
@@ -75,6 +77,102 @@ INNER JOIN translation
 INNER JOIN xref
   ON gene.display_xref_id = xref.xref_id
 WHERE gene.biotype = 'protein_coding';
+"""
+
+get_entrezgene_symbols = """
+-- EntrezGene symbols for translations with no Xref symbols using a subquery
+SELECT
+  translation.stable_id AS translation_stable_id,
+  xref.display_label AS EntrezGene_symbol
+FROM gene
+INNER JOIN object_xref
+  ON gene.gene_id = object_xref.ensembl_id
+INNER JOIN xref
+  ON object_xref.xref_id = xref.xref_id
+INNER JOIN external_db
+  ON xref.external_db_id = external_db.external_db_id
+INNER JOIN transcript
+  ON gene.canonical_transcript_id = transcript.transcript_id
+INNER JOIN translation
+  ON transcript.canonical_translation_id = translation.translation_id
+WHERE gene.gene_id IN (
+  -- ensembl_id of canonical translations without Xref symbols
+  SELECT
+    gene.gene_id
+  FROM gene
+  INNER JOIN transcript
+    ON gene.canonical_transcript_id = transcript.transcript_id
+  INNER JOIN translation
+    ON transcript.canonical_translation_id = translation.translation_id
+  WHERE gene.biotype = 'protein_coding'
+  AND gene.display_xref_id IS NULL
+)
+AND gene.biotype = 'protein_coding'
+AND object_xref.ensembl_object_type = 'Gene'
+AND external_db.db_name = 'EntrezGene';
+"""
+
+get_uniprot_gn_symbols = """
+-- Uniprot_gn symbols for translations with no Xref and no EntrezGene symbols
+SELECT
+  translation.stable_id AS translation_stable_id,
+  xref.display_label AS Uniprot_gn_symbol
+FROM gene
+INNER JOIN object_xref
+  ON gene.gene_id = object_xref.ensembl_id
+INNER JOIN xref
+  ON object_xref.xref_id = xref.xref_id
+INNER JOIN external_db
+  ON xref.external_db_id = external_db.external_db_id
+INNER JOIN transcript
+  ON gene.canonical_transcript_id = transcript.transcript_id
+INNER JOIN translation
+  ON transcript.canonical_translation_id = translation.translation_id
+WHERE gene.gene_id IN (
+  SELECT
+    gene.gene_id
+  FROM gene
+  INNER JOIN transcript
+    ON gene.canonical_transcript_id = transcript.transcript_id
+  INNER JOIN translation
+    ON transcript.canonical_translation_id = translation.translation_id
+  WHERE gene.biotype = 'protein_coding'
+  AND gene.display_xref_id IS NULL
+  AND gene.gene_id NOT IN (
+    -- ensembl_id of canonical translations without Xref or EntrezGene symbols
+    SELECT
+      gene.gene_id
+    FROM gene
+    INNER JOIN object_xref
+      ON gene.gene_id = object_xref.ensembl_id
+    INNER JOIN xref
+      ON object_xref.xref_id = xref.xref_id
+    INNER JOIN external_db
+      ON xref.external_db_id = external_db.external_db_id
+    INNER JOIN transcript
+      ON gene.canonical_transcript_id = transcript.transcript_id
+    INNER JOIN translation
+      ON transcript.canonical_translation_id = translation.translation_id
+    WHERE gene.gene_id IN (
+      -- ensembl_id of canonical translations without Xref symbols
+      SELECT
+        gene.gene_id
+      FROM gene
+      INNER JOIN transcript
+        ON gene.canonical_transcript_id = transcript.transcript_id
+      INNER JOIN translation
+        ON transcript.canonical_translation_id = translation.translation_id
+      WHERE gene.biotype = 'protein_coding'
+      AND gene.display_xref_id IS NULL
+    )
+    AND gene.biotype = 'protein_coding'
+    AND object_xref.ensembl_object_type = 'Gene'
+    AND external_db.db_name = 'EntrezGene'
+  )
+)
+AND gene.biotype = 'protein_coding'
+AND object_xref.ensembl_object_type = 'Gene'
+AND external_db.db_name = 'Uniprot_gn';
 """
 
 
@@ -161,7 +259,9 @@ def assign_symbols(network, checkpoint_path, sequences_fasta):
     logger.info(f"symbol assignments saved at {assignments_csv_path}")
 
 
-def compare_with_database(assignments_csv, ensembldb_database, scientific_name=None):
+def compare_with_database(
+    assignments_csv, ensembldb_database, scientific_name=None, beyond_xref=False
+):
     """
     Compare classifier assignments with the gene symbols in the species database on
     the public Ensembl MySQL server.
@@ -177,12 +277,29 @@ def compare_with_database(assignments_csv, ensembldb_database, scientific_name=N
         # cursorclass=pymysql.cursors.DictCursor,
     )
 
-    with connection:
-        with connection.cursor() as cursor:
-            cursor.execute(get_xref_symbols_for_canonical_gene_transcripts)
-            db_response = cursor.fetchall()
+    sql_queries = [
+        get_xref_symbols_for_canonical_gene_transcripts,
+    ]
 
-    db_response_dict = dict(db_response)
+    if beyond_xref:
+        sql_queries.extend(
+            [
+                get_entrezgene_symbols,
+                get_uniprot_gn_symbols,
+            ]
+        )
+
+    db_responses_dict = {}
+
+    with connection:
+        for sql_query in sql_queries:
+            with connection.cursor() as cursor:
+                cursor.execute(sql_query)
+                db_response = cursor.fetchall()
+
+            db_response_dict = dict(db_response)
+            assert set(db_responses_dict.keys()).isdisjoint(db_response_dict.keys())
+            db_responses_dict.update(db_response_dict)
 
     comparisons = []
     with open(assignments_csv_path, "r") as assignments_file:
@@ -195,8 +312,8 @@ def compare_with_database(assignments_csv, ensembldb_database, scientific_name=N
 
             translation_stable_id = csv_stable_id[:-2]
 
-            if translation_stable_id in db_response_dict:
-                xref_symbol = db_response_dict[translation_stable_id]
+            if translation_stable_id in db_responses_dict:
+                xref_symbol = db_responses_dict[translation_stable_id]
                 comparisons.append((csv_stable_id, classifier_symbol, xref_symbol))
 
     dataframe_columns = [
@@ -240,7 +357,8 @@ def main():
     """
     argument_parser = argparse.ArgumentParser()
     argument_parser.add_argument(
-        "--assignments_csv", help="assignments CSV file path",
+        "--assignments_csv",
+        help="assignments CSV file path",
     )
     argument_parser.add_argument(
         "--ensembldb_database",

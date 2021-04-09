@@ -330,14 +330,18 @@ def generate_dataset_statistics():
     symbol_counts_mean = symbol_counts.mean()
     symbol_counts_median = symbol_counts.median()
     symbol_counts_standard_deviation = symbol_counts.std()
-    print(f"symbol counts mean: {symbol_counts_mean:.2f}, median: {symbol_counts_median:.2f}, standard deviation: {symbol_counts_standard_deviation:.2f}")
+    print(
+        f"symbol counts mean: {symbol_counts_mean:.2f}, median: {symbol_counts_median:.2f}, standard deviation: {symbol_counts_standard_deviation:.2f}"
+    )
     print()
     # symbol counts mean: 16.61, median: 1.00, standard deviation: 50.23
 
     sequence_length_mean = data["sequence"].str.len().mean()
     sequence_length_median = data["sequence"].str.len().median()
     sequence_length_standard_deviation = data["sequence"].str.len().std()
-    print(f"sequence length mean: {sequence_length_mean:.2f}, median: {sequence_length_median:.2f}, standard deviation: {sequence_length_standard_deviation:.2f}")
+    print(
+        f"sequence length mean: {sequence_length_mean:.2f}, median: {sequence_length_median:.2f}, standard deviation: {sequence_length_standard_deviation:.2f}"
+    )
     print()
     # sequence length mean: 576.49, median: 442.00, standard deviation: 511.25
 
