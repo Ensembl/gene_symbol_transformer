@@ -323,14 +323,6 @@ def load_checkpoint(checkpoint_path):
     return checkpoint
 
 
-def save_training_checkpoint(network, training_session, checkpoint_path):
-    checkpoint = {
-        "network": network,
-        "training_session": training_session,
-    }
-    torch.save(checkpoint, checkpoint_path)
-
-
 class EarlyStopping:
     """
     Stop training if validation loss doesn't improve during a specified patience period.
@@ -354,7 +346,11 @@ class EarlyStopping:
         if self.min_validation_loss == np.Inf:
             self.min_validation_loss = validation_loss
             logger.info("saving initial network checkpoint...")
-            save_training_checkpoint(network, training_session, self.checkpoint_path)
+            checkpoint = {
+                "network": network,
+                "training_session": training_session,
+            }
+            torch.save(checkpoint, self.checkpoint_path)
             return False
 
         elif validation_loss <= self.min_validation_loss - self.loss_delta:
@@ -365,7 +361,11 @@ class EarlyStopping:
             logger.info(
                 f"validation loss decreased by {validation_loss_decrease:.4f}, saving network checkpoint..."
             )
-            save_training_checkpoint(network, training_session, self.checkpoint_path)
+            checkpoint = {
+                "network": network,
+                "training_session": training_session,
+            }
+            torch.save(checkpoint, self.checkpoint_path)
             self.min_validation_loss = validation_loss
             self.no_progress = 0
             return False
