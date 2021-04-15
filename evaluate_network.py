@@ -25,10 +25,11 @@ Pass the --assignments_csv and --ensembldb_database arguments to compare
 the assignments in the `assignments_csv` CSV file with the ones in the `ensembldb_database`
 Ensembl database,
 or
-pass the --checkpoint and --species_data arguments to evaluate a trained network
-from scratch, by downloading FASTA files with protein sequences for a list of annotated
-genome assemblies, assigning gene symbols to the sequences, and comparing the assigned
-symbols to the current public Xref symbol assignments.
+pass the --checkpoint argument to evaluate a trained network by assigning symbols
+to the canonical translations of protein sequences of annotations in the latest
+Ensembl release and comparing them to the existing symbol assignments.
+
+A trained network can be evaluated by assigning gene symbols to the assembly annotations on the main Ensembl website and comparing them with the existing gene symbols.
 """
 
 
@@ -40,10 +41,10 @@ import pathlib
 import sys
 
 # third party imports
+import ensembl_rest
 import pandas as pd
 import pymysql
 import requests
-import yaml
 
 from icecream import ic
 from loguru import logger
@@ -176,27 +177,61 @@ AND external_db.db_name = 'Uniprot_gn';
 """
 
 
-def evaluate_network(checkpoint_path, species_data_path):
+def get_species_list_data():
+    """
+    Get all species data from the latest Ensembl release.
+    """
+    # get the version number of the latest Ensembl release
+    ensembl_release = ensembl_rest.software()["release"]
+
+    # download the `species_EnsemblVertebrates.txt` file from
+    # http://ftp.ensembl.org/pub/release-103/
+    species_data_url = f"http://ftp.ensembl.org/pub/release-{ensembl_release}/species_EnsemblVertebrates.txt"
+    species_data_path = data_directory / "species_EnsemblVertebrates.txt"
+    if not species_data_path.exists():
+        response = requests.get(species_data_url)
+        with open(species_data_path, "wb+") as f:
+            f.write(response.content)
+        logger.info(f"downloaded {species_data_path}")
+
+    species_df = pd.read_csv(species_data_path, delimiter="\t", index_col=False)
+    species_df = species_df.rename(columns={"#name": "name"})
+    species_data = [
+        PrettySimpleNamespace(**species_row._asdict())
+        for species_row in species_df.itertuples()
+    ]
+
+    return species_data
+
+
+def evaluate_network(checkpoint_path):
     """
     Evaluate a trained network by downloading FASTA files with protein sequences
-    for a list of annotated genome assemblies, assigning gene symbols to the sequences,
-    and comparing the assigned symbols to the current public Xref symbol assignments.
+    for the annotated genome assemblies in the latest Ensembl release, assigning
+    gene symbols to the sequences, and comparing the assigned symbols to the current
+    public Xref symbol assignments.
     """
-    with open(species_data_path) as f:
-        species_data_list = yaml.safe_load(f)
-
     checkpoint = load_checkpoint(checkpoint_path)
     network = checkpoint["network"]
     training_session = checkpoint["training_session"]
 
-    for species_data_dict in species_data_list:
-        species_data = PrettySimpleNamespace(**species_data_dict)
+    ensembl_release = ensembl_rest.software()["release"]
 
+    base_url = f"http://ftp.ensembl.org/pub/release-{ensembl_release}/fasta/"
+
+    species_list_data = get_species_list_data()
+    for species_data in species_list_data:
         # download archived protein sequences FASTA file
-        archived_fasta_filename = species_data.protein_sequences.split("/")[-1]
+        archived_fasta_filename = "{}.{}.pep.all.fa.gz".format(
+            species_data.species.capitalize(),
+            species_data.assembly,
+        )
+
+        archived_fasta_url = f"{base_url}{species_data.species}/pep/{archived_fasta_filename}"
+
         archived_fasta_path = sequences_directory / archived_fasta_filename
         if not archived_fasta_path.exists():
-            response = requests.get(species_data.protein_sequences)
+            response = requests.get(archived_fasta_url)
             with open(archived_fasta_path, "wb+") as f:
                 f.write(response.content)
             logger.info(f"downloaded {archived_fasta_filename}")
@@ -220,8 +255,8 @@ def evaluate_network(checkpoint_path, species_data_path):
 
         compare_with_database(
             assignments_csv_path,
-            species_data.ensembldb_database,
-            species_data.scientific_name,
+            species_data.core_db,
+            species_data.species,
         )
 
 
@@ -365,7 +400,6 @@ def main():
         help="species database name on the public Ensembl MySQL server",
     )
     argument_parser.add_argument("--checkpoint", help="training session checkpoint path")
-    argument_parser.add_argument("--species_data", help="species data YAML file path")
 
     args = argument_parser.parse_args()
 
@@ -381,15 +415,14 @@ def main():
 
         logger.add(log_file_path, format=LOGURU_FORMAT)
         compare_with_database(args.assignments_csv, args.ensembldb_database)
-    elif args.checkpoint and args.species_data:
+    elif args.checkpoint:
         checkpoint_path = pathlib.Path(args.checkpoint)
-        species_data_path = pathlib.Path(args.species_data)
         log_file_path = pathlib.Path(
             f"{checkpoint_path.parent}/{checkpoint_path.stem}_evaluate.log"
         )
         logger.add(log_file_path, format=LOGURU_FORMAT)
 
-        evaluate_network(checkpoint_path, species_data_path)
+        evaluate_network(checkpoint_path)
     else:
         print("Error: missing argument.")
         print(__doc__)

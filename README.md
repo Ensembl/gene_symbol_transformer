@@ -105,11 +105,11 @@ python fully_connected_pipeline.py --checkpoint <checkpoint path> --sequences_fa
 
 ### evaluate a trained network
 
-A trained network can be evaluated by assigning gene symbols to a selection from the assembly annotations on the main Ensembl website and compared with the existing gene symbols. A list of annotations is included in the `species_data.yaml` file.
+A trained network can be evaluated by assigning gene symbols to the canonical translations of protein sequences of annotations in the latest Ensembl release and comparing them to the existing symbol assignments.
 
 evaluate a trained network
 ```
-python evaluate_network.py --checkpoint <checkpoint path> --species_data <species data YAML file path>
+python evaluate_network.py --checkpoint <checkpoint path>
 ```
 
 The gene symbol assignments of a classifier can also be directly compared with the existing gene symbols in an Ensembl release.
