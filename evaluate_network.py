@@ -177,9 +177,9 @@ AND external_db.db_name = 'Uniprot_gn';
 """
 
 
-def get_species_list_data():
+def get_genomes_metadata():
     """
-    Get all species data from the latest Ensembl release.
+    Get metadata for all genomes in the latest Ensembl release.
     """
     # get the version number of the latest Ensembl release
     ensembl_release = ensembl_rest.software()["release"]
@@ -193,14 +193,14 @@ def get_species_list_data():
             f.write(response.content)
         logger.info(f"downloaded {species_data_path}")
 
-    species_df = pd.read_csv(species_data_path, delimiter="\t", index_col=False)
-    species_df = species_df.rename(columns={"#name": "name"})
-    species_data = [
-        PrettySimpleNamespace(**species_row._asdict())
-        for species_row in species_df.itertuples()
+    genomes_df = pd.read_csv(species_data_path, delimiter="\t", index_col=False)
+    genomes_df = genomes_df.rename(columns={"#name": "name"})
+    genomes = [
+        PrettySimpleNamespace(**genome_row._asdict())
+        for genome_row in genomes_df.itertuples()
     ]
 
-    return species_data
+    return genomes
 
 
 def evaluate_network(checkpoint_path):
@@ -218,15 +218,14 @@ def evaluate_network(checkpoint_path):
 
     base_url = f"http://ftp.ensembl.org/pub/release-{ensembl_release}/fasta/"
 
-    species_list_data = get_species_list_data()
-    for species_data in species_list_data:
+    genomes = get_genomes_metadata()
+    for genome in genomes:
         # download archived protein sequences FASTA file
         archived_fasta_filename = "{}.{}.pep.all.fa.gz".format(
-            species_data.species.capitalize(),
-            species_data.assembly,
+            genome.species.capitalize(),
         )
 
-        archived_fasta_url = f"{base_url}{species_data.species}/pep/{archived_fasta_filename}"
+        archived_fasta_url = f"{base_url}{genome.species}/pep/{archived_fasta_filename}"
 
         archived_fasta_path = sequences_directory / archived_fasta_filename
         if not archived_fasta_path.exists():
@@ -254,8 +253,8 @@ def evaluate_network(checkpoint_path):
 
         compare_with_database(
             assignments_csv_path,
-            species_data.core_db,
-            species_data.species,
+            genome.core_db,
+            genome.species,
         )
 
 
@@ -297,7 +296,7 @@ def compare_with_database(
     assignments_csv, ensembldb_database, scientific_name=None, beyond_xref=False
 ):
     """
-    Compare classifier assignments with the gene symbols in the species database on
+    Compare classifier assignments with the gene symbols in the genome database on
     the public Ensembl MySQL server.
     """
     assignments_csv_path = pathlib.Path(assignments_csv)
@@ -396,7 +395,7 @@ def main():
     )
     argument_parser.add_argument(
         "--ensembldb_database",
-        help="species database name on the public Ensembl MySQL server",
+        help="genome database name on the public Ensembl MySQL server",
     )
     argument_parser.add_argument("--checkpoint", help="training session checkpoint path")
 
