@@ -12,6 +12,7 @@ torch = {url = "https://download.pytorch.org/whl/cu101/torch-1.7.1%2Bcu101-cp38-
 loguru = "^0.5.3"
 PyYAML = "^5.4.1"
 tensorboard = "^2.4.1"
+ensembl-rest = "^0.3.3"
 
 [tool.poetry.dev-dependencies]
 jupyterlab = "^2.1.4"
