@@ -223,6 +223,7 @@ def evaluate_network(checkpoint_path):
         # download archived protein sequences FASTA file
         archived_fasta_filename = "{}.{}.pep.all.fa.gz".format(
             genome.species.capitalize(),
+            genome.assembly.replace(" ", ""),
         )
 
         archived_fasta_url = f"{base_url}{genome.species}/pep/{archived_fasta_filename}"
