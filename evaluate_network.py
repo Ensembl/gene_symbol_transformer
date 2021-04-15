@@ -184,8 +184,7 @@ def get_species_list_data():
     # get the version number of the latest Ensembl release
     ensembl_release = ensembl_rest.software()["release"]
 
-    # download the `species_EnsemblVertebrates.txt` file from
-    # http://ftp.ensembl.org/pub/release-103/
+    # download the `species_EnsemblVertebrates.txt` file of the release
     species_data_url = f"http://ftp.ensembl.org/pub/release-{ensembl_release}/species_EnsemblVertebrates.txt"
     species_data_path = data_directory / "species_EnsemblVertebrates.txt"
     if not species_data_path.exists():
