@@ -185,6 +185,7 @@ def get_genomes_metadata():
     ensembl_release = ensembl_rest.software()["release"]
 
     # download the `species_EnsemblVertebrates.txt` file of the release
+    # http://ftp.ensembl.org/pub/release-103/
     species_data_url = f"http://ftp.ensembl.org/pub/release-{ensembl_release}/species_EnsemblVertebrates.txt"
     species_data_path = data_directory / "species_EnsemblVertebrates.txt"
     if not species_data_path.exists():
@@ -201,6 +202,34 @@ def get_genomes_metadata():
     ]
 
     return genomes
+
+
+def fix_assembly(assembly):
+    """
+    Fixes for cases that the FASTA pep file naming doesn't mirror the assembly name.
+    """
+    # fix for Erinaceus europaeus
+    # http://ftp.ensembl.org/pub/release-103/fasta/erinaceus_europaeus/pep/
+    if assembly == "eriEur1":
+        return "HEDGEHOG"
+
+    # fix for Homo sapiens
+    # http://ftp.ensembl.org/pub/release-103/fasta/homo_sapiens/pep/
+    if assembly == "GRCh38.p13":
+        return "GRCh38"
+
+    # fix for Loxodonta africana
+    # http://ftp.ensembl.org/pub/release-103/fasta/loxodonta_africana/pep/
+    if assembly == "Loxafr3.0":
+        return "loxAfr3"
+
+    # fix for Poecilia formosa
+    # http://ftp.ensembl.org/pub/release-103/fasta/poecilia_formosa/pep/
+    if assembly == "Poecilia_formosa-5.1.2":
+        return "PoeFor_5.1.2"
+
+    # remove spaces in the assembly name
+    return assembly.replace(" ", "")
 
 
 def evaluate_network(checkpoint_path):
@@ -223,7 +252,7 @@ def evaluate_network(checkpoint_path):
         # download archived protein sequences FASTA file
         archived_fasta_filename = "{}.{}.pep.all.fa.gz".format(
             genome.species.capitalize(),
-            genome.assembly.replace(" ", ""),
+            fix_assembly(genome.assembly),
         )
 
         archived_fasta_url = f"{base_url}{genome.species}/pep/{archived_fasta_filename}"
