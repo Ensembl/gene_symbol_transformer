@@ -323,7 +323,11 @@ def assign_symbols(network, checkpoint_path, sequences_fasta):
 
 
 def compare_with_database(
-    assignments_csv, ensembldb_database, scientific_name=None, beyond_xref=False
+    assignments_csv,
+    ensembldb_database,
+    scientific_name=None,
+    EntrezGene=False,
+    Uniprot_gn=False,
 ):
     """
     Compare classifier assignments with the gene symbols in the genome database on
@@ -344,13 +348,11 @@ def compare_with_database(
         get_xref_symbols_for_canonical_gene_transcripts,
     ]
 
-    if beyond_xref:
-        sql_queries.extend(
-            [
-                get_entrezgene_symbols,
-                get_uniprot_gn_symbols,
-            ]
-        )
+    if EntrezGene:
+        sql_queries.append(get_entrezgene_symbols)
+
+    if Uniprot_gn:
+        sql_queries.append(get_uniprot_gn_symbols)
 
     db_responses_dict = {}
 
