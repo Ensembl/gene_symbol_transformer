@@ -228,6 +228,21 @@ def fix_assembly(assembly):
     if assembly == "Poecilia_formosa-5.1.2":
         return "PoeFor_5.1.2"
 
+    # fix for Sorex araneus
+    # http://ftp.ensembl.org/pub/release-103/fasta/sorex_araneus/pep/
+    if assembly == "sorAra1":
+        return "COMMON_SHREW1"
+
+    # fix for Tetraodon nigroviridis
+    # http://ftp.ensembl.org/pub/release-103/fasta/tetraodon_nigroviridis/pep/
+    if assembly == "TETRAODON 8.0":
+        return "TETRAODON8"
+
+    # fix for Tupaia belangeri
+    # http://ftp.ensembl.org/pub/release-103/fasta/tupaia_belangeri/pep/
+    if assembly == "tupBel1":
+        return "TREESHREW"
+
     # remove spaces in the assembly name
     return assembly.replace(" ", "")
 
@@ -281,11 +296,15 @@ def evaluate_network(checkpoint_path):
             logger.info(f"assigning gene symbols to {fasta_path}")
             assign_symbols(network, checkpoint_path, fasta_path)
 
-        compare_with_database(
-            assignments_csv_path,
-            genome.core_db,
-            genome.species,
+        comparisons_csv_path = pathlib.Path(
+            f"{assignments_csv_path.parent}/{assignments_csv_path.stem}_compare.csv"
         )
+        if not comparisons_csv_path.exists():
+            compare_with_database(
+                assignments_csv_path,
+                genome.core_db,
+                genome.species,
+            )
 
 
 def assign_symbols(network, checkpoint_path, sequences_fasta):
