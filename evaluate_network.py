@@ -51,7 +51,7 @@ from loguru import logger
 
 # project imports
 from fully_connected_pipeline import FullyConnectedNetwork
-from pipeline_abstractions import (
+from utils import (
     PrettySimpleNamespace,
     data_directory,
     load_checkpoint,
