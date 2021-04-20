@@ -242,13 +242,43 @@ def fix_assembly(assembly):
     return assembly.replace(" ", "")
 
 
-def evaluate_network(checkpoint_path):
+def evaluate_network(checkpoint_path, complete=False):
     """
-    Evaluate a trained network by downloading FASTA files with protein sequences
-    for the annotated genome assemblies in the latest Ensembl release, assigning
-    gene symbols to the sequences, and comparing the assigned symbols to the current
-    public Xref symbol assignments.
+    Evaluate a trained network by assigning gene symbols to the protein sequences
+    of genomes in the latest Ensembl release, and comparing them to the existing
+    Xref assignments.
+
+    Args:
+        checkpoint_path (Path): path to the training checkpoint
+        complete (bool): Whether or not to run the evaluation for all genomes.
+            Defaults to False, which runs the evaluation only for a selection of
+            the most important species genomes.
     """
+    selected_species_genomes = {
+        "ailuropoda_melanoleuca": "giant panda",
+        "aquila_chrysaetos_chrysaetos": "golden eagle",
+        "balaenoptera_musculus": "blue whale",
+        "bos_taurus": "cow",
+        "caenorhabditis_elegans": "caenorhabditis elegans",
+        "canis_lupus_familiaris": "dog",
+        "cyprinus_carpio": "common carp",
+        "danio_rerio": "zebrafish",
+        "drosophila_melanogaster": "drosophila melanogaster",
+        "felis_catus": "cat",
+        "gallus_gallus": "chicken",
+        "homo_sapiens": "human",
+        "loxodonta_africana": "elephant",
+        "mus_musculus": "mouse",
+        "oryctolagus_cuniculus": "rabbit",
+        "ovis_aries": "sheep",
+        "pan_troglodytes": "chimpanzee",
+        "panthera_leo": "lion",
+        "saccharomyces_cerevisiae": "saccharomyces cerevisiae",
+        "sus_scrofa": "pig",
+        "tursiops_truncatus": "dolphin",
+        "varanus_komodoensis": "komodo dragon",
+    }
+
     checkpoint = load_checkpoint(checkpoint_path)
     network = checkpoint["network"]
     training_session = checkpoint["training_session"]
@@ -259,6 +289,9 @@ def evaluate_network(checkpoint_path):
 
     genomes = get_genomes_metadata()
     for genome in genomes:
+        if not complete and genome.species not in selected_species_genomes:
+            continue
+
         # download archived protein sequences FASTA file
         archived_fasta_filename = "{}.{}.pep.all.fa.gz".format(
             genome.species.capitalize(),
@@ -425,7 +458,7 @@ def compare_with_database(
     )
 
     compare_df["strict_subsets"] = compare_df.apply(
-        lambda x: are_strict_subsets(x["classifier_symbol"], x["xref_symbol"]), axis=1
+        lambda x: are_strict_subsets(x["classifier_symbol"], x["xref_symbol"]), axis=1, result_type="reduce"
     )
 
     fuzzy_matches = compare_df.loc[
@@ -453,7 +486,7 @@ def compare_with_database(
         message = f"{scientific_name}: "
     else:
         message = ""
-    message += "{} assignments, {} exact matches ({:.2f}%), {} fuzzy matches ({:.2f}%), {} total matches ({:.2f}%".format(
+    message += "{} assignments, {} exact matches ({:.2f}%), {} fuzzy matches ({:.2f}%), {} total matches ({:.2f}%)".format(
         num_assignments,
         num_exact_matches,
         matching_percentage,
@@ -479,6 +512,7 @@ def main():
         help="genome database name on the public Ensembl MySQL server",
     )
     argument_parser.add_argument("--checkpoint", help="training session checkpoint path")
+    argument_parser.add_argument("--complete", action="store_true", help="run the evaluation for all genomes in the Ensembl release")
 
     args = argument_parser.parse_args()
 
@@ -501,7 +535,7 @@ def main():
         )
         logger.add(log_file_path, format=LOGURU_FORMAT)
 
-        evaluate_network(checkpoint_path)
+        evaluate_network(checkpoint_path, args.complete)
     else:
         print("Error: missing argument.")
         print(__doc__)
