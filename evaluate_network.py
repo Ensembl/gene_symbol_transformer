@@ -36,6 +36,7 @@ A trained network can be evaluated by assigning gene symbols to the assembly ann
 # standard library imports
 import argparse
 import csv
+import difflib
 import gzip
 import pathlib
 import sys
@@ -335,6 +336,19 @@ def assign_symbols(network, checkpoint_path, sequences_fasta):
     logger.info(f"symbol assignments saved at {assignments_csv_path}")
 
 
+def are_strict_subsets(symbol_a, symbol_b):
+    symbol_a = symbol_a.lower()
+    symbol_b = symbol_b.lower()
+
+    if symbol_a == symbol_b:
+        return False
+
+    if (symbol_a in symbol_b) or (symbol_b in symbol_a):
+        return True
+    else:
+        return False
+
+
 def compare_with_database(
     assignments_csv,
     ensembldb_database,
@@ -399,33 +413,55 @@ def compare_with_database(
         "classifier_symbol",
         "xref_symbol",
     ]
-    comparisons_df = pd.DataFrame(comparisons, columns=dataframe_columns)
+    compare_df = pd.DataFrame(comparisons, columns=dataframe_columns)
+
+    num_assignments = len(compare_df)
+
+    num_exact_matches = (
+        compare_df["classifier_symbol"]
+        .str.lower()
+        .eq(compare_df["xref_symbol"].str.lower())
+        .sum()
+    )
+
+    compare_df["strict_subsets"] = compare_df.apply(
+        lambda x: are_strict_subsets(x["classifier_symbol"], x["xref_symbol"]), axis=1
+    )
+
+    fuzzy_matches = compare_df.loc[
+        compare_df["strict_subsets"] == True, ["classifier_symbol", "xref_symbol"]
+    ]
+    fuzzy_matches_csv_path = pathlib.Path(
+        f"{assignments_csv_path.parent}/{assignments_csv_path.stem}_fuzzy_matches.csv"
+    )
+    num_fuzzy_matches = compare_df["strict_subsets"].sum()
+
+    fuzzy_matches.to_csv(fuzzy_matches_csv_path, sep="\t", index=False)
 
     comparisons_csv_path = pathlib.Path(
         f"{assignments_csv_path.parent}/{assignments_csv_path.stem}_compare.csv"
     )
-    comparisons_df.to_csv(comparisons_csv_path, sep="\t", index=False)
+    compare_df.to_csv(comparisons_csv_path, sep="\t", index=False)
     logger.info(f"comparisons CSV saved at {comparisons_csv_path}")
 
-    num_assignments = len(comparisons_df)
-
-    comparisons_df["classifier_symbol_lowercase"] = comparisons_df[
-        "classifier_symbol"
-    ].str.lower()
-    comparisons_df["xref_symbol_lowercase"] = comparisons_df["xref_symbol"].str.lower()
-
-    num_equal_assignments = (
-        comparisons_df["classifier_symbol_lowercase"]
-        .eq(comparisons_df["xref_symbol_lowercase"])
-        .sum()
-    )
-
-    matching_percentage = (num_equal_assignments / num_assignments) * 100
+    matching_percentage = (num_exact_matches / num_assignments) * 100
+    fuzzy_percentage = (num_fuzzy_matches / num_assignments) * 100
+    total_matches_percentage = (
+        (num_exact_matches + num_fuzzy_matches) / num_assignments
+    ) * 100
     if scientific_name is not None:
         message = f"{scientific_name}: "
     else:
         message = ""
-    message += f"{num_equal_assignments} matching out of {num_assignments} assignments ({matching_percentage:.2f}%)"
+    message += "{} assignments, {} exact matches ({:.2f}%), {} fuzzy matches ({:.2f}%), {} total matches ({:.2f}%".format(
+        num_assignments,
+        num_exact_matches,
+        matching_percentage,
+        num_fuzzy_matches,
+        fuzzy_percentage,
+        num_exact_matches + num_fuzzy_matches,
+        total_matches_percentage,
+    )
     logger.info(message)
 
 
