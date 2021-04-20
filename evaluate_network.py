@@ -467,15 +467,14 @@ def compare_with_database(
     fuzzy_matches_csv_path = pathlib.Path(
         f"{assignments_csv_path.parent}/{assignments_csv_path.stem}_fuzzy_matches.csv"
     )
-    num_fuzzy_matches = compare_df["strict_subsets"].sum()
-
     fuzzy_matches.to_csv(fuzzy_matches_csv_path, sep="\t", index=False)
+
+    num_fuzzy_matches = compare_df["strict_subsets"].sum()
 
     comparisons_csv_path = pathlib.Path(
         f"{assignments_csv_path.parent}/{assignments_csv_path.stem}_compare.csv"
     )
     compare_df.to_csv(comparisons_csv_path, sep="\t", index=False)
-    logger.info(f"comparisons CSV saved at {comparisons_csv_path}")
 
     matching_percentage = (num_exact_matches / num_assignments) * 100
     fuzzy_percentage = (num_fuzzy_matches / num_assignments) * 100
