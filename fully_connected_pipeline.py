@@ -144,6 +144,7 @@ class FullyConnectedNetwork(nn.Module):
         Get predicted labels from network's forward pass output.
         """
         predicted_probabilities = torch.exp(output)
+        # get class indexes from the one-hot encoded labels
         predictions = torch.argmax(predicted_probabilities, dim=1)
         return predictions
 
@@ -179,12 +180,14 @@ def train_network(
     num_epochs_length = len(str(num_epochs))
 
     if training_session.drop_last:
-        num_batches = int(training_session.training_size / training_session.batch_size)
-    else:
-        num_batches = math.ceil(
+        num_train_batches = int(
             training_session.training_size / training_session.batch_size
         )
-    num_batches_length = len(str(num_batches))
+    else:
+        num_train_batches = math.ceil(
+            training_session.training_size / training_session.batch_size
+        )
+    num_batches_length = len(str(num_train_batches))
 
     if not hasattr(training_session, "average_training_losses"):
         training_session.average_training_losses = []
@@ -199,11 +202,12 @@ def train_network(
         # training
         ########################################################################
         training_losses = []
+        train_accuracy = torchmetrics.Accuracy()
 
         # set the network in training mode
         network.train()
         for batch_number, (inputs, labels) in enumerate(training_loader, start=1):
-            epoch_end = batch_number == num_batches
+            epoch_end = batch_number == num_train_batches
 
             # inputs.shape: torch.Size([batch_size, sequence_length, num_protein_letters])
             # e.g. torch.Size([512, 1000, 27])
@@ -214,14 +218,17 @@ def train_network(
             # zero accumulated gradients
             network.zero_grad()
 
-            # get network output and hidden state
+            # forward pass
             output = network(inputs)
+
+            # get predicted labels from output
+            predictions = network.get_predictions(output)
 
             with torch.no_grad():
                 # get class indexes from the one-hot encoded labels
                 labels = torch.argmax(labels, dim=1)
 
-            # calculate the training loss
+            # compute training loss
             training_loss = criterion(output, labels)
             training_losses.append(training_loss.item())
             summary_writer.add_scalar("loss/training", training_loss, epoch)
@@ -236,10 +243,11 @@ def train_network(
             training_session.optimizer.step()
 
             if verbose and not epoch_end:
+                batch_train_accuracy = train_accuracy(predictions, labels)
                 average_training_loss = np.average(training_losses)
 
-                training_progress = f"epoch {epoch:{num_epochs_length}} of {num_epochs}, batch {batch_number:{num_batches_length}} of {num_batches} | average training loss: {average_training_loss:.4f}"
-                logger.info(training_progress)
+                train_progress = f"epoch {epoch:{num_epochs_length}}, batch {batch_number:{num_batches_length}} of {num_train_batches} | average loss: {average_training_loss:.4f} | accuracy: {batch_train_accuracy:.3f}"
+                logger.info(train_progress)
 
         training_session.num_complete_epochs += 1
 
@@ -248,37 +256,61 @@ def train_network(
 
         # validation
         ########################################################################
+        if training_session.drop_last:
+            num_validation_batches = int(
+                training_session.validation_size / training_session.batch_size
+            )
+        else:
+            num_validation_batches = math.ceil(
+                training_session.validation_size / training_session.batch_size
+            )
+        num_batches_length = len(str(num_validation_batches))
+
         validation_losses = []
+        validation_accuracy = torchmetrics.Accuracy()
 
         # disable gradient calculation
         with torch.no_grad():
             # set the network in evaluation mode
             network.eval()
+            for batch_number, (inputs, labels) in enumerate(validation_loader, start=1):
+                epoch_end = batch_number == num_validation_batches
 
-            for inputs, labels in validation_loader:
                 inputs, labels = inputs.to(DEVICE), labels.to(DEVICE)
 
+                # forward pass
                 output = network(inputs)
+
+                # get predicted labels from output
+                predictions = network.get_predictions(output)
+
+                # get class indexes from the one-hot encoded labels
                 labels = torch.argmax(labels, dim=1)
+
+                # compute validation loss
                 validation_loss = criterion(output, labels)
                 validation_losses.append(validation_loss.item())
                 summary_writer.add_scalar("loss/validation", validation_loss, epoch)
 
+                if verbose and not epoch_end:
+                    batch_validation_accuracy = validation_accuracy(predictions, labels)
+                    average_validation_loss = np.average(validation_losses)
+
+                    validation_progress = f"epoch {epoch:{num_epochs_length}}, validation batch {batch_number:{num_batches_length}} of {num_validation_batches} | average loss: {average_validation_loss:.4f} | accuracy: {batch_validation_accuracy:.3f}"
+                    logger.info(validation_progress)
+
         average_validation_loss = np.average(validation_losses)
         training_session.average_validation_losses.append(average_validation_loss)
 
-        training_progress = f"epoch {epoch:{num_epochs_length}} of {num_epochs}, "
-        if verbose:
-            training_progress += (
-                f"batch {batch_number:{num_batches_length}} of {num_batches} "
-            )
-        training_progress += f"| average training loss: {average_training_loss:.4f}, average validation loss: {average_validation_loss:.4f}"
-        logger.info(training_progress)
+        total_train_accuracy = train_accuracy.compute()
+        total_validation_accuracy = validation_accuracy.compute()
+
+        train_progress = f"epoch {epoch:{num_epochs_length}} | training accuracy: {total_train_accuracy:.3f}, training loss: {average_training_loss:.4f}, validation accuracy: {total_validation_accuracy:.3f}, validation loss: {average_validation_loss:.4f}"
+        logger.info(train_progress)
 
         if stop_early(network, training_session, average_validation_loss):
             summary_writer.flush()
             summary_writer.close()
-
             break
 
 
@@ -291,10 +323,12 @@ def test_network(
     criterion = training_session.criterion
 
     if training_session.drop_last:
-        num_batches = int(training_session.test_size / training_session.batch_size)
+        num_test_batches = int(training_session.test_size / training_session.batch_size)
     else:
-        num_batches = math.ceil(training_session.test_size / training_session.batch_size)
-    num_batches_length = len(str(num_batches))
+        num_test_batches = math.ceil(
+            training_session.test_size / training_session.batch_size
+        )
+    num_batches_length = len(str(num_test_batches))
 
     test_losses = []
     test_accuracy = torchmetrics.Accuracy()
@@ -305,6 +339,7 @@ def test_network(
         for batch_number, (inputs, labels) in enumerate(test_loader, start=1):
             inputs, labels = inputs.to(DEVICE), labels.to(DEVICE)
 
+            # forward pass
             output = network(inputs)
 
             # get predicted labels from output
@@ -320,7 +355,7 @@ def test_network(
             batch_accuracy = test_accuracy(predictions, labels)
 
             logger.info(
-                f"test batch {batch_number:{num_batches_length}} of {num_batches} accuracy: {batch_accuracy:.4f}"
+                f"test batch {batch_number:{num_batches_length}} of {num_test_batches} accuracy: {batch_accuracy:.4f}"
             )
 
     # log statistics
@@ -332,14 +367,13 @@ def test_network(
 
     logger.info("\n" + "average test loss: {:.4f}".format(np.mean(test_losses)))
 
-    # calculate total test accuracy
-    total_accuracy = test_accuracy.compute()
-    logger.info("test accuracy: {:.3f}".format(total_accuracy) + "\n")
+    total_test_accuracy = test_accuracy.compute()
+    logger.info("test accuracy: {:.3f}".format(total_test_accuracy) + "\n")
 
     if print_sample_assignments:
-        # num_sample_assignments = 10
+        num_sample_assignments = 10
         # num_sample_assignments = 20
-        num_sample_assignments = 100
+        # num_sample_assignments = 100
 
         with torch.no_grad():
             network.eval()
@@ -354,6 +388,7 @@ def test_network(
             inputs = inputs[permutation[0:num_sample_assignments]]
             labels = labels[permutation[0:num_sample_assignments]]
 
+            # forward pass
             output = network(inputs)
 
             # get predicted labels from output
