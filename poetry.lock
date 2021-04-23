@@ -763,7 +763,7 @@ signedtoken = ["cryptography", "pyjwt (>=1.0.0)"]
 name = "packaging"
 version = "20.9"
 description = "Core utilities for Python packages"
-category = "dev"
+category = "main"
 optional = false
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
 
@@ -956,7 +956,7 @@ rsa = ["cryptography"]
 name = "pyparsing"
 version = "2.4.7"
 description = "Python parsing module"
-category = "dev"
+category = "main"
 optional = false
 python-versions = ">=2.6, !=3.0.*, !=3.1.*, !=3.2.*"
 
@@ -1206,6 +1206,19 @@ type = "url"
 url = "https://download.pytorch.org/whl/cu101/torch-1.7.1%2Bcu101-cp38-cp38-linux_x86_64.whl"
 
 [[package]]
+name = "torchmetrics"
+version = "0.3.1"
+description = "PyTorch native Metrics"
+category = "main"
+optional = false
+python-versions = ">=3.6"
+
+[package.dependencies]
+numpy = "*"
+packaging = "*"
+torch = ">=1.3.1"
+
+[[package]]
 name = "tornado"
 version = "6.1"
 description = "Tornado is a Python web framework and asynchronous networking library, originally developed at FriendFeed."
@@ -1298,7 +1311,7 @@ dev = ["pytest (>=4.6.2)", "black (>=19.3b0)"]
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.8"
-content-hash = "de1d736730f14129c9aab9fae836ba1b91a17350c17fe73fc137e2fb89477990"
+content-hash = "7e47b1e7dcde78d3a5be2f22d0bda0dab9882de4dfc7e3c8d55ea6a68f581d51"
 
 [metadata.files]
 absl-py = [
@@ -2120,6 +2133,10 @@ toml = [
     {file = "toml-0.10.2.tar.gz", hash = "sha256:b3bda1d108d5dd99f4a20d24d9c348e91c4db7ab1b749200bded2f839ccbe68f"},
 ]
 torch = []
+torchmetrics = [
+    {file = "torchmetrics-0.3.1-py3-none-any.whl", hash = "sha256:bf6162b56c9466fdfa8f185e8bbd48c7740c4f46d1335bc4db87ac1efcdad0e2"},
+    {file = "torchmetrics-0.3.1.tar.gz", hash = "sha256:78f4057db53f7c219fdf9ec9eed151adad18dd43488a44e5c780806d218e3f1d"},
+]
 tornado = [
     {file = "tornado-6.1-cp35-cp35m-macosx_10_9_x86_64.whl", hash = "sha256:d371e811d6b156d82aa5f9a4e08b58debf97c302a35714f6f45e35139c332e32"},
     {file = "tornado-6.1-cp35-cp35m-manylinux1_i686.whl", hash = "sha256:0d321a39c36e5f2c4ff12b4ed58d41390460f798422c4504e09eb5678e09998c"},

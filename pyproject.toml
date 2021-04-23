@@ -13,6 +13,7 @@ loguru = "^0.5.3"
 PyYAML = "^5.4.1"
 tensorboard = "^2.4.1"
 ensembl-rest = "^0.3.3"
+torchmetrics = "^0.3.1"
 
 [tool.poetry.dev-dependencies]
 jupyterlab = "^2.1.4"
