@@ -131,12 +131,20 @@ class FullyConnectedNetwork(nn.Module):
             output = self.forward(tensor_sequences)
 
         # get predicted labels from output
-        predicted_probabilities = torch.exp(output)
-        predictions = torch.argmax(predicted_probabilities, dim=1)
+        predictions = self.get_predictions(output)
 
         predictions = self.gene_symbols.one_hot_encoding_to_symbol(predictions)
         predictions = predictions.tolist()
 
+        return predictions
+
+    @staticmethod
+    def get_predictions(output):
+        """
+        Get predicted labels from network's forward pass output.
+        """
+        predicted_probabilities = torch.exp(output)
+        predictions = torch.argmax(predicted_probabilities, dim=1)
         return predictions
 
 
@@ -300,8 +308,7 @@ def test_network(
             output = network(inputs)
 
             # get predicted labels from output
-            predicted_probabilities = torch.exp(output)
-            predictions = torch.argmax(predicted_probabilities, dim=1)
+            predictions = network.get_predictions(output)
 
             # get class indexes from the one-hot encoded labels
             labels = torch.argmax(labels, dim=1)
@@ -350,8 +357,7 @@ def test_network(
             output = network(inputs)
 
             # get predicted labels from output
-            predicted_probabilities = torch.exp(output)
-            predictions = torch.argmax(predicted_probabilities, dim=1)
+            predictions = network.get_predictions(output)
 
             # get class indexes from the one-hot encoded labels
             labels = torch.argmax(labels, dim=1)
