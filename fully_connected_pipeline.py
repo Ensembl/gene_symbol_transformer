@@ -297,7 +297,7 @@ def train_network(
 
         total_validation_accuracy = validation_accuracy.compute()
 
-        train_progress = f"epoch {epoch:{num_epochs_length}} complete | validation loss: {average_validation_loss:.4f}, validation accuracy: {total_validation_accuracy:.3f}"
+        train_progress = f"epoch {epoch:{num_epochs_length}} complete | validation loss: {average_validation_loss:.4f} | validation accuracy: {total_validation_accuracy:.3f}"
         logger.info(train_progress)
 
         if stop_early(network, training_session, average_validation_loss):
@@ -326,6 +326,8 @@ def test_network(
 
     test_losses = []
     test_accuracy = torchmetrics.Accuracy()
+    test_precision = torchmetrics.Precision()
+    test_recall = torchmetrics.Recall()
 
     with torch.no_grad():
         network.eval()
@@ -347,16 +349,20 @@ def test_network(
             test_losses.append(test_loss.item())
 
             batch_accuracy = test_accuracy(predictions, labels)
+            test_precision(predictions, labels)
+            test_recall(predictions, labels)
 
             logger.info(
                 f"test batch {batch_number:{num_batches_length}} of {num_test_batches} | accuracy: {batch_accuracy:.4f}"
             )
 
     # log statistics
-    logger.info("average test loss: {:.4f}".format(np.mean(test_losses)))
-
+    average_test_loss = np.mean(test_losses)
     total_test_accuracy = test_accuracy.compute()
-    logger.info("total test accuracy: {:.3f}".format(total_test_accuracy) + "\n")
+    precision = test_precision.compute()
+    recall = test_recall.compute()
+    logger.info(f"testing complete | average loss: {average_test_loss:.4f} | accuracy: {total_test_accuracy:.3f}")
+    logger.info(f"precision: {precision:.3f} | recall: {recall:.3f}")
 
     if print_sample_assignments:
         num_sample_assignments = 10
@@ -393,7 +399,7 @@ def test_network(
         assignments = network.gene_symbols.one_hot_encoding_to_symbol(predictions)
         labels = network.gene_symbols.one_hot_encoding_to_symbol(labels)
 
-        logger.info("sample assignments")
+        logger.info("\nsample assignments")
         logger.info("assignment | true label")
         logger.info("-----------------------")
         for assignment, label in zip(assignments, labels):
