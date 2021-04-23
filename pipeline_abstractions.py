@@ -128,7 +128,7 @@ class SequenceDataset(Dataset):
     """
 
     def __init__(self, num_symbols, sequence_length):
-        logger.info(f"Loading {num_symbols} most frequent symbols sequences dataset...")
+        logger.info(f"loading {num_symbols} most frequent symbols sequences dataset...")
         data_pickle_path = data_directory / f"{num_symbols}_symbols.pickle"
         data = pd.read_pickle(data_pickle_path)
         logger.info(f"{num_symbols} most frequent symbols sequences dataset loaded")
@@ -316,7 +316,7 @@ def load_checkpoint(checkpoint_path):
     """
     Load saved training checkpoint.
     """
-    logger.info(f'Loading training checkpoint "{checkpoint_path}"...')
+    logger.info(f'loading training checkpoint "{checkpoint_path}"...')
     checkpoint = torch.load(checkpoint_path, map_location=DEVICE)
     logger.info(f'"{checkpoint_path}" training checkpoint loaded')
 
