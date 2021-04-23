@@ -242,7 +242,7 @@ def train_network(
             batch_train_accuracy = train_accuracy(predictions, labels)
             average_training_loss = np.average(training_losses)
 
-            train_progress = f"epoch {epoch:{num_epochs_length}}, batch {batch_number:{num_batches_length}} of {num_train_batches} | average loss: {average_training_loss:.4f} | accuracy: {batch_train_accuracy:.3f}"
+            train_progress = f"epoch {epoch:{num_epochs_length}}, batch {batch_number:{num_batches_length}} of {num_train_batches} | average loss: {average_training_loss:.4f} | accuracy: {batch_train_accuracy:.4f}"
             logger.info(train_progress)
 
         training_session.num_complete_epochs += 1
@@ -289,7 +289,7 @@ def train_network(
                 batch_validation_accuracy = validation_accuracy(predictions, labels)
                 average_validation_loss = np.average(validation_losses)
 
-                validation_progress = f"epoch {epoch:{num_epochs_length}}, validation batch {batch_number:{num_batches_length}} of {num_validation_batches} | average loss: {average_validation_loss:.4f} | accuracy: {batch_validation_accuracy:.3f}"
+                validation_progress = f"epoch {epoch:{num_epochs_length}}, validation batch {batch_number:{num_batches_length}} of {num_validation_batches} | average loss: {average_validation_loss:.4f} | accuracy: {batch_validation_accuracy:.4f}"
                 logger.info(validation_progress)
 
         average_validation_loss = np.average(validation_losses)
@@ -297,7 +297,7 @@ def train_network(
 
         total_validation_accuracy = validation_accuracy.compute()
 
-        train_progress = f"epoch {epoch:{num_epochs_length}} complete | validation loss: {average_validation_loss:.4f} | validation accuracy: {total_validation_accuracy:.3f}"
+        train_progress = f"epoch {epoch:{num_epochs_length}} complete | validation loss: {average_validation_loss:.4f} | validation accuracy: {total_validation_accuracy:.4f}"
         logger.info(train_progress)
 
         if stop_early(network, training_session, average_validation_loss):
@@ -326,8 +326,12 @@ def test_network(
 
     test_losses = []
     test_accuracy = torchmetrics.Accuracy()
-    test_precision = torchmetrics.Precision()
-    test_recall = torchmetrics.Recall()
+    test_precision = torchmetrics.Precision(
+        num_classes=training_session.num_symbols, average="macro"
+    )
+    test_recall = torchmetrics.Recall(
+        num_classes=training_session.num_symbols, average="macro"
+    )
 
     with torch.no_grad():
         network.eval()
@@ -361,8 +365,10 @@ def test_network(
     total_test_accuracy = test_accuracy.compute()
     precision = test_precision.compute()
     recall = test_recall.compute()
-    logger.info(f"testing complete | average loss: {average_test_loss:.4f} | accuracy: {total_test_accuracy:.3f}")
-    logger.info(f"precision: {precision:.3f} | recall: {recall:.3f}")
+    logger.info(
+        f"testing complete | average loss: {average_test_loss:.4f} | accuracy: {total_test_accuracy:.4f}"
+    )
+    logger.info(f"precision: {precision:.4f} | recall: {recall:.4f}")
 
     if print_sample_assignments:
         num_sample_assignments = 10
