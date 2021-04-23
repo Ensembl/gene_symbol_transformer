@@ -458,7 +458,9 @@ def compare_with_database(
     )
 
     compare_df["strict_subsets"] = compare_df.apply(
-        lambda x: are_strict_subsets(x["classifier_symbol"], x["xref_symbol"]), axis=1, result_type="reduce"
+        lambda x: are_strict_subsets(x["classifier_symbol"], x["xref_symbol"]),
+        axis=1,
+        result_type="reduce",
     )
 
     fuzzy_matches = compare_df.loc[
@@ -511,7 +513,11 @@ def main():
         help="genome database name on the public Ensembl MySQL server",
     )
     argument_parser.add_argument("--checkpoint", help="training session checkpoint path")
-    argument_parser.add_argument("--complete", action="store_true", help="run the evaluation for all genomes in the Ensembl release")
+    argument_parser.add_argument(
+        "--complete",
+        action="store_true",
+        help="run the evaluation for all genomes in the Ensembl release",
+    )
 
     args = argument_parser.parse_args()
 
