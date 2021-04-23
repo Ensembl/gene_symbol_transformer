@@ -154,7 +154,6 @@ def train_network(
     training_session,
     training_loader,
     validation_loader,
-    verbose=False,
 ):
     tensorboard_log_dir = (
         f"runs/{training_session.num_symbols}/{training_session.datetime}"
@@ -207,8 +206,6 @@ def train_network(
         # set the network in training mode
         network.train()
         for batch_number, (inputs, labels) in enumerate(training_loader, start=1):
-            epoch_end = batch_number == num_train_batches
-
             # inputs.shape: torch.Size([batch_size, sequence_length, num_protein_letters])
             # e.g. torch.Size([512, 1000, 27])
             # inputs[i].shape: torch.Size([sequence_length, num_protein_letters])
@@ -242,12 +239,11 @@ def train_network(
             # perform an optimization step
             training_session.optimizer.step()
 
-            if verbose and not epoch_end:
-                batch_train_accuracy = train_accuracy(predictions, labels)
-                average_training_loss = np.average(training_losses)
+            batch_train_accuracy = train_accuracy(predictions, labels)
+            average_training_loss = np.average(training_losses)
 
-                train_progress = f"epoch {epoch:{num_epochs_length}}, batch {batch_number:{num_batches_length}} of {num_train_batches} | average loss: {average_training_loss:.4f} | accuracy: {batch_train_accuracy:.3f}"
-                logger.info(train_progress)
+            train_progress = f"epoch {epoch:{num_epochs_length}}, batch {batch_number:{num_batches_length}} of {num_train_batches} | average loss: {average_training_loss:.4f} | accuracy: {batch_train_accuracy:.3f}"
+            logger.info(train_progress)
 
         training_session.num_complete_epochs += 1
 
@@ -274,8 +270,6 @@ def train_network(
             # set the network in evaluation mode
             network.eval()
             for batch_number, (inputs, labels) in enumerate(validation_loader, start=1):
-                epoch_end = batch_number == num_validation_batches
-
                 inputs, labels = inputs.to(DEVICE), labels.to(DEVICE)
 
                 # forward pass
@@ -292,20 +286,18 @@ def train_network(
                 validation_losses.append(validation_loss.item())
                 summary_writer.add_scalar("loss/validation", validation_loss, epoch)
 
-                if verbose and not epoch_end:
-                    batch_validation_accuracy = validation_accuracy(predictions, labels)
-                    average_validation_loss = np.average(validation_losses)
+                batch_validation_accuracy = validation_accuracy(predictions, labels)
+                average_validation_loss = np.average(validation_losses)
 
-                    validation_progress = f"epoch {epoch:{num_epochs_length}}, validation batch {batch_number:{num_batches_length}} of {num_validation_batches} | average loss: {average_validation_loss:.4f} | accuracy: {batch_validation_accuracy:.3f}"
-                    logger.info(validation_progress)
+                validation_progress = f"epoch {epoch:{num_epochs_length}}, validation batch {batch_number:{num_batches_length}} of {num_validation_batches} | average loss: {average_validation_loss:.4f} | accuracy: {batch_validation_accuracy:.3f}"
+                logger.info(validation_progress)
 
         average_validation_loss = np.average(validation_losses)
         training_session.average_validation_losses.append(average_validation_loss)
 
-        total_train_accuracy = train_accuracy.compute()
         total_validation_accuracy = validation_accuracy.compute()
 
-        train_progress = f"epoch {epoch:{num_epochs_length}} | training accuracy: {total_train_accuracy:.3f}, training loss: {average_training_loss:.4f}, validation accuracy: {total_validation_accuracy:.3f}, validation loss: {average_validation_loss:.4f}"
+        train_progress = f"epoch {epoch:{num_epochs_length}} complete | validation loss: {average_validation_loss:.4f}, validation accuracy: {total_validation_accuracy:.3f}"
         logger.info(train_progress)
 
         if stop_early(network, training_session, average_validation_loss):
@@ -320,6 +312,8 @@ def test_network(
     """
     Calculate test loss and generate metrics.
     """
+    logger.info("testing started")
+
     criterion = training_session.criterion
 
     if training_session.drop_last:
@@ -355,20 +349,14 @@ def test_network(
             batch_accuracy = test_accuracy(predictions, labels)
 
             logger.info(
-                f"test batch {batch_number:{num_batches_length}} of {num_test_batches} accuracy: {batch_accuracy:.4f}"
+                f"test batch {batch_number:{num_batches_length}} of {num_test_batches} | accuracy: {batch_accuracy:.4f}"
             )
 
     # log statistics
-
-    # reset logger, add raw messages format
-    logger.remove()
-    logger.add(sys.stderr, format="{message}")
-    logger.add(log_file_path, format="{message}")
-
-    logger.info("\n" + "average test loss: {:.4f}".format(np.mean(test_losses)))
+    logger.info("average test loss: {:.4f}".format(np.mean(test_losses)))
 
     total_test_accuracy = test_accuracy.compute()
-    logger.info("test accuracy: {:.3f}".format(total_test_accuracy) + "\n")
+    logger.info("total test accuracy: {:.3f}".format(total_test_accuracy) + "\n")
 
     if print_sample_assignments:
         num_sample_assignments = 10
@@ -396,6 +384,11 @@ def test_network(
 
             # get class indexes from the one-hot encoded labels
             labels = torch.argmax(labels, dim=1)
+
+        # reset logger, add raw messages format
+        logger.remove()
+        logger.add(sys.stderr, format="{message}")
+        logger.add(log_file_path, format="{message}")
 
         assignments = network.gene_symbols.one_hot_encoding_to_symbol(predictions)
         labels = network.gene_symbols.one_hot_encoding_to_symbol(labels)
@@ -480,9 +473,9 @@ def main():
     # save network
     if args.save_network:
         checkpoint_path = pathlib.Path(args.save_network)
-        logger.info(f'Loading checkpoint "{checkpoint_path}" ...')
+        logger.info(f'loading checkpoint "{checkpoint_path}" ...')
         network_path = save_network_from_checkpoint(checkpoint_path)
-        logger.info(f'Saved network at "{network_path}"')
+        logger.info(f'saved network at "{network_path}"')
         return
 
     if args.sequences_fasta:
@@ -681,14 +674,11 @@ def main():
 
     # train network
     if args.train:
-        verbose = True
-
         train_network(
             network,
             training_session,
             training_loader,
             validation_loader,
-            verbose,
         )
 
     # test trained network
