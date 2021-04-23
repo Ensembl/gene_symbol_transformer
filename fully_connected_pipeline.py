@@ -36,6 +36,7 @@ import time
 import numpy as np
 import torch
 import torch.nn as nn
+import torchmetrics
 import yaml
 
 from loguru import logger
@@ -288,12 +289,11 @@ def test_network(
     num_batches_length = len(str(num_batches))
 
     test_losses = []
-    num_correct_predictions = 0
+    test_accuracy = torchmetrics.Accuracy()
 
     with torch.no_grad():
         network.eval()
 
-        num_samples = 0
         for batch_number, (inputs, labels) in enumerate(test_loader, start=1):
             inputs, labels = inputs.to(DEVICE), labels.to(DEVICE)
 
@@ -310,15 +310,10 @@ def test_network(
             test_loss = criterion(output, labels)
             test_losses.append(test_loss.item())
 
-            # predictions to ground truth comparison
-            predictions_correctness = predictions.eq(labels)
-            num_correct_predictions += torch.sum(predictions_correctness).item()
-
-            num_samples += len(predictions)
-            running_test_accuracy = num_correct_predictions / num_samples
+            batch_accuracy = test_accuracy(predictions, labels)
 
             logger.info(
-                f"batch {batch_number:{num_batches_length}} of {num_batches} | running test accuracy: {running_test_accuracy:.4f}"
+                f"test batch {batch_number:{num_batches_length}} of {num_batches} accuracy: {batch_accuracy:.4f}"
             )
 
     # log statistics
@@ -330,9 +325,9 @@ def test_network(
 
     logger.info("\n" + "average test loss: {:.4f}".format(np.mean(test_losses)))
 
-    # test assignments accuracy
-    test_accuracy = num_correct_predictions / num_samples
-    logger.info("test accuracy: {:.3f}".format(test_accuracy) + "\n")
+    # calculate total test accuracy
+    total_accuracy = test_accuracy.compute()
+    logger.info("test accuracy: {:.3f}".format(total_accuracy) + "\n")
 
     if print_sample_assignments:
         # num_sample_assignments = 10
