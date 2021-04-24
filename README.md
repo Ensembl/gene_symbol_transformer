@@ -84,7 +84,6 @@ bash submit_training.sh <experiment settings yaml file path>
 bash submit_training.sh experiment.yaml
 ```
 
-
 ### testing
 
 Testing of a trained neural network would normally run right after training. In cases when testing didn't complete, it can be issued separately for the saved training checkpoint file.
@@ -92,6 +91,11 @@ Testing of a trained neural network would normally run right after training. In 
 load checkpoint and test the trained network
 ```
 python fully_connected_pipeline.py --checkpoint <checkpoint path> --test
+```
+
+submit a testing job with bsub
+```
+bash submit_testing.sh <checkpoint file path>
 ```
 
 ### assign gene symbols to protein sequences
