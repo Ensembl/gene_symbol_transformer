@@ -82,7 +82,7 @@ WHERE gene.biotype = 'protein_coding';
 """
 
 get_entrezgene_symbols = """
--- EntrezGene symbols for translations with no Xref symbols using a subquery
+-- EntrezGene symbols for translations with no Xref symbols
 SELECT
   translation.stable_id AS translation_stable_id,
   xref.display_label AS EntrezGene_symbol
@@ -98,7 +98,7 @@ INNER JOIN transcript
 INNER JOIN translation
   ON transcript.canonical_translation_id = translation.translation_id
 WHERE gene.gene_id IN (
-  -- ensembl_id of canonical translations without Xref symbols
+  -- ensembl_id of canonical translations with no Xref symbols
   SELECT
     gene.gene_id
   FROM gene
@@ -141,7 +141,7 @@ WHERE gene.gene_id IN (
   WHERE gene.biotype = 'protein_coding'
   AND gene.display_xref_id IS NULL
   AND gene.gene_id NOT IN (
-    -- ensembl_id of canonical translations without Xref or EntrezGene symbols
+    -- ensembl_id of canonical translations with no Xref and no EntrezGene symbols
     SELECT
       gene.gene_id
     FROM gene
@@ -156,7 +156,7 @@ WHERE gene.gene_id IN (
     INNER JOIN translation
       ON transcript.canonical_translation_id = translation.translation_id
     WHERE gene.gene_id IN (
-      -- ensembl_id of canonical translations without Xref symbols
+      -- ensembl_id of canonical translations with no Xref symbols
       SELECT
         gene.gene_id
       FROM gene
