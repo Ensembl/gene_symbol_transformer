@@ -30,14 +30,15 @@ import pickle
 import sys
 
 # third party imports
+import ensembl_rest
 import pandas as pd
+import requests
 
 from Bio import SeqIO
+from loguru import logger
 
 # project imports
-
-
-data_directory = pathlib.Path("data")
+from pipeline_abstractions import PrettySimpleNamespace, data_directory
 
 
 def fasta_to_dataframe(fasta_path):
@@ -346,6 +347,41 @@ def generate_dataset_statistics():
     # sequence length mean: 576.49, median: 442.00, standard deviation: 511.25
 
 
+def get_genomes_metadata():
+    """
+    Get metadata for all genomes in the latest Ensembl release.
+
+    The metadata are loaded from the `species_EnsemblVertebrates.txt` file of
+    the latest Ensembl release.
+
+    It would have been more elegant to get the genome metadata from the Ensembl
+    REST API `/info/species` endpoint but that lacks the core database name.
+    https://rest.ensembl.org/documentation/info/species
+
+    The metadata REST API could also be used when it's been updated.
+    """
+    # get the version number of the latest Ensembl release
+    ensembl_release = ensembl_rest.software()["release"]
+
+    # download the `species_EnsemblVertebrates.txt` file
+    species_data_url = f"http://ftp.ensembl.org/pub/release-{ensembl_release}/species_EnsemblVertebrates.txt"
+    species_data_path = data_directory / "species_EnsemblVertebrates.txt"
+    if not species_data_path.exists():
+        response = requests.get(species_data_url)
+        with open(species_data_path, "wb+") as f:
+            f.write(response.content)
+        logger.info(f"downloaded {species_data_path}")
+
+    genomes_df = pd.read_csv(species_data_path, delimiter="\t", index_col=False)
+    genomes_df = genomes_df.rename(columns={"#name": "name"})
+    genomes = [
+        PrettySimpleNamespace(**genome_row._asdict())
+        for genome_row in genomes_df.itertuples()
+    ]
+
+    return genomes
+
+
 def main():
     """
     main function
@@ -358,6 +394,12 @@ def main():
     argument_parser.add_argument("--generate_dataset_statistics", action="store_true")
 
     args = argument_parser.parse_args()
+
+    # set up logger
+    logger.remove()
+    logger.add(sys.stderr, format=LOGURU_FORMAT)
+    log_file_path = "dataset_generation.log"
+    logger.add(log_file_path, format=LOGURU_FORMAT)
 
     if args.merge_metadata_sequences:
         merge_metadata_sequences()

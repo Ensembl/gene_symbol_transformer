@@ -45,15 +45,14 @@ import sys
 import ensembl_rest
 import pandas as pd
 import pymysql
-import requests
 
 from icecream import ic
 from loguru import logger
 
 # project imports
+from dataset_generation import get_genomes_metadata
 from fully_connected_pipeline import FullyConnectedNetwork
 from pipeline_abstractions import (
-    PrettySimpleNamespace,
     data_directory,
     load_checkpoint,
     read_fasta_in_chunks,
@@ -176,41 +175,6 @@ AND gene.biotype = 'protein_coding'
 AND object_xref.ensembl_object_type = 'Gene'
 AND external_db.db_name = 'Uniprot_gn';
 """
-
-
-def get_genomes_metadata():
-    """
-    Get metadata for all genomes in the latest Ensembl release.
-
-    The metadata are loaded from the `species_EnsemblVertebrates.txt` file of
-    the latest Ensembl release.
-
-    It would have been more elegant to get the genome metadata from the Ensembl
-    REST API `/info/species` endpoint but that lacks the core database name.
-    https://rest.ensembl.org/documentation/info/species
-
-    The metadata REST API could also be used when it's been updated.
-    """
-    # get the version number of the latest Ensembl release
-    ensembl_release = ensembl_rest.software()["release"]
-
-    # download the `species_EnsemblVertebrates.txt` file
-    species_data_url = f"http://ftp.ensembl.org/pub/release-{ensembl_release}/species_EnsemblVertebrates.txt"
-    species_data_path = data_directory / "species_EnsemblVertebrates.txt"
-    if not species_data_path.exists():
-        response = requests.get(species_data_url)
-        with open(species_data_path, "wb+") as f:
-            f.write(response.content)
-        logger.info(f"downloaded {species_data_path}")
-
-    genomes_df = pd.read_csv(species_data_path, delimiter="\t", index_col=False)
-    genomes_df = genomes_df.rename(columns={"#name": "name"})
-    genomes = [
-        PrettySimpleNamespace(**genome_row._asdict())
-        for genome_row in genomes_df.itertuples()
-    ]
-
-    return genomes
 
 
 def fix_assembly(assembly):
