@@ -41,130 +41,21 @@ import sys
 
 # third party imports
 import pandas as pd
-import pymysql
 
 from icecream import ic
 from loguru import logger
 
 # project imports
-from dataset_generation import download_protein_sequences_fasta, get_genomes_metadata
+from dataset_generation import (
+    download_protein_sequences_fasta,
+    get_canonical_translations,
+    get_genomes_metadata,
+)
 from fully_connected_pipeline import FullyConnectedNetwork
 from pipeline_abstractions import load_checkpoint, read_fasta_in_chunks
 
 
 LOGURU_FORMAT = "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{message}</level>"
-
-
-get_xref_symbols_for_canonical_gene_transcripts = """
--- Xref symbols for canonical translations
-SELECT
-  translation.stable_id AS translation_stable_id,
-  xref.display_label AS Xref_symbol
-FROM gene
-INNER JOIN transcript
-  ON gene.canonical_transcript_id = transcript.transcript_id
-INNER JOIN translation
-  ON transcript.canonical_translation_id = translation.translation_id
-INNER JOIN xref
-  ON gene.display_xref_id = xref.xref_id
-WHERE gene.biotype = 'protein_coding';
-"""
-
-get_entrezgene_symbols = """
--- EntrezGene symbols for translations with no Xref symbols
-SELECT
-  translation.stable_id AS translation_stable_id,
-  xref.display_label AS EntrezGene_symbol
-FROM gene
-INNER JOIN object_xref
-  ON gene.gene_id = object_xref.ensembl_id
-INNER JOIN xref
-  ON object_xref.xref_id = xref.xref_id
-INNER JOIN external_db
-  ON xref.external_db_id = external_db.external_db_id
-INNER JOIN transcript
-  ON gene.canonical_transcript_id = transcript.transcript_id
-INNER JOIN translation
-  ON transcript.canonical_translation_id = translation.translation_id
-WHERE gene.gene_id IN (
-  -- ensembl_id of canonical translations with no Xref symbols
-  SELECT
-    gene.gene_id
-  FROM gene
-  INNER JOIN transcript
-    ON gene.canonical_transcript_id = transcript.transcript_id
-  INNER JOIN translation
-    ON transcript.canonical_translation_id = translation.translation_id
-  WHERE gene.biotype = 'protein_coding'
-  AND gene.display_xref_id IS NULL
-)
-AND gene.biotype = 'protein_coding'
-AND object_xref.ensembl_object_type = 'Gene'
-AND external_db.db_name = 'EntrezGene';
-"""
-
-get_uniprot_gn_symbols = """
--- Uniprot_gn symbols for translations with no Xref and no EntrezGene symbols
-SELECT
-  translation.stable_id AS translation_stable_id,
-  xref.display_label AS Uniprot_gn_symbol
-FROM gene
-INNER JOIN object_xref
-  ON gene.gene_id = object_xref.ensembl_id
-INNER JOIN xref
-  ON object_xref.xref_id = xref.xref_id
-INNER JOIN external_db
-  ON xref.external_db_id = external_db.external_db_id
-INNER JOIN transcript
-  ON gene.canonical_transcript_id = transcript.transcript_id
-INNER JOIN translation
-  ON transcript.canonical_translation_id = translation.translation_id
-WHERE gene.gene_id IN (
-  SELECT
-    gene.gene_id
-  FROM gene
-  INNER JOIN transcript
-    ON gene.canonical_transcript_id = transcript.transcript_id
-  INNER JOIN translation
-    ON transcript.canonical_translation_id = translation.translation_id
-  WHERE gene.biotype = 'protein_coding'
-  AND gene.display_xref_id IS NULL
-  AND gene.gene_id NOT IN (
-    -- ensembl_id of canonical translations with no Xref and no EntrezGene symbols
-    SELECT
-      gene.gene_id
-    FROM gene
-    INNER JOIN object_xref
-      ON gene.gene_id = object_xref.ensembl_id
-    INNER JOIN xref
-      ON object_xref.xref_id = xref.xref_id
-    INNER JOIN external_db
-      ON xref.external_db_id = external_db.external_db_id
-    INNER JOIN transcript
-      ON gene.canonical_transcript_id = transcript.transcript_id
-    INNER JOIN translation
-      ON transcript.canonical_translation_id = translation.translation_id
-    WHERE gene.gene_id IN (
-      -- ensembl_id of canonical translations with no Xref symbols
-      SELECT
-        gene.gene_id
-      FROM gene
-      INNER JOIN transcript
-        ON gene.canonical_transcript_id = transcript.transcript_id
-      INNER JOIN translation
-        ON transcript.canonical_translation_id = translation.translation_id
-      WHERE gene.biotype = 'protein_coding'
-      AND gene.display_xref_id IS NULL
-    )
-    AND gene.biotype = 'protein_coding'
-    AND object_xref.ensembl_object_type = 'Gene'
-    AND external_db.db_name = 'EntrezGene'
-  )
-)
-AND gene.biotype = 'protein_coding'
-AND object_xref.ensembl_object_type = 'Gene'
-AND external_db.db_name = 'Uniprot_gn';
-"""
 
 
 def evaluate_network(checkpoint_path, complete=False):
@@ -294,36 +185,9 @@ def compare_with_database(
     """
     assignments_csv_path = pathlib.Path(assignments_csv)
 
-    host = "ensembldb.ensembl.org"
-    user = "anonymous"
-    connection = pymysql.connect(
-        host=host,
-        user=user,
-        database=ensembldb_database,
-        # cursorclass=pymysql.cursors.DictCursor,
+    db_responses_dict = get_canonical_translations(
+        ensembldb_database, EntrezGene, Uniprot_gn
     )
-
-    sql_queries = [
-        get_xref_symbols_for_canonical_gene_transcripts,
-    ]
-
-    if EntrezGene:
-        sql_queries.append(get_entrezgene_symbols)
-
-    if Uniprot_gn:
-        sql_queries.append(get_uniprot_gn_symbols)
-
-    db_responses_dict = {}
-
-    with connection:
-        for sql_query in sql_queries:
-            with connection.cursor() as cursor:
-                cursor.execute(sql_query)
-                db_response = cursor.fetchall()
-
-            db_response_dict = dict(db_response)
-            assert set(db_responses_dict.keys()).isdisjoint(db_response_dict.keys())
-            db_responses_dict.update(db_response_dict)
 
     comparisons = []
     with open(assignments_csv_path, "r") as assignments_file:
