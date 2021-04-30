@@ -561,6 +561,7 @@ def get_canonical_translations(ensembldb_database, EntrezGene=False, Uniprot_gn=
         host=host,
         user=user,
         database=ensembldb_database,
+        cursorclass=pymysql.cursors.DictCursor,
     )
 
     sql_queries = [
@@ -573,19 +574,20 @@ def get_canonical_translations(ensembldb_database, EntrezGene=False, Uniprot_gn=
     if Uniprot_gn:
         sql_queries.append(get_uniprot_gn_symbols)
 
-    db_responses_dict = {}
+    canonical_translations = []
 
     with connection:
         for sql_query in sql_queries:
             with connection.cursor() as cursor:
                 cursor.execute(sql_query)
-                db_response = cursor.fetchall()
+                response = cursor.fetchall()
+            canonical_translations.extend(response)
 
-            db_response_dict = dict(db_response)
-            assert set(db_responses_dict.keys()).isdisjoint(db_response_dict.keys())
-            db_responses_dict.update(db_response_dict)
+    canonical_translations = pd.DataFrame(canonical_translations)
 
-    return db_responses_dict
+    canonical_translations = canonical_translations.set_index("translation_stable_id")
+
+    return canonical_translations
 
 
 def download_dataset():
