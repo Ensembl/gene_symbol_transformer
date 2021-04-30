@@ -469,7 +469,7 @@ def main():
     # set up logger
     logger.remove()
     logger.add(sys.stderr, format=LOGURU_FORMAT)
-    log_file_path = "dataset_generation.log"
+    log_file_path = data_directory / "dataset_generation.log"
     logger.add(log_file_path, format=LOGURU_FORMAT)
 
     if args.merge_metadata_sequences:
