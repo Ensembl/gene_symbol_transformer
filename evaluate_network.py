@@ -36,13 +36,10 @@ A trained network can be evaluated by assigning gene symbols to the assembly ann
 # standard library imports
 import argparse
 import csv
-import difflib
-import gzip
 import pathlib
 import sys
 
 # third party imports
-import ensembl_rest
 import pandas as pd
 import pymysql
 
@@ -50,19 +47,12 @@ from icecream import ic
 from loguru import logger
 
 # project imports
-from dataset_generation import get_genomes_metadata
+from dataset_generation import download_protein_sequences_fasta, get_genomes_metadata
 from fully_connected_pipeline import FullyConnectedNetwork
-from pipeline_abstractions import (
-    data_directory,
-    load_checkpoint,
-    read_fasta_in_chunks,
-)
+from pipeline_abstractions import load_checkpoint, read_fasta_in_chunks
 
 
 LOGURU_FORMAT = "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{message}</level>"
-
-sequences_directory = data_directory / "protein_sequences"
-sequences_directory.mkdir(exist_ok=True)
 
 
 get_xref_symbols_for_canonical_gene_transcripts = """
@@ -177,35 +167,6 @@ AND external_db.db_name = 'Uniprot_gn';
 """
 
 
-def fix_assembly(assembly):
-    """
-    Fixes for cases that the FASTA pep file naming doesn't mirror the assembly name.
-    """
-    # fix for a few assembly names
-    # http://ftp.ensembl.org/pub/release-103/fasta/erinaceus_europaeus/pep/
-    # http://ftp.ensembl.org/pub/release-103/fasta/homo_sapiens/pep/
-    # http://ftp.ensembl.org/pub/release-103/fasta/loxodonta_africana/pep/
-    # http://ftp.ensembl.org/pub/release-103/fasta/poecilia_formosa/pep/
-    # http://ftp.ensembl.org/pub/release-103/fasta/sorex_araneus/pep/
-    # http://ftp.ensembl.org/pub/release-103/fasta/tetraodon_nigroviridis/pep/
-    # http://ftp.ensembl.org/pub/release-103/fasta/tupaia_belangeri/pep/
-    names_map = {
-        "eriEur1": "HEDGEHOG",
-        "GRCh38.p13": "GRCh38",
-        "Loxafr3.0": "loxAfr3",
-        "Poecilia_formosa-5.1.2": "PoeFor_5.1.2",
-        "sorAra1": "COMMON_SHREW1",
-        "TETRAODON 8.0": "TETRAODON8",
-        "tupBel1": "TREESHREW",
-    }
-
-    if assembly in names_map:
-        return names_map[assembly]
-
-    # remove spaces in the assembly name
-    return assembly.replace(" ", "")
-
-
 def evaluate_network(checkpoint_path, complete=False):
     """
     Evaluate a trained network by assigning gene symbols to the protein sequences
@@ -247,38 +208,12 @@ def evaluate_network(checkpoint_path, complete=False):
     network = checkpoint["network"]
     training_session = checkpoint["training_session"]
 
-    ensembl_release = ensembl_rest.software()["release"]
-
-    base_url = f"http://ftp.ensembl.org/pub/release-{ensembl_release}/fasta/"
-
     genomes = get_genomes_metadata()
     for genome in genomes:
         if not complete and genome.species not in selected_species_genomes:
             continue
 
-        # download archived protein sequences FASTA file
-        archived_fasta_filename = "{}.{}.pep.all.fa.gz".format(
-            genome.species.capitalize(),
-            fix_assembly(genome.assembly),
-        )
-
-        archived_fasta_url = f"{base_url}{genome.species}/pep/{archived_fasta_filename}"
-
-        archived_fasta_path = sequences_directory / archived_fasta_filename
-        if not archived_fasta_path.exists():
-            response = requests.get(archived_fasta_url)
-            with open(archived_fasta_path, "wb+") as f:
-                f.write(response.content)
-            logger.info(f"downloaded {archived_fasta_filename}")
-
-        # extract archived protein sequences FASTA file
-        fasta_path = archived_fasta_path.with_suffix("")
-        if not fasta_path.exists():
-            with gzip.open(archived_fasta_path, "rb") as f:
-                file_content = f.read()
-            with open(fasta_path, "wb+") as f:
-                f.write(file_content)
-            logger.info(f"extracted {fasta_path}")
+        download_protein_sequences_fasta(genome)
 
         # assign symbols
         assignments_csv_path = pathlib.Path(

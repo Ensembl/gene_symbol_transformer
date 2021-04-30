@@ -45,7 +45,6 @@ from loguru import logger
 from torch.utils.data import Dataset
 
 # project imports
-from dataset_generation import load_data
 
 
 def specify_device():
@@ -310,6 +309,21 @@ class SuppressSettingWithCopyWarning:
 
     def __exit__(self, *args):
         pd.options.mode.chained_assignment = self.original_setting
+
+
+def load_data():
+    """
+    Load data dataframe, excluding filtered out examples.
+    """
+    data_pickle_path = data_directory / "data.pickle"
+    print("loading data...")
+    data = pd.read_pickle(data_pickle_path)
+    print("data loaded")
+
+    # exclude filtered out examples
+    data = data[data["include"] == True]
+
+    return data
 
 
 def load_checkpoint(checkpoint_path):
