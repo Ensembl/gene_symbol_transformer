@@ -452,15 +452,15 @@ def generate_dataset_statistics():
     # sequence length mean: 576.49, median: 442.00, standard deviation: 511.25
 
 
-def get_genomes_metadata():
+def get_assemblies_metadata():
     """
-    Get metadata for all genomes in the latest Ensembl release.
+    Get metadata for all genome assemblies in the latest Ensembl release.
 
     The metadata are loaded from the `species_EnsemblVertebrates.txt` file of
     the latest Ensembl release.
 
-    It would have been more elegant to get the genome metadata from the Ensembl
-    REST API `/info/species` endpoint but that lacks the core database name.
+    It would have been more elegant to get the metadata from the Ensembl REST API
+    `/info/species` endpoint but that lacks the core database name.
     https://rest.ensembl.org/documentation/info/species
 
     The metadata REST API could also be used when it's been updated.
@@ -477,14 +477,14 @@ def get_genomes_metadata():
             f.write(response.content)
         logger.info(f"downloaded {species_data_path}")
 
-    genomes_df = pd.read_csv(species_data_path, delimiter="\t", index_col=False)
-    genomes_df = genomes_df.rename(columns={"#name": "name"})
-    genomes = [
+    assemblies_df = pd.read_csv(species_data_path, delimiter="\t", index_col=False)
+    assemblies_df = assemblies_df.rename(columns={"#name": "name"})
+    assemblies = [
         PrettySimpleNamespace(**genome_row._asdict())
-        for genome_row in genomes_df.itertuples()
+        for genome_row in assemblies_df.itertuples()
     ]
 
-    return genomes
+    return assemblies
 
 
 def fix_assembly(assembly):
@@ -516,20 +516,20 @@ def fix_assembly(assembly):
     return assembly.replace(" ", "")
 
 
-def download_protein_sequences_fasta(genome, ensembl_release):
+def download_protein_sequences_fasta(assembly, ensembl_release):
     """
     Download and extract the archived protein sequences FASTA file for the species
-    described in the genome object.
+    described in the assembly object.
     """
     base_url = f"http://ftp.ensembl.org/pub/release-{ensembl_release}/fasta/"
 
     # download archived protein sequences FASTA file
     archived_fasta_filename = "{}.{}.pep.all.fa.gz".format(
-        genome.species.capitalize(),
-        fix_assembly(genome.assembly),
+        assembly.species.capitalize(),
+        fix_assembly(assembly.assembly),
     )
 
-    archived_fasta_url = f"{base_url}{genome.species}/pep/{archived_fasta_filename}"
+    archived_fasta_url = f"{base_url}{assembly.species}/pep/{archived_fasta_filename}"
 
     archived_fasta_path = sequences_directory / archived_fasta_filename
     if not archived_fasta_path.exists():
@@ -552,8 +552,8 @@ def download_protein_sequences_fasta(genome, ensembl_release):
 
 def get_canonical_translations(ensembldb_database, EntrezGene=False, Uniprot_gn=False):
     """
-    Get canonical translation sequences from the genome with ensembldb_database
-    core database.
+    Get canonical translation sequences from the genome assembly with
+    the ensembldb_database core database.
     """
     host = "ensembldb.ensembl.org"
     user = "anonymous"
@@ -592,16 +592,18 @@ def get_canonical_translations(ensembldb_database, EntrezGene=False, Uniprot_gn=
 
 def download_dataset():
     """
-    Download canonical translations of protein coding genes from all genomes
+    Download canonical translations of protein coding genes from all genome assemblies
     in the latest Ensembl release.
     """
     ensembl_release = ensembl_rest.software()["release"]
     logger.info(f"current Ensembl release: {ensembl_release}")
 
-    genomes = get_genomes_metadata()
-    for genome in genomes:
-        fasta_path = download_protein_sequences_fasta(genome, ensembl_release)
-        genome.fasta_path = str(fasta_path.resolve())
+    metadata = {}
+
+    assemblies = get_assemblies_metadata()
+    for assembly in assemblies:
+        fasta_path = download_protein_sequences_fasta(assembly, ensembl_release)
+        assembly.fasta_path = str(fasta_path.resolve())
     logger.info("protein sequences FASTA files in place")
 
 
@@ -618,7 +620,7 @@ def main():
     argument_parser.add_argument(
         "--download_dataset",
         action="store_true",
-        help="download dataset from genomes in the latest Ensembl release",
+        help="download dataset from genome assemblies in the latest Ensembl release",
     )
 
     args = argument_parser.parse_args()
