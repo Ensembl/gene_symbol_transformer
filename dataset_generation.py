@@ -25,6 +25,7 @@ Merge original data files, normalize, cleanup, and filter examples to a single p
 
 # standard library imports
 import argparse
+import gzip
 import pathlib
 import pickle
 import sys
@@ -38,7 +39,13 @@ from Bio import SeqIO
 from loguru import logger
 
 # project imports
-from pipeline_abstractions import PrettySimpleNamespace, data_directory
+from pipeline_abstractions import PrettySimpleNamespace, data_directory, load_data
+
+
+LOGURU_FORMAT = "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{message}</level>"
+
+sequences_directory = data_directory / "protein_sequences"
+sequences_directory.mkdir(exist_ok=True)
 
 
 def fasta_to_dataframe(fasta_path):
@@ -229,21 +236,6 @@ def save_dataset(data, num_symbols, max_frequency):
     )
 
 
-def load_data():
-    """
-    Load data dataframe, excluding filtered out examples.
-    """
-    data_pickle_path = data_directory / "data.pickle"
-    print("loading data...")
-    data = pd.read_pickle(data_pickle_path)
-    print("data loaded")
-
-    # exclude filtered out examples
-    data = data[data["include"] == True]
-
-    return data
-
-
 def save_all_sample_fasta_files():
     num_samples = 1000
 
@@ -382,6 +374,80 @@ def get_genomes_metadata():
     return genomes
 
 
+def fix_assembly(assembly):
+    """
+    Fixes for cases that the FASTA pep file naming doesn't mirror the assembly name.
+    """
+    # fix for a few assembly names
+    # http://ftp.ensembl.org/pub/release-103/fasta/erinaceus_europaeus/pep/
+    # http://ftp.ensembl.org/pub/release-103/fasta/homo_sapiens/pep/
+    # http://ftp.ensembl.org/pub/release-103/fasta/loxodonta_africana/pep/
+    # http://ftp.ensembl.org/pub/release-103/fasta/poecilia_formosa/pep/
+    # http://ftp.ensembl.org/pub/release-103/fasta/sorex_araneus/pep/
+    # http://ftp.ensembl.org/pub/release-103/fasta/tetraodon_nigroviridis/pep/
+    # http://ftp.ensembl.org/pub/release-103/fasta/tupaia_belangeri/pep/
+    names_map = {
+        "eriEur1": "HEDGEHOG",
+        "GRCh38.p13": "GRCh38",
+        "Loxafr3.0": "loxAfr3",
+        "Poecilia_formosa-5.1.2": "PoeFor_5.1.2",
+        "sorAra1": "COMMON_SHREW1",
+        "TETRAODON 8.0": "TETRAODON8",
+        "tupBel1": "TREESHREW",
+    }
+
+    if assembly in names_map:
+        return names_map[assembly]
+
+    # remove spaces in the assembly name
+    return assembly.replace(" ", "")
+
+
+def download_protein_sequences_fasta(genome, ensembl_release):
+    """
+    Download and extract the archived protein sequences FASTA file for the species
+    described in the genome object.
+    """
+    base_url = f"http://ftp.ensembl.org/pub/release-{ensembl_release}/fasta/"
+
+    # download archived protein sequences FASTA file
+    archived_fasta_filename = "{}.{}.pep.all.fa.gz".format(
+        genome.species.capitalize(),
+        fix_assembly(genome.assembly),
+    )
+
+    archived_fasta_url = f"{base_url}{genome.species}/pep/{archived_fasta_filename}"
+
+    archived_fasta_path = sequences_directory / archived_fasta_filename
+    if not archived_fasta_path.exists():
+        response = requests.get(archived_fasta_url)
+        with open(archived_fasta_path, "wb+") as f:
+            f.write(response.content)
+        logger.info(f"downloaded {archived_fasta_filename}")
+
+    # extract archived protein sequences FASTA file
+    fasta_path = archived_fasta_path.with_suffix("")
+    if not fasta_path.exists():
+        with gzip.open(archived_fasta_path, "rb") as f:
+            file_content = f.read()
+        with open(fasta_path, "wb+") as f:
+            f.write(file_content)
+        logger.info(f"extracted {fasta_path}")
+
+
+def download_dataset():
+    """
+    Download canonical translations of protein coding genes from all genomes
+    in the latest Ensembl release.
+    """
+    ensembl_release = ensembl_rest.software()["release"]
+    logger.info(f"current Ensembl release: {ensembl_release}")
+
+    genomes = get_genomes_metadata()
+    for genome in genomes:
+        download_protein_sequences_fasta(genome, ensembl_release)
+
+
 def main():
     """
     main function
@@ -392,6 +458,11 @@ def main():
     argument_parser.add_argument("--save_all_datasets", action="store_true")
     argument_parser.add_argument("--save_all_sample_fasta_files", action="store_true")
     argument_parser.add_argument("--generate_dataset_statistics", action="store_true")
+    argument_parser.add_argument(
+        "--download_dataset",
+        action="store_true",
+        help="download dataset from genomes in the latest Ensembl release",
+    )
 
     args = argument_parser.parse_args()
 
@@ -411,6 +482,8 @@ def main():
         save_all_sample_fasta_files()
     elif args.generate_dataset_statistics:
         generate_dataset_statistics()
+    elif args.download_dataset:
+        download_dataset()
     else:
         print("Error: missing argument.")
         print(__doc__)
