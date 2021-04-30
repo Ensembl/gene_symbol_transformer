@@ -185,7 +185,7 @@ def compare_with_database(
     """
     assignments_csv_path = pathlib.Path(assignments_csv)
 
-    db_responses_dict = get_canonical_translations(
+    canonical_translations = get_canonical_translations(
         ensembldb_database, EntrezGene, Uniprot_gn
     )
 
@@ -200,8 +200,8 @@ def compare_with_database(
 
             translation_stable_id = csv_stable_id[:-2]
 
-            if translation_stable_id in db_responses_dict:
-                xref_symbol = db_responses_dict[translation_stable_id]
+            if translation_stable_id in canonical_translations.index:
+                xref_symbol = canonical_translations.loc[translation_stable_id]["Xref_symbol"]
                 comparisons.append((csv_stable_id, classifier_symbol, xref_symbol))
 
     dataframe_columns = [
