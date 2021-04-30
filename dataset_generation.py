@@ -547,6 +547,8 @@ def download_protein_sequences_fasta(genome, ensembl_release):
             f.write(file_content)
         logger.info(f"extracted {fasta_path}")
 
+    return fasta_path
+
 
 def get_canonical_translations(ensembldb_database, EntrezGene=False, Uniprot_gn=False):
     """
@@ -596,10 +598,9 @@ def download_dataset():
 
     genomes = get_genomes_metadata()
     for genome in genomes:
-        download_protein_sequences_fasta(genome, ensembl_release)
-    logger.info("protein sequences FASTA files downloaded")
-
-    get_canonical_translations(genome.species)
+        fasta_path = download_protein_sequences_fasta(genome, ensembl_release)
+        genome.fasta_path = str(fasta_path.resolve())
+    logger.info("protein sequences FASTA files in place")
 
 
 def main():
