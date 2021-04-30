@@ -49,7 +49,7 @@ from loguru import logger
 from dataset_generation import (
     download_protein_sequences_fasta,
     get_canonical_translations,
-    get_genomes_metadata,
+    get_assemblies_metadata,
 )
 from fully_connected_pipeline import FullyConnectedNetwork
 from pipeline_abstractions import load_checkpoint, read_fasta_in_chunks
@@ -61,14 +61,14 @@ LOGURU_FORMAT = "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{message}</l
 def evaluate_network(checkpoint_path, complete=False):
     """
     Evaluate a trained network by assigning gene symbols to the protein sequences
-    of genomes in the latest Ensembl release, and comparing them to the existing
+    of genome assemblies in the latest Ensembl release, and comparing them to the existing
     Xref assignments.
 
     Args:
         checkpoint_path (Path): path to the training checkpoint
-        complete (bool): Whether or not to run the evaluation for all genomes.
+        complete (bool): Whether or not to run the evaluation for all genome assemblies.
             Defaults to False, which runs the evaluation only for a selection of
-            the most important species genomes.
+            the most important species genome assemblies.
     """
     selected_species_genomes = {
         "ailuropoda_melanoleuca": "giant panda",
@@ -99,12 +99,12 @@ def evaluate_network(checkpoint_path, complete=False):
     network = checkpoint["network"]
     training_session = checkpoint["training_session"]
 
-    genomes = get_genomes_metadata()
-    for genome in genomes:
-        if not complete and genome.species not in selected_species_genomes:
+    assemblies = get_assemblies_metadata()
+    for assembly in assemblies:
+        if not complete and assembly.species not in selected_species_genomes:
             continue
 
-        download_protein_sequences_fasta(genome)
+        download_protein_sequences_fasta(assembly)
 
         # assign symbols
         assignments_csv_path = pathlib.Path(
@@ -120,8 +120,8 @@ def evaluate_network(checkpoint_path, complete=False):
         if not comparisons_csv_path.exists():
             compare_with_database(
                 assignments_csv_path,
-                genome.core_db,
-                genome.species,
+                assembly.core_db,
+                assembly.species,
             )
 
 
@@ -180,8 +180,8 @@ def compare_with_database(
     Uniprot_gn=False,
 ):
     """
-    Compare classifier assignments with the gene symbols in the genome database on
-    the public Ensembl MySQL server.
+    Compare classifier assignments with the gene symbols in the genome assembly
+    ensembldb_database core database on the public Ensembl MySQL server.
     """
     assignments_csv_path = pathlib.Path(assignments_csv)
 
@@ -273,13 +273,13 @@ def main():
     )
     argument_parser.add_argument(
         "--ensembldb_database",
-        help="genome database name on the public Ensembl MySQL server",
+        help="genome assembly core database name on the public Ensembl MySQL server",
     )
     argument_parser.add_argument("--checkpoint", help="training session checkpoint path")
     argument_parser.add_argument(
         "--complete",
         action="store_true",
-        help="run the evaluation for all genomes in the Ensembl release",
+        help="run the evaluation for all genome assemblies in the Ensembl release",
     )
 
     args = argument_parser.parse_args()
