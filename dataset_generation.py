@@ -29,6 +29,7 @@ import gzip
 import pathlib
 import pickle
 import sys
+import time
 
 # third party imports
 import ensembl_rest
@@ -46,12 +47,36 @@ from pipeline_abstractions import PrettySimpleNamespace, data_directory, load_da
 
 LOGURU_FORMAT = "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{message}</level>"
 
+missing_REST_API_entries = {
+    "GCA_002263795.2": {
+        "scientific_name": "Bos taurus",
+        "common_name": "Cow",
+    },
+    "GCA_000002035.4": {
+        "scientific_name": "Danio rerio",
+        "common_name": "Zebrafish",
+    },
+    "GCA_000001215.4": {
+        "scientific_name": "Drosophila melanogaster",
+        "common_name": "D. melanogaster",
+    },
+    "GCA_000001405.28": {
+        "scientific_name": "Homo sapiens",
+        "common_name": "Human",
+    },
+    "GCA_003339765.3": {
+        "scientific_name": "Macaca mulatta",
+        "common_name": "Macaque",
+    },
+}
+
 sequences_directory = data_directory / "protein_sequences"
 sequences_directory.mkdir(exist_ok=True)
 
 get_xref_symbols_for_canonical_gene_transcripts = """
 -- Xref symbols for canonical translations
 SELECT
+  gene.stable_id as gene_stable_id,
   translation.stable_id AS translation_stable_id,
   xref.display_label AS Xref_symbol
 FROM gene
@@ -159,6 +184,15 @@ AND gene.biotype = 'protein_coding'
 AND object_xref.ensembl_object_type = 'Gene'
 AND external_db.db_name = 'Uniprot_gn';
 """
+
+
+def get_ensembl_release():
+    """
+    retrieve the version number of the latest Ensembl release
+    """
+    # https://rest.ensembl.org/documentation/info/data
+    ensembl_release = max(ensembl_rest.data()["releases"])
+    return ensembl_release
 
 
 def fasta_to_dataframe(fasta_path):
@@ -465,8 +499,7 @@ def get_assemblies_metadata():
 
     The metadata REST API could also be used when it's been updated.
     """
-    # get the version number of the latest Ensembl release
-    ensembl_release = ensembl_rest.software()["release"]
+    ensembl_release = get_ensembl_release()
 
     # download the `species_EnsemblVertebrates.txt` file
     species_data_url = f"http://ftp.ensembl.org/pub/release-{ensembl_release}/species_EnsemblVertebrates.txt"
@@ -590,13 +623,13 @@ def get_canonical_translations(ensembldb_database, EntrezGene=False, Uniprot_gn=
     return canonical_translations
 
 
-def download_dataset():
+def generate_dataset():
     """
     Download canonical translations of protein coding genes from all genome assemblies
     in the latest Ensembl release.
     """
-    ensembl_release = ensembl_rest.software()["release"]
-    logger.info(f"current Ensembl release: {ensembl_release}")
+    ensembl_release = get_ensembl_release()
+    logger.info(f"Ensembl release {ensembl_release}")
 
     metadata = {}
 
@@ -605,6 +638,42 @@ def download_dataset():
         fasta_path = download_protein_sequences_fasta(assembly, ensembl_release)
         assembly.fasta_path = str(fasta_path.resolve())
     logger.info("protein sequences FASTA files in place")
+
+    for assembly in assemblies:
+        # skip assembly if assembly_accession is missing (is converted to `nan`)
+        if type(assembly.assembly_accession) is float:
+            continue
+
+        # delay between REST API calls
+        time.sleep(0.3)
+
+        # retrieve additional information for the assembly from the REST API
+        try:
+            # https://rest.ensembl.org/documentation/info/info_genomes_assembly
+            response = ensembl_rest.info_genomes_assembly(assembly.assembly_accession)
+            rest_assembly = PrettySimpleNamespace(**response)
+            rest_assembly_success = True
+        except ensembl_rest.core.restclient.HTTPError as ex:
+            assert assembly.assembly_accession in missing_REST_API_entries, f"{assembly=}"
+            rest_assembly_success = False
+
+        assembly_metadata = PrettySimpleNamespace()
+        metadata[assembly.assembly_accession] = assembly_metadata
+
+        assembly_metadata.assembly_accession = assembly.assembly_accession
+        if rest_assembly_success:
+            assembly_metadata.scientific_name = rest_assembly.scientific_name
+        else:
+            assembly_metadata.scientific_name = missing_REST_API_entries[assembly.assembly_accession]["scientific_name"]
+        if rest_assembly_success:
+            assembly_metadata.common_name = rest_assembly.display_name
+        else:
+            assembly_metadata.common_name = missing_REST_API_entries[assembly.assembly_accession]["common_name"]
+        assembly_metadata.core_db = assembly.core_db
+        assembly_metadata.sequences_fasta_path = assembly.fasta_path
+        assembly_metadata.taxonomy_id = assembly.taxonomy_id
+
+    ic(metadata)
 
 
 def main():
@@ -618,9 +687,9 @@ def main():
     argument_parser.add_argument("--save_all_sample_fasta_files", action="store_true")
     argument_parser.add_argument("--generate_dataset_statistics", action="store_true")
     argument_parser.add_argument(
-        "--download_dataset",
+        "--generate_dataset",
         action="store_true",
-        help="download dataset from genome assemblies in the latest Ensembl release",
+        help="generate training dataset from genome assemblies in the latest Ensembl release",
     )
 
     args = argument_parser.parse_args()
@@ -641,8 +710,8 @@ def main():
         save_all_sample_fasta_files()
     elif args.generate_dataset_statistics:
         generate_dataset_statistics()
-    elif args.download_dataset:
-        download_dataset()
+    elif args.generate_dataset:
+        generate_dataset()
     else:
         print("Error: missing argument.")
         print(__doc__)
