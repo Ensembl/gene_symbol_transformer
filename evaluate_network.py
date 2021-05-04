@@ -57,6 +57,30 @@ from pipeline_abstractions import load_checkpoint, read_fasta_in_chunks
 
 LOGURU_FORMAT = "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{message}</level>"
 
+selected_species_genomes = {
+    "ailuropoda_melanoleuca": "giant panda",
+    "aquila_chrysaetos_chrysaetos": "golden eagle",
+    "balaenoptera_musculus": "blue whale",
+    "bos_taurus": "cow",
+    "caenorhabditis_elegans": "caenorhabditis elegans",
+    "canis_lupus_familiaris": "dog",
+    "cyprinus_carpio": "common carp",
+    "danio_rerio": "zebrafish",
+    "drosophila_melanogaster": "drosophila melanogaster",
+    "felis_catus": "cat",
+    "gallus_gallus": "chicken",
+    "homo_sapiens": "human",
+    "loxodonta_africana": "elephant",
+    "mus_musculus": "mouse",
+    "oryctolagus_cuniculus": "rabbit",
+    "ovis_aries": "sheep",
+    "pan_troglodytes": "chimpanzee",
+    "panthera_leo": "lion",
+    "saccharomyces_cerevisiae": "saccharomyces cerevisiae",
+    "sus_scrofa": "pig",
+    "varanus_komodoensis": "komodo dragon",
+}
+
 
 def evaluate_network(checkpoint_path, complete=False):
     """
@@ -70,31 +94,6 @@ def evaluate_network(checkpoint_path, complete=False):
             Defaults to False, which runs the evaluation only for a selection of
             the most important species genome assemblies.
     """
-    selected_species_genomes = {
-        "ailuropoda_melanoleuca": "giant panda",
-        "aquila_chrysaetos_chrysaetos": "golden eagle",
-        "balaenoptera_musculus": "blue whale",
-        "bos_taurus": "cow",
-        "caenorhabditis_elegans": "caenorhabditis elegans",
-        "canis_lupus_familiaris": "dog",
-        "cyprinus_carpio": "common carp",
-        "danio_rerio": "zebrafish",
-        "drosophila_melanogaster": "drosophila melanogaster",
-        "felis_catus": "cat",
-        "gallus_gallus": "chicken",
-        "homo_sapiens": "human",
-        "loxodonta_africana": "elephant",
-        "mus_musculus": "mouse",
-        "oryctolagus_cuniculus": "rabbit",
-        "ovis_aries": "sheep",
-        "pan_troglodytes": "chimpanzee",
-        "panthera_leo": "lion",
-        "saccharomyces_cerevisiae": "saccharomyces cerevisiae",
-        "sus_scrofa": "pig",
-        "tursiops_truncatus": "dolphin",
-        "varanus_komodoensis": "komodo dragon",
-    }
-
     checkpoint = load_checkpoint(checkpoint_path)
     network = checkpoint["network"]
     training_session = checkpoint["training_session"]
