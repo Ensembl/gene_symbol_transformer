@@ -454,7 +454,11 @@ def main():
         "--sequences_fasta",
         help="path of FASTA file with protein sequences to generate symbol assignments for",
     )
-    argument_parser.add_argument("--save_network")
+    argument_parser.add_argument(
+        "--save_network",
+        action="store_true",
+        help="extract the network from a checkpoint file"
+    )
 
     args = argument_parser.parse_args()
 
@@ -484,7 +488,7 @@ def main():
 
     # save network
     if args.save_network:
-        checkpoint_path = pathlib.Path(args.save_network)
+        checkpoint_path = pathlib.Path(args.checkpoint)
         logger.info(f'loading checkpoint "{checkpoint_path}" ...')
         network_path = save_network_from_checkpoint(checkpoint_path)
         logger.info(f'saved network at "{network_path}"')
