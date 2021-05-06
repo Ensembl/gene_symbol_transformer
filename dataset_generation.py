@@ -69,6 +69,7 @@ WHERE gene.biotype = 'protein_coding';
 get_entrezgene_symbols = """
 -- EntrezGene symbols for translations with no Xref symbols
 SELECT
+  gene.stable_id as gene_stable_id,
   translation.stable_id AS translation_stable_id,
   xref.display_label AS EntrezGene_symbol
 FROM gene
@@ -101,6 +102,7 @@ AND external_db.db_name = 'EntrezGene';
 
 get_uniprot_gn_symbols = """
 -- Uniprot_gn symbols for translations with no Xref and no EntrezGene symbols
+  gene.stable_id as gene_stable_id,
 SELECT
   translation.stable_id AS translation_stable_id,
   xref.display_label AS Uniprot_gn_symbol
@@ -502,13 +504,13 @@ def fix_assembly(assembly):
     Fixes for cases that the FASTA pep file naming doesn't mirror the assembly name.
     """
     # fix for a few assembly names
-    # http://ftp.ensembl.org/pub/release-103/fasta/erinaceus_europaeus/pep/
-    # http://ftp.ensembl.org/pub/release-103/fasta/homo_sapiens/pep/
-    # http://ftp.ensembl.org/pub/release-103/fasta/loxodonta_africana/pep/
-    # http://ftp.ensembl.org/pub/release-103/fasta/poecilia_formosa/pep/
-    # http://ftp.ensembl.org/pub/release-103/fasta/sorex_araneus/pep/
-    # http://ftp.ensembl.org/pub/release-103/fasta/tetraodon_nigroviridis/pep/
-    # http://ftp.ensembl.org/pub/release-103/fasta/tupaia_belangeri/pep/
+    # http://ftp.ensembl.org/pub/release-104/fasta/erinaceus_europaeus/pep/
+    # http://ftp.ensembl.org/pub/release-104/fasta/homo_sapiens/pep/
+    # http://ftp.ensembl.org/pub/release-104/fasta/loxodonta_africana/pep/
+    # http://ftp.ensembl.org/pub/release-104/fasta/poecilia_formosa/pep/
+    # http://ftp.ensembl.org/pub/release-104/fasta/sorex_araneus/pep/
+    # http://ftp.ensembl.org/pub/release-104/fasta/tetraodon_nigroviridis/pep/
+    # http://ftp.ensembl.org/pub/release-104/fasta/tupaia_belangeri/pep/
     names_map = {
         "eriEur1": "HEDGEHOG",
         "GRCh38.p13": "GRCh38",
@@ -595,7 +597,7 @@ def get_canonical_translations(ensembldb_database, EntrezGene=False, Uniprot_gn=
 
     canonical_translations = pd.DataFrame(canonical_translations)
 
-    canonical_translations = canonical_translations.set_index("translation_stable_id")
+    # canonical_translations = canonical_translations.set_index("translation_stable_id")
 
     return canonical_translations
 
@@ -608,38 +610,63 @@ def generate_dataset():
     ensembl_release = get_ensembl_release()
     logger.info(f"Ensembl release {ensembl_release}")
 
-    metadata = {}
-
     assemblies = get_assemblies_metadata()
     for assembly in assemblies:
         fasta_path = download_protein_sequences_fasta(assembly, ensembl_release)
         assembly.fasta_path = str(fasta_path.resolve())
     logger.info("protein sequences FASTA files in place")
 
-    for assembly in assemblies:
-        # skip assembly if assembly_accession is missing (is converted to `nan`)
-        if type(assembly.assembly_accession) is float:
-            continue
+    metadata_path = data_directory / pathlib.Path("metadata.pickle")
+    if metadata_path.exists():
+        with open(metadata_path, "rb") as f:
+            metadata = pickle.load(f)
+    else:
+        metadata = []
+        for assembly in assemblies:
+            # skip assembly if assembly_accession is missing
+            # (the value is converted to a `nan` float)
+            if type(assembly.assembly_accession) is float:
+                continue
 
-        # delay between REST API calls
-        time.sleep(0.3)
+            # delay between REST API calls
+            time.sleep(0.3)
 
-        # retrieve additional information for the assembly from the REST API
-        # https://rest.ensembl.org/documentation/info/info_genomes_assembly
-        response = ensembl_rest.info_genomes_assembly(assembly.assembly_accession)
-        rest_assembly = PrettySimpleNamespace(**response)
+            # retrieve additional information for the assembly from the REST API
+            # https://rest.ensembl.org/documentation/info/info_genomes_assembly
+            response = ensembl_rest.info_genomes_assembly(assembly.assembly_accession)
+            rest_assembly = PrettySimpleNamespace(**response)
 
-        assembly_metadata = PrettySimpleNamespace()
-        metadata[assembly.assembly_accession] = assembly_metadata
+            assembly_metadata = PrettySimpleNamespace()
 
-        assembly_metadata.assembly_accession = assembly.assembly_accession
-        assembly_metadata.scientific_name = rest_assembly.scientific_name
-        assembly_metadata.common_name = rest_assembly.display_name
-        assembly_metadata.taxonomy_id = assembly.taxonomy_id
-        assembly_metadata.core_db = assembly.core_db
-        assembly_metadata.sequences_fasta_path = assembly.fasta_path
+            assembly_metadata.assembly_accession = assembly.assembly_accession
+            assembly_metadata.scientific_name = rest_assembly.scientific_name
+            assembly_metadata.common_name = rest_assembly.display_name
+            assembly_metadata.taxonomy_id = assembly.taxonomy_id
+            assembly_metadata.core_db = assembly.core_db
+            assembly_metadata.sequences_fasta_path = assembly.fasta_path
 
-    ic(metadata)
+            metadata.append(assembly_metadata)
+
+        with open(metadata_path, "wb") as f:
+            pickle.dump(metadata, f)
+
+    columns = [
+        "gene_stable_id",
+        "translation_stable_id",
+        "Xref_symbol",
+    ]
+    canonical_translations = pd.DataFrame(columns=columns)
+    for assembly in metadata:
+        assembly_translations = get_canonical_translations(assembly.core_db)
+
+        canonical_translations = pd.concat(
+            [canonical_translations, assembly_translations],
+            ignore_index=True,
+        )
+
+    # save canonical_translations as a pickle file
+    canonical_translations_path = data_directory / "canonical_translations.pickle"
+    canonical_translations.to_pickle(canonical_translations_path)
 
 
 def main():
