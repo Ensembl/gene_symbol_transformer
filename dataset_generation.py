@@ -47,29 +47,6 @@ from pipeline_abstractions import PrettySimpleNamespace, data_directory, load_da
 
 LOGURU_FORMAT = "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{message}</level>"
 
-missing_REST_API_entries = {
-    "GCA_002263795.2": {
-        "scientific_name": "Bos taurus",
-        "common_name": "Cow",
-    },
-    "GCA_000002035.4": {
-        "scientific_name": "Danio rerio",
-        "common_name": "Zebrafish",
-    },
-    "GCA_000001215.4": {
-        "scientific_name": "Drosophila melanogaster",
-        "common_name": "D. melanogaster",
-    },
-    "GCA_000001405.28": {
-        "scientific_name": "Homo sapiens",
-        "common_name": "Human",
-    },
-    "GCA_003339765.3": {
-        "scientific_name": "Macaca mulatta",
-        "common_name": "Macaque",
-    },
-}
-
 sequences_directory = data_directory / "protein_sequences"
 sequences_directory.mkdir(exist_ok=True)
 
@@ -648,30 +625,19 @@ def generate_dataset():
         time.sleep(0.3)
 
         # retrieve additional information for the assembly from the REST API
-        try:
-            # https://rest.ensembl.org/documentation/info/info_genomes_assembly
-            response = ensembl_rest.info_genomes_assembly(assembly.assembly_accession)
-            rest_assembly = PrettySimpleNamespace(**response)
-            rest_assembly_success = True
-        except ensembl_rest.core.restclient.HTTPError as ex:
-            assert assembly.assembly_accession in missing_REST_API_entries, f"{assembly=}"
-            rest_assembly_success = False
+        # https://rest.ensembl.org/documentation/info/info_genomes_assembly
+        response = ensembl_rest.info_genomes_assembly(assembly.assembly_accession)
+        rest_assembly = PrettySimpleNamespace(**response)
 
         assembly_metadata = PrettySimpleNamespace()
         metadata[assembly.assembly_accession] = assembly_metadata
 
         assembly_metadata.assembly_accession = assembly.assembly_accession
-        if rest_assembly_success:
-            assembly_metadata.scientific_name = rest_assembly.scientific_name
-        else:
-            assembly_metadata.scientific_name = missing_REST_API_entries[assembly.assembly_accession]["scientific_name"]
-        if rest_assembly_success:
-            assembly_metadata.common_name = rest_assembly.display_name
-        else:
-            assembly_metadata.common_name = missing_REST_API_entries[assembly.assembly_accession]["common_name"]
+        assembly_metadata.scientific_name = rest_assembly.scientific_name
+        assembly_metadata.common_name = rest_assembly.display_name
+        assembly_metadata.taxonomy_id = assembly.taxonomy_id
         assembly_metadata.core_db = assembly.core_db
         assembly_metadata.sequences_fasta_path = assembly.fasta_path
-        assembly_metadata.taxonomy_id = assembly.taxonomy_id
 
     ic(metadata)
 
