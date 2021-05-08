@@ -620,6 +620,7 @@ def generate_dataset():
     if metadata_path.exists():
         with open(metadata_path, "rb") as f:
             metadata = pickle.load(f)
+        logger.info(f"loaded existing metadata file {metadata_path}")
     else:
         metadata = []
         for assembly in assemblies:
@@ -664,9 +665,19 @@ def generate_dataset():
             ignore_index=True,
         )
 
+        num_assembly_translations = len(assembly_translations)
+        num_canonical_translations = len(canonical_translations)
+        logger.info(
+            f"retrieved {num_assembly_translations} canonical translations for {assembly.scientific_name} {assembly.assembly_accession}, {num_canonical_translations} total so far"
+        )
+
     # save canonical_translations as a pickle file
     canonical_translations_path = data_directory / "canonical_translations.pickle"
     canonical_translations.to_pickle(canonical_translations_path)
+    num_canonical_translations = len(canonical_translations)
+    logger.info(
+        f"{num_canonical_translations} canonical translations saved at {canonical_translations_path}"
+    )
 
 
 def main():
