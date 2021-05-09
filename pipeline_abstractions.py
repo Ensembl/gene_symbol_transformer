@@ -182,11 +182,15 @@ class SequenceDataset(Dataset):
 
 def read_fasta_in_chunks(fasta_file_path, num_entries_in_chunk=1024):
     """
-    Read a FASTA file in chunks, returning a TODO of tuples of two strings,
+    Read a FASTA file in chunks, returning a list of tuples of two strings,
     the FASTA description line without the leading ">" character, and
     the sequence with any whitespace removed.
 
-    num_entries_in_chunk: number of entries in each chunk
+    Args:
+        fasta_file_path (Path or str): FASTA file path
+        num_entries_in_chunk (int): number of entries in each chunk
+    Returns:
+        generator that produces lists of FASTA entries
     """
     # Count the number of entries in the FASTA file up to the maximum of
     # the num_entries_in_chunk chunk size. If the FASTA file has fewer entries
@@ -210,6 +214,37 @@ def read_fasta_in_chunks(fasta_file_path, num_entries_in_chunk=1024):
             if fasta_entries[-1] is None:
                 fasta_entries = [entry for entry in fasta_entries if entry is not None]
             yield fasta_entries
+
+
+def fasta_to_dict(fasta_file_path):
+    """
+    Read a FASTA file to a dictionary with keys the first word of each description
+    and values the corresponding sequence.
+
+    Args:
+        fasta_file_path (Path or str): FASTA file path
+    Returns:
+        dict: FASTA entries dictionary mapping the first word of each entry
+        description to the corresponding sequence
+    """
+    fasta_dict = {}
+
+    for fasta_entries in read_fasta_in_chunks(fasta_file_path):
+        if fasta_entries[-1] is None:
+            fasta_entries = [
+                fasta_entry for fasta_entry in fasta_entries if fasta_entry is not None
+            ]
+
+        for fasta_entry in fasta_entries:
+            description = fasta_entry[0]
+            first_word = description.split(" ")[0]
+            sequence = fasta_entry[1]
+
+            # verify entry keys are unique
+            assert first_word not in fasta_dict, f"{first_word=} already in fasta_dict"
+            fasta_dict[first_word] = {"description": description, "sequence": sequence}
+
+    return fasta_dict
 
 
 def get_unique_protein_letters():

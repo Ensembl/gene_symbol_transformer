@@ -42,7 +42,12 @@ from icecream import ic
 from loguru import logger
 
 # project imports
-from pipeline_abstractions import PrettySimpleNamespace, data_directory, load_data
+from pipeline_abstractions import (
+    PrettySimpleNamespace,
+    data_directory,
+    fasta_to_dict,
+    load_data,
+)
 
 
 LOGURU_FORMAT = "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{message}</level>"
@@ -54,7 +59,9 @@ get_xref_symbols_for_canonical_gene_transcripts = """
 -- Xref symbols for canonical translations
 SELECT
   gene.stable_id as gene_stable_id,
+  gene.version as gene_version,
   translation.stable_id AS translation_stable_id,
+  translation.version AS translation_version,
   xref.display_label AS Xref_symbol
 FROM gene
 INNER JOIN transcript
@@ -70,7 +77,9 @@ get_entrezgene_symbols = """
 -- EntrezGene symbols for translations with no Xref symbols
 SELECT
   gene.stable_id as gene_stable_id,
+  gene.version as gene_version,
   translation.stable_id AS translation_stable_id,
+  translation.version AS translation_version,
   xref.display_label AS EntrezGene_symbol
 FROM gene
 INNER JOIN object_xref
@@ -102,9 +111,11 @@ AND external_db.db_name = 'EntrezGene';
 
 get_uniprot_gn_symbols = """
 -- Uniprot_gn symbols for translations with no Xref and no EntrezGene symbols
-  gene.stable_id as gene_stable_id,
 SELECT
+  gene.stable_id as gene_stable_id,
+  gene.version as gene_version,
   translation.stable_id AS translation_stable_id,
+  translation.version AS translation_version,
   xref.display_label AS Uniprot_gn_symbol
 FROM gene
 INNER JOIN object_xref
@@ -586,20 +597,46 @@ def get_canonical_translations(ensembldb_database, EntrezGene=False, Uniprot_gn=
     if Uniprot_gn:
         sql_queries.append(get_uniprot_gn_symbols)
 
-    canonical_translations = []
+    columns = [
+        "gene_stable_id",
+        "gene_version",
+        "translation_stable_id",
+        "translation_version",
+        "Xref_symbol",
+        "sequence",
+    ]
+    canonical_translations_df = pd.DataFrame(columns=columns)
 
+    canonical_translations_list = []
     with connection:
         for sql_query in sql_queries:
             with connection.cursor() as cursor:
                 cursor.execute(sql_query)
                 response = cursor.fetchall()
-            canonical_translations.extend(response)
+            canonical_translations_list.extend(response)
 
-    canonical_translations = pd.DataFrame(canonical_translations)
+    canonical_translations_df = pd.concat(
+        [canonical_translations_df, pd.DataFrame(canonical_translations_list)],
+        ignore_index=True,
+    )
 
-    # canonical_translations = canonical_translations.set_index("translation_stable_id")
+    return canonical_translations_df
 
-    return canonical_translations
+
+def get_sequence_from_assembly_fasta_dict(df_row, assembly_fasta_dict):
+    """
+    Retrieve the sequence in the assembly FASTA dictionary that the translations
+    dataframe row corresponds to.
+    """
+    if df_row["translation_version"] is None:
+        translation_stable_id_version = df_row["translation_stable_id"]
+    else:
+        translation_stable_id_version = "{}.{}".format(
+            df_row["translation_stable_id"], df_row["translation_version"]
+        )
+    sequence = assembly_fasta_dict[translation_stable_id_version]["sequence"]
+
+    return sequence
 
 
 def generate_dataset():
@@ -653,12 +690,24 @@ def generate_dataset():
 
     columns = [
         "gene_stable_id",
+        "gene_version",
         "translation_stable_id",
+        "translation_version",
         "Xref_symbol",
+        "sequence",
     ]
     canonical_translations = pd.DataFrame(columns=columns)
     for assembly in metadata:
+        logger.info(
+            f"processing {assembly.scientific_name} {assembly.assembly_accession}"
+        )
         assembly_translations = get_canonical_translations(assembly.core_db)
+        assembly_fasta_dict = fasta_to_dict(assembly.sequences_fasta_path)
+
+        assembly_translations["sequence"] = assembly_translations.apply(
+            lambda x: get_sequence_from_assembly_fasta_dict(x, assembly_fasta_dict),
+            axis=1,
+        )
 
         canonical_translations = pd.concat(
             [canonical_translations, assembly_translations],
@@ -670,6 +719,7 @@ def generate_dataset():
         logger.info(
             f"retrieved {num_assembly_translations} canonical translations for {assembly.scientific_name} {assembly.assembly_accession}, {num_canonical_translations} total so far"
         )
+        print()
 
     # save canonical_translations as a pickle file
     canonical_translations_path = data_directory / "canonical_translations.pickle"
