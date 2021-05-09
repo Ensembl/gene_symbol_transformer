@@ -58,8 +58,8 @@ sequences_directory.mkdir(exist_ok=True)
 get_xref_symbols_for_canonical_gene_transcripts = """
 -- Xref symbols for canonical translations
 SELECT
-  gene.stable_id as gene_stable_id,
-  gene.version as gene_version,
+  gene.stable_id AS gene_stable_id,
+  gene.version AS gene_version,
   translation.stable_id AS translation_stable_id,
   translation.version AS translation_version,
   xref.display_label AS Xref_symbol
@@ -76,8 +76,8 @@ WHERE gene.biotype = 'protein_coding';
 get_entrezgene_symbols = """
 -- EntrezGene symbols for translations with no Xref symbols
 SELECT
-  gene.stable_id as gene_stable_id,
-  gene.version as gene_version,
+  gene.stable_id AS gene_stable_id,
+  gene.version AS gene_version,
   translation.stable_id AS translation_stable_id,
   translation.version AS translation_version,
   xref.display_label AS EntrezGene_symbol
@@ -112,8 +112,8 @@ AND external_db.db_name = 'EntrezGene';
 get_uniprot_gn_symbols = """
 -- Uniprot_gn symbols for translations with no Xref and no EntrezGene symbols
 SELECT
-  gene.stable_id as gene_stable_id,
-  gene.version as gene_version,
+  gene.stable_id AS gene_stable_id,
+  gene.version AS gene_version,
   translation.stable_id AS translation_stable_id,
   translation.version AS translation_version,
   xref.display_label AS Uniprot_gn_symbol
@@ -695,6 +695,11 @@ def generate_dataset():
         "translation_version",
         "Xref_symbol",
         "sequence",
+        "assembly_accession",
+        "scientific_name",
+        "common_name",
+        "taxonomy_id",
+        "core_db",
     ]
     canonical_translations = pd.DataFrame(columns=columns)
     for assembly in metadata:
@@ -708,6 +713,12 @@ def generate_dataset():
             lambda x: get_sequence_from_assembly_fasta_dict(x, assembly_fasta_dict),
             axis=1,
         )
+
+        assembly_translations["assembly_accession"] = assembly.assembly_accession
+        assembly_translations["scientific_name"] = assembly.scientific_name
+        assembly_translations["common_name"] = assembly.common_name
+        assembly_translations["taxonomy_id"] = assembly.taxonomy_id
+        assembly_translations["core_db"] = assembly.core_db
 
         canonical_translations = pd.concat(
             [canonical_translations, assembly_translations],
