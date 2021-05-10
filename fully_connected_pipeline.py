@@ -83,6 +83,7 @@ class FullyConnectedNetwork(nn.Module):
         super().__init__()
 
         self.sequence_length = sequence_length
+        self.dropout_probability = dropout_probability
         self.gene_symbols = gene_symbols
 
         input_size = self.sequence_length * num_protein_letters
@@ -92,7 +93,8 @@ class FullyConnectedNetwork(nn.Module):
         self.output_layer = nn.Linear(
             in_features=num_connections, out_features=output_size
         )
-        self.dropout = nn.Dropout(dropout_probability)
+        if self.dropout_probability > 0:
+            self.dropout = nn.Dropout(self.dropout_probability)
 
         self.relu = nn.ReLU()
         self.final_activation = nn.LogSoftmax(dim=1)
@@ -109,11 +111,13 @@ class FullyConnectedNetwork(nn.Module):
         x = torch.flatten(x, start_dim=1)
 
         x = self.input_layer(x)
-        x = self.dropout(x)
+        if self.dropout_probability > 0:
+            x = self.dropout(x)
         x = self.relu(x)
 
         x = self.output_layer(x)
-        x = self.dropout(x)
+        if self.dropout_probability > 0:
+            x = self.dropout(x)
         x = self.final_activation(x)
 
         return x
