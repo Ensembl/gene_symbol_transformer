@@ -19,7 +19,9 @@
 
 
 """
-Merge original data files, normalize, cleanup, and filter examples to a single pandas dataframe saved as a pickle file.
+Download training dataset.
+
+For the original dataset: Merge original data files, normalize, clean up, and filter examples to a single pandas dataframe saved as a pickle file.
 """
 
 
@@ -733,7 +735,7 @@ def generate_dataset():
         print()
 
     # save canonical_translations as a pickle file
-    canonical_translations_path = data_directory / "canonical_translations.pickle"
+    canonical_translations_path = data_directory / "dataset.pickle"
     canonical_translations.to_pickle(canonical_translations_path)
     num_canonical_translations = len(canonical_translations)
     logger.info(
