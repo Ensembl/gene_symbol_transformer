@@ -34,11 +34,7 @@ COPY \
     dataset_generation.py \
     /app/
 
-COPY \
-    symbols_capitalization_mapping.pickle \
-    /app/data/
-
-VOLUME /app/checkpoints
-VOLUME /app/sequences
+VOLUME /app/data
+VOLUME /app/experiments
 
 ENTRYPOINT ["python", "fully_connected_pipeline.py"]
