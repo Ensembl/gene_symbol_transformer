@@ -344,53 +344,35 @@ def save_sample_fasta(num_samples, num_symbols):
             fasta_file.write(f">{stable_id} {symbol}\n{sequence}\n")
 
 
-def generate_dataset_statistics():
-    data = load_data()
-    print()
+def generate_statistics():
+    """
+    Generate and log dataset statistics.
+    """
+    dataset = load_dataset()
 
-    # data_memory_usage = sys.getsizeof(data)
-    # print("data memory usage: {}".format(sizeof_fmt(data_memory_usage)))
-    # 3.8GiB
+    dataset_object_size = sys.getsizeof(dataset)
+    logger.info("dataset object usage: {}".format(sizeof_fmt(dataset_object_size)))
 
-    num_sequences = len(data)
-    print(f"{num_sequences} sequences")
-    print()
-    # 3805809 sequences
+    num_canonical_translations = len(dataset)
+    logger.info(f"dataset contains {num_canonical_translations:,} canonical translations")
 
-    # symbols occurrence frequency
-    symbol_counts = data["symbol"].value_counts()
-    print(symbol_counts)
-    print()
-    # nxpe3            378
-    # pla1a            339
-    # tbc1d9           335
-    # NXPH1            329
-    # CPNE3            323
-    #                 ...
-    # TRXH_1             1
-    # BnaA10g05860D      1
-    # BnaA03g11140D      1
-    # BnaA09g47630D      1
-    # BnaC04g10230D      1
-    # Name: symbol, Length: 229133, dtype: int64
+    # calculate unique symbols occurrence frequency
+    symbol_counts = dataset["symbol"].value_counts()
+    logger.info(symbol_counts)
 
     symbol_counts_mean = symbol_counts.mean()
     symbol_counts_median = symbol_counts.median()
     symbol_counts_standard_deviation = symbol_counts.std()
-    print(
+    logger.info(
         f"symbol counts mean: {symbol_counts_mean:.2f}, median: {symbol_counts_median:.2f}, standard deviation: {symbol_counts_standard_deviation:.2f}"
     )
-    print()
-    # symbol counts mean: 16.61, median: 1.00, standard deviation: 50.23
 
-    sequence_length_mean = data["sequence"].str.len().mean()
-    sequence_length_median = data["sequence"].str.len().median()
-    sequence_length_standard_deviation = data["sequence"].str.len().std()
-    print(
+    sequence_length_mean = dataset["sequence"].str.len().mean()
+    sequence_length_median = dataset["sequence"].str.len().median()
+    sequence_length_standard_deviation = dataset["sequence"].str.len().std()
+    logger.info(
         f"sequence length mean: {sequence_length_mean:.2f}, median: {sequence_length_median:.2f}, standard deviation: {sequence_length_standard_deviation:.2f}"
     )
-    print()
-    # sequence length mean: 576.49, median: 442.00, standard deviation: 511.25
 
 
 def get_assemblies_metadata():
@@ -655,8 +637,16 @@ def main():
         action="store_true",
         help="generate training dataset from genome assemblies in the latest Ensembl release",
     )
-    argument_parser.add_argument("--dataset_cleanup", action="store_true")
-    argument_parser.add_argument("--generate_dataset_statistics", action="store_true")
+    argument_parser.add_argument(
+        "--dataset_cleanup",
+        action="store_true",
+        help="perform additional cleanup on the dataset, to be merged into the cleanup function",
+    )
+    argument_parser.add_argument(
+        "--generate_statistics",
+        action="store_true",
+        help="generate and log dataset statistics",
+    )
     argument_parser.add_argument("--save_all_datasets", action="store_true")
     argument_parser.add_argument("--save_all_sample_fasta_files", action="store_true")
 
@@ -679,8 +669,8 @@ def main():
 
         dataset.to_pickle(dataset_pickle_path)
         logger.info("dataset cleanup complete")
-    elif args.generate_dataset_statistics:
-        generate_dataset_statistics()
+    elif args.generate_statistics:
+        generate_statistics()
     elif args.save_all_datasets:
         save_all_datasets()
     elif args.save_all_sample_fasta_files:
