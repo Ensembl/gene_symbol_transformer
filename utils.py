@@ -26,9 +26,7 @@ Generic training and testing pipeline functions and classes.
 # standard library imports
 import itertools
 import pathlib
-import pickle
 import pprint
-import sys
 import warnings
 
 from types import SimpleNamespace
@@ -43,8 +41,6 @@ import torch.nn as nn
 from Bio import SeqIO
 from loguru import logger
 from torch.utils.data import Dataset
-
-# project imports
 
 
 def specify_device():
@@ -245,31 +241,6 @@ def fasta_to_dict(fasta_file_path):
             fasta_dict[first_word] = {"description": description, "sequence": sequence}
 
     return fasta_dict
-
-
-def get_unique_protein_letters():
-    """
-    Generate and return a list of the unique protein letters that occur in the dataset.
-    """
-    extended_IUPAC_protein_letters = Bio.Data.IUPACData.extended_protein_letters
-    stop_codon = ["*"]
-
-    data = load_data()
-
-    # generate a list of all protein letters that occur in the dataset
-    dataset_letters = set(data["sequence"].str.cat())
-
-    extra_letters = [
-        letter
-        for letter in dataset_letters
-        if letter not in extended_IUPAC_protein_letters
-    ]
-    assert extra_letters == stop_codon
-
-    protein_letters = list(extended_IUPAC_protein_letters) + stop_codon
-    assert len(protein_letters) == 27, protein_letters
-
-    return protein_letters
 
 
 def pad_or_truncate_string(string, normalized_length):

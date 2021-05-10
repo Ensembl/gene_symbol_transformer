@@ -42,7 +42,6 @@ import sys
 # third party imports
 import pandas as pd
 
-from icecream import ic
 from loguru import logger
 
 # project imports
