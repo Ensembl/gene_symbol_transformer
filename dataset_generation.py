@@ -187,82 +187,6 @@ def get_ensembl_release():
     return ensembl_release
 
 
-def fasta_to_dataframe(fasta_path):
-    """
-    Generate a pandas dataframe with columns "description" and "sequence" from
-    a FASTA file.
-    """
-    records = []
-    with open(fasta_path) as fasta_file:
-        for fasta_record in SeqIO.FastaIO.SimpleFastaParser(fasta_file):
-            records.append({"description": fasta_record[0], "sequence": fasta_record[1]})
-
-    records_dataframe = pd.DataFrame(records)
-
-    return records_dataframe
-
-
-def merge_metadata_sequences(debug=False):
-    """
-    Merge the metadata CSV file and the sequences FASTA file in a single CSV file.
-    """
-    all_data_pickle_path = data_directory / "all_species_metadata_sequences.pickle"
-
-    # exit function if the output file exists
-    if all_data_pickle_path.is_file():
-        print(f"{all_data_pickle_path} file already exists")
-        return
-
-    metadata_csv_path = data_directory / "original" / "all_species.csv"
-    sequences_fasta_path = data_directory / "original" / "all_species.fa"
-
-    # read the metadata csv file to a pandas dataframe
-    metadata = pd.read_csv(metadata_csv_path, sep="\t")
-    if debug:
-        print(metadata.head())
-        print()
-        metadata.info()
-        print()
-        print(metadata.describe())
-        print()
-    assert metadata["stable_id"].nunique() == len(metadata)
-
-    # generate a pandas dataframe from the sequences FASTA file
-    sequences = fasta_to_dataframe(sequences_fasta_path)
-    if debug:
-        print(sequences.head())
-        print()
-        sequences.info()
-        print()
-        print(sequences.describe())
-        print()
-    assert sequences["description"].nunique() == len(sequences)
-
-    # merge the two dataframes in a single one
-    merged_data = pd.merge(
-        left=metadata, right=sequences, left_on="stable_id", right_on="description"
-    )
-    if debug:
-        print(merged_data.head())
-        print()
-        merged_data.info()
-        print()
-    assert (
-        merged_data["stable_id"].nunique()
-        == merged_data["description"].nunique()
-        == len(merged_data)
-    )
-
-    # remove duplicate description column
-    merged_data.drop(columns=["description"], inplace=True)
-    if debug:
-        merged_data.info()
-        print()
-
-    # save the merged dataframe to a pickle file
-    merged_data.to_pickle(all_data_pickle_path)
-
-
 def data_wrangling():
     """
     - simplify some column names
@@ -748,7 +672,6 @@ def main():
     main function
     """
     argument_parser = argparse.ArgumentParser()
-    argument_parser.add_argument("--merge_metadata_sequences", action="store_true")
     argument_parser.add_argument("--data_wrangling", action="store_true")
     argument_parser.add_argument("--save_all_datasets", action="store_true")
     argument_parser.add_argument("--save_all_sample_fasta_files", action="store_true")
@@ -767,9 +690,7 @@ def main():
     log_file_path = data_directory / "dataset_generation.log"
     logger.add(log_file_path, format=LOGURU_FORMAT)
 
-    if args.merge_metadata_sequences:
-        merge_metadata_sequences()
-    elif args.data_wrangling:
+    if args.data_wrangling:
         data_wrangling()
     elif args.save_all_datasets:
         save_all_datasets()
