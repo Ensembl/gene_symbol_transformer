@@ -44,7 +44,7 @@ from torch.utils.data import DataLoader, random_split
 from torch.utils.tensorboard import SummaryWriter
 
 # project imports
-from pipeline_abstractions import (
+from utils import (
     EarlyStopping,
     PrettySimpleNamespace,
     SequenceDataset,
