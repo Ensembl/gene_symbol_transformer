@@ -317,30 +317,35 @@ class SuppressSettingWithCopyWarning:
         pd.options.mode.chained_assignment = self.original_setting
 
 
-def load_data():
+def load_dataset():
     """
-    Load data dataframe, excluding filtered out examples.
+    Load dataset dataframe.
     """
-    data_pickle_path = data_directory / "data.pickle"
-    print("loading data...")
-    data = pd.read_pickle(data_pickle_path)
-    print("data loaded")
+    dataset_pickle_path = data_directory / "dataset.pickle"
+    logger.info(f"loading dataset {dataset_pickle_path} ...")
+    dataset = pd.read_pickle(dataset_pickle_path)
+    logger.info("dataset loaded")
 
-    # exclude filtered out examples
-    data = data[data["include"] == True]
-
-    return data
+    return dataset
 
 
 def load_checkpoint(checkpoint_path):
     """
-    Load saved training checkpoint.
+    Load training checkpoint.
     """
-    logger.info(f'loading training checkpoint "{checkpoint_path}"...')
+    logger.info(f'loading training checkpoint "{checkpoint_path}" ...')
     checkpoint = torch.load(checkpoint_path, map_location=DEVICE)
     logger.info(f'"{checkpoint_path}" training checkpoint loaded')
 
     return checkpoint
+
+
+def sizeof_fmt(num, suffix="B"):
+    for unit in ["", "Ki", "Mi", "Gi", "Ti", "Pi", "Ei", "Zi"]:
+        if abs(num) < 1024:
+            return f"{num:3.1f}{unit}{suffix}"
+        num /= 1024
+    return f"{num:.1f}Yi{suffix}"
 
 
 class EarlyStopping:
