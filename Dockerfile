@@ -30,7 +30,7 @@ RUN poetry install --no-dev
 
 COPY \
     fully_connected_pipeline.py \
-    pipeline_abstractions.py \
+    utils.py \
     dataset_generation.py \
     /app/
 

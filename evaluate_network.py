@@ -52,7 +52,7 @@ from dataset_generation import (
     get_assemblies_metadata,
 )
 from fully_connected_pipeline import FullyConnectedNetwork
-from pipeline_abstractions import load_checkpoint, read_fasta_in_chunks
+from utils import load_checkpoint, read_fasta_in_chunks
 
 
 LOGURU_FORMAT = "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{message}</level>"

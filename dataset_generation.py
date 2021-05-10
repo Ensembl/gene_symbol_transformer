@@ -44,7 +44,7 @@ from icecream import ic
 from loguru import logger
 
 # project imports
-from pipeline_abstractions import (
+from utils import (
     PrettySimpleNamespace,
     data_directory,
     fasta_to_dict,
