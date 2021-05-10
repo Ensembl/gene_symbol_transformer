@@ -210,6 +210,23 @@ def dataset_cleanup(dataset):
     # delete temporary lowercase symbols column
     dataset = dataset.drop(columns=["Xref_symbol_lowercase"])
 
+    # reorder dataframe columns
+    columns = [
+        "gene_stable_id",
+        "gene_version",
+        "translation_stable_id",
+        "translation_version",
+        "Xref_symbol",
+        "symbol",
+        "sequence",
+        "assembly_accession",
+        "scientific_name",
+        "common_name",
+        "taxonomy_id",
+        "core_db",
+    ]
+    dataset = dataset[columns]
+
     num_original = dataset["Xref_symbol"].nunique()
     num_merged = dataset["symbol"].nunique()
     logger.info(f"{num_original} original symbol capitalization variants merged to {num_merged}")
@@ -654,11 +671,14 @@ def main():
     if args.generate_dataset:
         generate_dataset()
     elif args.dataset_cleanup:
-        dataset = load_dataset()
-        dataset = dataset_cleanup(dataset)
-        dataset_path = data_directory / "dataset.pickle"
-        dataset.to_pickle(dataset_path)
-        logger.info(f"dataset saved at {dataset_path}")
+        dataset_pickle_path = data_directory / "dataset.pickle"
+        dataset = pd.read_pickle(dataset_pickle_path)
+
+        logger.info("nothing to do")
+        sys.exit()
+
+        dataset.to_pickle(dataset_pickle_path)
+        logger.info("dataset cleanup complete")
     elif args.generate_dataset_statistics:
         generate_dataset_statistics()
     elif args.save_all_datasets:
