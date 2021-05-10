@@ -19,9 +19,11 @@
 
 
 """
-Download training dataset.
+Generate training dataset.
 
-For the original dataset: Merge original data files, normalize, clean up, and filter examples to a single pandas dataframe saved as a pickle file.
+Download protein sequences for canonical translations from the assemblies in
+the latest Ensembl release, create a Pandas dataframe of them including useful metadata,
+and save it to a pickle file.
 """
 
 
@@ -39,7 +41,6 @@ import pandas as pd
 import pymysql
 import requests
 
-from Bio import SeqIO
 from icecream import ic
 from loguru import logger
 
@@ -48,7 +49,8 @@ from utils import (
     PrettySimpleNamespace,
     data_directory,
     fasta_to_dict,
-    load_data,
+    load_dataset,
+    sizeof_fmt,
 )
 
 
@@ -187,52 +189,32 @@ def get_ensembl_release():
     return ensembl_release
 
 
-def data_wrangling():
+def dataset_cleanup(dataset):
     """
-    - simplify some column names
-    - use symbol names in lowercase
-    267536 unique original symbol names
-    233824 unique lowercase symbol names
-    12.6% reduction
-
-    - filter out "Clone-based (Ensembl) gene" examples
-      No standard name exists for them. 4691 examples filtered out.
+    Merge symbol capitalization variants to the most frequent version.
     """
-    # load the original data file
-    all_data_pickle_path = data_directory / "all_species_metadata_sequences.pickle"
-    print(f"loading {all_data_pickle_path} file...")
-    data = pd.read_pickle(all_data_pickle_path)
-    print(f"{all_data_pickle_path} file loaded")
+    logger.info("merging symbol capitalization variants...")
+    # create temporary column with Xref symbols in lowercase
+    dataset["Xref_symbol_lowercase"] = dataset["Xref_symbol"].str.lower()
 
-    # simplify some column names
-    print("renaming dataframe columns...")
-    data = data.rename(
-        columns={
-            "display_xref.display_id": "symbol_original",
-            "display_xref.db_display_name": "db_display_name",
-        }
-    )
-
-    # pick the most frequent capitalization for each symbol
-    print("picking the most frequent capitalization for each symbol...")
-    # store symbol names in lowercase
-    data["symbol_lowercase"] = data["symbol_original"].str.lower()
-    symbols_capitalization_mapping = (
-        data.groupby(["symbol_lowercase"])["symbol_original"]
+    # create dictionary to map from the lowercase to the most frequent capitalization
+    symbol_capitalization_mapping = (
+        dataset.groupby(["Xref_symbol_lowercase"])["Xref_symbol"]
         .agg(lambda x: pd.Series.mode(x)[0])
         .to_dict()
     )
-    data["symbol"] = data["symbol_lowercase"].map(symbols_capitalization_mapping)
 
-    # filter out "Clone-based (Ensembl) gene" examples
-    print(
-        'creating "include" column and filtering out "Clone-based (Ensembl) gene" examples'
-    )
-    data["include"] = data["db_display_name"] != "Clone-based (Ensembl) gene"
+    # save the most frequent capitalization for each Xref symbol
+    dataset["symbol"] = dataset["Xref_symbol_lowercase"].map(symbol_capitalization_mapping)
 
-    # save the dataframe to a new data file
-    data_pickle_path = data_directory / "data.pickle"
-    data.to_pickle(data_pickle_path)
+    # delete temporary lowercase symbols column
+    dataset = dataset.drop(columns=["Xref_symbol_lowercase"])
+
+    num_original = dataset["Xref_symbol"].nunique()
+    num_merged = dataset["symbol"].nunique()
+    logger.info(f"{num_original} original symbol capitalization variants merged to {num_merged}")
+
+    return dataset
 
 
 def save_all_datasets():
@@ -253,7 +235,7 @@ def save_all_datasets():
         [30591, 5],
     ]
 
-    data = load_data()
+    data = load_dataset()
 
     for (num_symbols, max_frequency) in num_symbols_max_frequencies:
         print(f"saving {num_symbols} symbols dataset")
@@ -343,14 +325,6 @@ def save_sample_fasta(num_samples, num_symbols):
             sequence = entry_dict["sequence"]
 
             fasta_file.write(f">{stable_id} {symbol}\n{sequence}\n")
-
-
-def sizeof_fmt(num, suffix="B"):
-    for unit in ["", "Ki", "Mi", "Gi", "Ti", "Pi", "Ei", "Zi"]:
-        if abs(num) < 1024:
-            return f"{num:3.1f}{unit}{suffix}"
-        num /= 1024
-    return f"{num:.1f}Yi{suffix}"
 
 
 def generate_dataset_statistics():
@@ -593,7 +567,7 @@ def generate_dataset():
                 continue
 
             # delay between REST API calls
-            time.sleep(0.3)
+            time.sleep(0.2)
 
             # retrieve additional information for the assembly from the REST API
             # https://rest.ensembl.org/documentation/info/info_genomes_assembly
@@ -611,27 +585,17 @@ def generate_dataset():
 
             metadata.append(assembly_metadata)
 
+            species = assembly.species.replace("_", " ").capitalize()
+            logger.info(f"retrieved metadata for {assembly.name}, {species}, {assembly.assembly_accession}")
+
         with open(metadata_path, "wb") as f:
             pickle.dump(metadata, f)
 
-    columns = [
-        "gene_stable_id",
-        "gene_version",
-        "translation_stable_id",
-        "translation_version",
-        "Xref_symbol",
-        "sequence",
-        "assembly_accession",
-        "scientific_name",
-        "common_name",
-        "taxonomy_id",
-        "core_db",
-    ]
-    canonical_translations = pd.DataFrame(columns=columns)
+    canonical_translations_list = []
     for assembly in metadata:
-        logger.info(
-            f"processing {assembly.scientific_name} {assembly.assembly_accession}"
-        )
+        # delay between SQL queries
+        time.sleep(0.1)
+
         assembly_translations = get_canonical_translations(assembly.core_db)
         assembly_fasta_dict = fasta_to_dict(assembly.sequences_fasta_path)
 
@@ -646,25 +610,22 @@ def generate_dataset():
         assembly_translations["taxonomy_id"] = assembly.taxonomy_id
         assembly_translations["core_db"] = assembly.core_db
 
-        canonical_translations = pd.concat(
-            [canonical_translations, assembly_translations],
-            ignore_index=True,
-        )
-
         num_assembly_translations = len(assembly_translations)
-        num_canonical_translations = len(canonical_translations)
         logger.info(
-            f"retrieved {num_assembly_translations} canonical translations for {assembly.scientific_name} {assembly.assembly_accession}, {num_canonical_translations} total so far"
+            f"retrieved {num_assembly_translations} canonical translations for {assembly.common_name}, {assembly.scientific_name}, {assembly.assembly_accession}"
         )
-        print()
 
-    # save canonical_translations as a pickle file
-    canonical_translations_path = data_directory / "dataset.pickle"
-    canonical_translations.to_pickle(canonical_translations_path)
-    num_canonical_translations = len(canonical_translations)
-    logger.info(
-        f"{num_canonical_translations} canonical translations saved at {canonical_translations_path}"
-    )
+        canonical_translations_list.append(assembly_translations)
+
+    canonical_translations = pd.concat(canonical_translations_list, ignore_index=True)
+
+    dataset = dataset_cleanup(canonical_translations)
+
+    # save dataset as a pickle file
+    dataset_path = data_directory / "dataset.pickle"
+    dataset.to_pickle(dataset_path)
+    num_translations = len(dataset)
+    logger.info(f"{num_translations} canonical translations saved at {dataset_path}")
 
 
 def main():
@@ -672,15 +633,15 @@ def main():
     main function
     """
     argument_parser = argparse.ArgumentParser()
-    argument_parser.add_argument("--data_wrangling", action="store_true")
-    argument_parser.add_argument("--save_all_datasets", action="store_true")
-    argument_parser.add_argument("--save_all_sample_fasta_files", action="store_true")
-    argument_parser.add_argument("--generate_dataset_statistics", action="store_true")
     argument_parser.add_argument(
         "--generate_dataset",
         action="store_true",
         help="generate training dataset from genome assemblies in the latest Ensembl release",
     )
+    argument_parser.add_argument("--dataset_cleanup", action="store_true")
+    argument_parser.add_argument("--generate_dataset_statistics", action="store_true")
+    argument_parser.add_argument("--save_all_datasets", action="store_true")
+    argument_parser.add_argument("--save_all_sample_fasta_files", action="store_true")
 
     args = argument_parser.parse_args()
 
@@ -690,16 +651,20 @@ def main():
     log_file_path = data_directory / "dataset_generation.log"
     logger.add(log_file_path, format=LOGURU_FORMAT)
 
-    if args.data_wrangling:
-        data_wrangling()
+    if args.generate_dataset:
+        generate_dataset()
+    elif args.dataset_cleanup:
+        dataset = load_dataset()
+        dataset = dataset_cleanup(dataset)
+        dataset_path = data_directory / "dataset.pickle"
+        dataset.to_pickle(dataset_path)
+        logger.info(f"dataset saved at {dataset_path}")
+    elif args.generate_dataset_statistics:
+        generate_dataset_statistics()
     elif args.save_all_datasets:
         save_all_datasets()
     elif args.save_all_sample_fasta_files:
         save_all_sample_fasta_files()
-    elif args.generate_dataset_statistics:
-        generate_dataset_statistics()
-    elif args.generate_dataset:
-        generate_dataset()
     else:
         print("Error: missing argument.")
         print(__doc__)
