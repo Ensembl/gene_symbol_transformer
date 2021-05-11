@@ -189,51 +189,6 @@ def get_ensembl_release():
     return ensembl_release
 
 
-def dataset_cleanup(dataset):
-    """
-    Merge symbol capitalization variants to the most frequent version.
-    """
-    logger.info("merging symbol capitalization variants...")
-    # create temporary column with Xref symbols in lowercase
-    dataset["Xref_symbol_lowercase"] = dataset["Xref_symbol"].str.lower()
-
-    # create dictionary to map from the lowercase to the most frequent capitalization
-    symbol_capitalization_mapping = (
-        dataset.groupby(["Xref_symbol_lowercase"])["Xref_symbol"]
-        .agg(lambda x: pd.Series.mode(x)[0])
-        .to_dict()
-    )
-
-    # save the most frequent capitalization for each Xref symbol
-    dataset["symbol"] = dataset["Xref_symbol_lowercase"].map(symbol_capitalization_mapping)
-
-    # delete temporary lowercase symbols column
-    dataset = dataset.drop(columns=["Xref_symbol_lowercase"])
-
-    # reorder dataframe columns
-    columns = [
-        "gene_stable_id",
-        "gene_version",
-        "translation_stable_id",
-        "translation_version",
-        "Xref_symbol",
-        "symbol",
-        "sequence",
-        "assembly_accession",
-        "scientific_name",
-        "common_name",
-        "taxonomy_id",
-        "core_db",
-    ]
-    dataset = dataset[columns]
-
-    num_original = dataset["Xref_symbol"].nunique()
-    num_merged = dataset["symbol"].nunique()
-    logger.info(f"{num_original} original symbol capitalization variants merged to {num_merged}")
-
-    return dataset
-
-
 def save_all_datasets():
     """
     Save the examples for each num_symbols to a pickled dataframe and a FASTA file.
@@ -342,37 +297,6 @@ def save_sample_fasta(num_samples, num_symbols):
             sequence = entry_dict["sequence"]
 
             fasta_file.write(f">{stable_id} {symbol}\n{sequence}\n")
-
-
-def generate_statistics():
-    """
-    Generate and log dataset statistics.
-    """
-    dataset = load_dataset()
-
-    dataset_object_size = sys.getsizeof(dataset)
-    logger.info("dataset object usage: {}".format(sizeof_fmt(dataset_object_size)))
-
-    num_canonical_translations = len(dataset)
-    logger.info(f"dataset contains {num_canonical_translations:,} canonical translations")
-
-    # calculate unique symbols occurrence frequency
-    symbol_counts = dataset["symbol"].value_counts()
-    logger.info(symbol_counts)
-
-    symbol_counts_mean = symbol_counts.mean()
-    symbol_counts_median = symbol_counts.median()
-    symbol_counts_standard_deviation = symbol_counts.std()
-    logger.info(
-        f"symbol counts mean: {symbol_counts_mean:.2f}, median: {symbol_counts_median:.2f}, standard deviation: {symbol_counts_standard_deviation:.2f}"
-    )
-
-    sequence_length_mean = dataset["sequence"].str.len().mean()
-    sequence_length_median = dataset["sequence"].str.len().median()
-    sequence_length_standard_deviation = dataset["sequence"].str.len().std()
-    logger.info(
-        f"sequence length mean: {sequence_length_mean:.2f}, median: {sequence_length_median:.2f}, standard deviation: {sequence_length_standard_deviation:.2f}"
-    )
 
 
 def get_assemblies_metadata():
@@ -625,6 +549,82 @@ def generate_dataset():
     dataset.to_pickle(dataset_path)
     num_translations = len(dataset)
     logger.info(f"{num_translations} canonical translations saved at {dataset_path}")
+
+
+def dataset_cleanup(dataset):
+    """
+    Merge symbol capitalization variants to the most frequent version.
+    """
+    logger.info("merging symbol capitalization variants...")
+    # create temporary column with Xref symbols in lowercase
+    dataset["Xref_symbol_lowercase"] = dataset["Xref_symbol"].str.lower()
+
+    # create dictionary to map from the lowercase to the most frequent capitalization
+    symbol_capitalization_mapping = (
+        dataset.groupby(["Xref_symbol_lowercase"])["Xref_symbol"]
+        .agg(lambda x: pd.Series.mode(x)[0])
+        .to_dict()
+    )
+
+    # save the most frequent capitalization for each Xref symbol
+    dataset["symbol"] = dataset["Xref_symbol_lowercase"].map(symbol_capitalization_mapping)
+
+    # delete temporary lowercase symbols column
+    dataset = dataset.drop(columns=["Xref_symbol_lowercase"])
+
+    # reorder dataframe columns
+    columns = [
+        "gene_stable_id",
+        "gene_version",
+        "translation_stable_id",
+        "translation_version",
+        "Xref_symbol",
+        "symbol",
+        "sequence",
+        "assembly_accession",
+        "scientific_name",
+        "common_name",
+        "taxonomy_id",
+        "core_db",
+    ]
+    dataset = dataset[columns]
+
+    num_original = dataset["Xref_symbol"].nunique()
+    num_merged = dataset["symbol"].nunique()
+    logger.info(f"{num_original} original symbol capitalization variants merged to {num_merged}")
+
+    return dataset
+
+
+def generate_statistics():
+    """
+    Generate and log dataset statistics.
+    """
+    dataset = load_dataset()
+
+    dataset_object_size = sys.getsizeof(dataset)
+    logger.info("dataset object usage: {}".format(sizeof_fmt(dataset_object_size)))
+
+    num_canonical_translations = len(dataset)
+    logger.info(f"dataset contains {num_canonical_translations:,} canonical translations")
+
+    # calculate unique symbols occurrence frequency
+    symbol_counts = dataset["symbol"].value_counts()
+    logger.info(symbol_counts)
+
+    symbol_counts_mean = symbol_counts.mean()
+    symbol_counts_median = symbol_counts.median()
+    symbol_counts_standard_deviation = symbol_counts.std()
+    logger.info(
+        f"symbol counts mean: {symbol_counts_mean:.2f}, median: {symbol_counts_median:.2f}, standard deviation: {symbol_counts_standard_deviation:.2f}"
+    )
+
+    sequence_length_mean = dataset["sequence"].str.len().mean()
+    sequence_length_median = dataset["sequence"].str.len().median()
+    sequence_length_standard_deviation = dataset["sequence"].str.len().std()
+    logger.info(
+        f"sequence length mean: {sequence_length_mean:.2f}, median: {sequence_length_median:.2f}, standard deviation: {sequence_length_standard_deviation:.2f}"
+    )
 
 
 def main():
