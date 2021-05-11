@@ -36,7 +36,7 @@ FullyConnectedNetwork(
 
 The negative log likelihood loss was applied to the network output as the loss function.
 
-The example protein sequences are of variable length with mean `576.49`, median `442`, and standard deviation `511.25`. In order to generate uniform sized batches all sequences were normalized to a length of `1000`, with either truncating longer sequences or padding shorter ones. Therefore, the final feature tensor being fed to the neural network for each example is of size `27 x 1000`.
+The example protein sequences are of variable length with mean `580.63`, median `444`, and standard deviation `521.15`. In order to generate uniform sized batches all sequences were normalized to a length of `841`, equal to `mean + 0.5 * standard deviation`, with either truncating longer sequences or padding shorter ones. Therefore, the final feature tensor being fed to the neural network for each example is of size `27 x 841`.
 
 
 ## experiment setup
@@ -44,9 +44,9 @@ The example protein sequences are of variable length with mean `576.49`, median 
 A YAML file has been defined for specifying hyperparameters for an experiment. It has a flat dictionary structure with mostly self-explanatory variables.
 
 ```yaml
-num_symbols: 25028
+num_symbols: 30241
 
-sequence_length: 1000
+sequence_length: 841
 
 batch_size: 1024
 

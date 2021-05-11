@@ -1,19 +1,11 @@
 num_symbols: 3
-#num_symbols: 101
-#num_symbols: 1013
-#num_symbols: 10059
-#num_symbols: 20147
-#num_symbols: 25028
-#num_symbols: 26007
-#num_symbols: 27137
-#num_symbols: 28197
-#num_symbols: 29041
-#num_symbols: 30591
+#num_symbols: 100
+#num_symbols: 25228
+#num_symbols: 30241
 
-#sequence_length: 750
-sequence_length: 1000
-#sequence_length: 1500
-#sequence_length: 2000
+#sequence_length: 581
+sequence_length: 841
+#sequence_length: 1102
 
 #batch_size: 32
 #batch_size: 64
