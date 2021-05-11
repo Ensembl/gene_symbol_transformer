@@ -60,11 +60,12 @@ sequences_directory.mkdir(exist_ok=True)
 get_xref_symbols_for_canonical_gene_transcripts = """
 -- Xref symbols for canonical translations
 SELECT
-  gene.stable_id AS gene_stable_id,
-  gene.version AS gene_version,
-  translation.stable_id AS translation_stable_id,
-  translation.version AS translation_version,
-  xref.display_label AS Xref_symbol
+  gene.stable_id AS 'gene.stable_id',
+  gene.version AS 'gene.version',
+  translation.stable_id AS 'translation.stable_id',
+  translation.version AS 'translation.version',
+  xref.display_label AS 'Xref_symbol',
+  external_db.db_display_name AS 'external_db.db_display_name'
 FROM gene
 INNER JOIN transcript
   ON gene.canonical_transcript_id = transcript.transcript_id
@@ -72,17 +73,20 @@ INNER JOIN translation
   ON transcript.canonical_translation_id = translation.translation_id
 INNER JOIN xref
   ON gene.display_xref_id = xref.xref_id
+INNER JOIN external_db
+  ON xref.external_db_id = external_db.external_db_id
 WHERE gene.biotype = 'protein_coding';
 """
 
 get_entrezgene_symbols = """
 -- EntrezGene symbols for translations with no Xref symbols
 SELECT
-  gene.stable_id AS gene_stable_id,
-  gene.version AS gene_version,
-  translation.stable_id AS translation_stable_id,
-  translation.version AS translation_version,
-  xref.display_label AS EntrezGene_symbol
+  gene.stable_id AS 'gene.stable_id',
+  gene.version AS 'gene.version',
+  translation.stable_id AS 'translation.stable_id',
+  translation.version AS 'translation.version',
+  xref.display_label AS 'EntrezGene_symbol',
+  external_db.db_display_name AS 'external_db.db_display_name'
 FROM gene
 INNER JOIN object_xref
   ON gene.gene_id = object_xref.ensembl_id
@@ -114,11 +118,12 @@ AND external_db.db_name = 'EntrezGene';
 get_uniprot_gn_symbols = """
 -- Uniprot_gn symbols for translations with no Xref and no EntrezGene symbols
 SELECT
-  gene.stable_id AS gene_stable_id,
-  gene.version AS gene_version,
-  translation.stable_id AS translation_stable_id,
-  translation.version AS translation_version,
-  xref.display_label AS Uniprot_gn_symbol
+  gene.stable_id AS 'gene.stable_id',
+  gene.version AS 'gene.version',
+  translation.stable_id AS 'translation.stable_id',
+  translation.version AS 'translation.version',
+  xref.display_label AS 'Uniprot_gn_symbol',
+  external_db.db_display_name AS 'external_db.db_display_name'
 FROM gene
 INNER JOIN object_xref
   ON gene.gene_id = object_xref.ensembl_id
@@ -201,17 +206,17 @@ def dataframe_to_fasta(df, fasta_path):
     Save a dataframe containing entries of sequences and metadata to a FASTA file.
     """
     with open(fasta_path, "w+") as fasta_file:
-        for entry in df.itertuples():
-            entry_dict = entry._asdict()
+        for index, values in df.iterrows():
+            row_dict = values.to_dict()
             description_text = "\t".join(
                 f"{key}:{value}"
-                for key, value in entry_dict.items()
+                for key, value in row_dict.items()
                 if key not in {"Index", "sequence"}
             )
 
             description = ">" + description_text
 
-            sequence = entry_dict["sequence"]
+            sequence = row_dict["sequence"]
             fasta_entry = f"{description}\n{sequence}\n"
             fasta_file.write(fasta_entry)
 
@@ -384,11 +389,12 @@ def get_canonical_translations(ensembldb_database, EntrezGene=False, Uniprot_gn=
         sql_queries.append(get_uniprot_gn_symbols)
 
     columns = [
-        "gene_stable_id",
-        "gene_version",
-        "translation_stable_id",
-        "translation_version",
+        "gene.stable_id",
+        "gene.version",
+        "translation.stable_id",
+        "translation.version",
         "Xref_symbol",
+        "external_db.db_display_name",
         "sequence",
     ]
     canonical_translations_df = pd.DataFrame(columns=columns)
@@ -414,11 +420,11 @@ def get_sequence_from_assembly_fasta_dict(df_row, assembly_fasta_dict):
     Retrieve the sequence in the assembly FASTA dictionary that the translations
     dataframe row corresponds to.
     """
-    if df_row["translation_version"] is None:
-        translation_stable_id_version = df_row["translation_stable_id"]
+    if df_row["translation.version"] is None:
+        translation_stable_id_version = df_row["translation.stable_id"]
     else:
         translation_stable_id_version = "{}.{}".format(
-            df_row["translation_stable_id"], df_row["translation_version"]
+            df_row["translation.stable_id"], df_row["translation.version"]
         )
     sequence = assembly_fasta_dict[translation_stable_id_version]["sequence"]
 
@@ -541,11 +547,12 @@ def dataset_cleanup(dataset):
 
     # reorder dataframe columns
     columns = [
-        "gene_stable_id",
-        "gene_version",
-        "translation_stable_id",
-        "translation_version",
+        "gene.stable_id",
+        "gene.version",
+        "translation.stable_id",
+        "translation.version",
         "Xref_symbol",
+        "external_db.db_display_name",
         "symbol",
         "sequence",
         "assembly_accession",
