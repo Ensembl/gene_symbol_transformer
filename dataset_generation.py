@@ -19,11 +19,9 @@
 
 
 """
-Generate training dataset.
-
-Download protein sequences for canonical translations from the assemblies in
-the latest Ensembl release, create a Pandas dataframe of them including useful metadata,
-and save it to a pickle file.
+Generate training dataset of protein sequences for canonical translations from
+assemblies in the latest Ensembl release and useful metadata, generate statistics,
+and create auxiliary partial dataset files for faster prototyping.
 """
 
 
@@ -180,6 +178,15 @@ AND external_db.db_name = 'Uniprot_gn';
 """
 
 
+num_symbols_max_frequencies = {
+    3: 342,
+    100: 262,
+    1059: 213,
+    25228: 24,
+    30241: 11,
+}
+
+
 def get_ensembl_release():
     """
     retrieve the version number of the latest Ensembl release
@@ -189,114 +196,70 @@ def get_ensembl_release():
     return ensembl_release
 
 
-def save_all_datasets():
+def dataframe_to_fasta(df, fasta_path):
     """
-    Save the examples for each num_symbols to a pickled dataframe and a FASTA file.
+    Save a dataframe containing entries of sequences and metadata to a FASTA file.
     """
-    num_symbols_max_frequencies = [
-        [3, 335],
-        [101, 297],
-        [1013, 252],
-        [10059, 165],
-        [20147, 70],
-        [25028, 23],
-        [26007, 17],
-        [27137, 13],
-        [28197, 10],
-        [29041, 8],
-        [30591, 5],
-    ]
+    with open(fasta_path, "w+") as fasta_file:
+        for entry in df.itertuples():
+            entry_dict = entry._asdict()
+            description_text = "\t".join(
+                f"{key}:{value}"
+                for key, value in entry_dict.items()
+                if key not in {"Index", "sequence"}
+            )
 
-    data = load_dataset()
+            description = ">" + description_text
 
-    for (num_symbols, max_frequency) in num_symbols_max_frequencies:
-        print(f"saving {num_symbols} symbols dataset")
-        save_dataset(data, num_symbols, max_frequency)
+            sequence = entry_dict["sequence"]
+            fasta_entry = f"{description}\n{sequence}\n"
+            fasta_file.write(fasta_entry)
 
 
-def save_dataset(data, num_symbols, max_frequency):
+def save_partial_datasets(num_samples=100):
     """
-    Save a training and testin
+    Generate and save subsets of the full dataset for faster loading during development.
     """
-    symbol_counts = data["symbol"].value_counts()
+    dataset = load_dataset()
 
-    # verify that max_frequency is the cutoff limit for the selected symbols
-    if max_frequency is not None:
+    symbol_counts = dataset["symbol"].value_counts()
+
+    for num_symbols, max_frequency in num_symbols_max_frequencies.items():
+        # verify that max_frequency is the cutoff limit for the selected symbols
         assert all(
             symbol_counts[:num_symbols] == symbol_counts[symbol_counts >= max_frequency]
         )
         assert symbol_counts[num_symbols] < max_frequency
 
-    most_frequent_n = data[data["symbol"].isin(symbol_counts[:num_symbols].index)]
+        partial_dataset = dataset[
+            dataset["symbol"].isin(symbol_counts[:num_symbols].index)
+        ]
 
-    # save dataframe to a pickle file
-    pickle_path = data_directory / f"{num_symbols}_symbols.pickle"
-    most_frequent_n.to_pickle(pickle_path)
-    print(
-        f"pickle file of the most {num_symbols} frequent symbol sequences saved at {pickle_path}"
-    )
+        # save dataframe to a pickle file
+        pickle_path = data_directory / f"{num_symbols}_symbols.pickle"
+        partial_dataset.to_pickle(pickle_path)
+        logger.info(
+            f"{num_symbols} most frequent symbols partial dataset saved at {pickle_path}"
+        )
 
-    # save sequences to a FASTA file
-    fasta_path = data_directory / f"{num_symbols}_symbols.fasta"
-    with open(fasta_path, "w+") as fasta_file:
-        for entry in most_frequent_n.itertuples():
-            entry_dict = entry._asdict()
+        # save sequences to a FASTA file
+        fasta_path = data_directory / f"{num_symbols}_symbols.fasta"
 
-            stable_id = entry_dict["stable_id"]
-            symbol = entry_dict["symbol"]
-            sequence = entry_dict["sequence"]
+        dataframe_to_fasta(partial_dataset, fasta_path)
+        logger.info(
+            f"{num_symbols} most frequent symbols partial dataset FASTA file saved at {fasta_path}"
+        )
 
-            fasta_file.write(f">{stable_id};{symbol}\n{sequence}\n")
+        # pick num_samples random samples
+        samples = partial_dataset.sample(num_samples)
+        samples = samples.sort_index()
 
-    print(
-        f"FASTA file of the most {num_symbols} frequent symbol sequences saved at {fasta_path}"
-    )
-
-
-def save_all_sample_fasta_files():
-    num_samples = 1000
-
-    num_symbols_list = [
-        3,
-        101,
-        1013,
-        10059,
-        20147,
-        25028,
-        26007,
-        27137,
-        28197,
-        29041,
-        30591,
-    ]
-
-    for num_symbols in num_symbols_list:
-        print(f"saving {num_symbols} sample fasta file")
-        save_sample_fasta(num_samples, num_symbols)
-
-
-def save_sample_fasta(num_samples, num_symbols):
-    data_pickle_path = data_directory / f"{num_symbols}_symbols.pickle"
-
-    dataset = pd.read_pickle(data_pickle_path)
-
-    # get num_samples random samples
-    data = dataset.sample(num_samples)
-
-    # only the sequences and the symbols are needed as features and labels
-    data = data[["stable_id", "symbol", "sequence"]]
-
-    # save sequences to a FASTA file
-    fasta_path = data_directory / f"{num_symbols}_symbols-{num_samples}_samples.fasta"
-    with open(fasta_path, "w+") as fasta_file:
-        for entry in data.itertuples():
-            entry_dict = entry._asdict()
-
-            stable_id = entry_dict["stable_id"]
-            symbol = entry_dict["symbol"]
-            sequence = entry_dict["sequence"]
-
-            fasta_file.write(f">{stable_id} {symbol}\n{sequence}\n")
+        # save sequences to a FASTA file
+        fasta_path = data_directory / f"{num_symbols}_symbols-{num_samples}_samples.fasta"
+        dataframe_to_fasta(samples, fasta_path)
+        logger.info(
+            f"{num_symbols} most frequent symbols {num_samples} samples FASTA file saved at {fasta_path}"
+        )
 
 
 def get_assemblies_metadata():
@@ -509,7 +472,9 @@ def generate_dataset():
             metadata.append(assembly_metadata)
 
             species = assembly.species.replace("_", " ").capitalize()
-            logger.info(f"retrieved metadata for {assembly.name}, {species}, {assembly.assembly_accession}")
+            logger.info(
+                f"retrieved metadata for {assembly.name}, {species}, {assembly.assembly_accession}"
+            )
 
         with open(metadata_path, "wb") as f:
             pickle.dump(metadata, f)
@@ -567,7 +532,9 @@ def dataset_cleanup(dataset):
     )
 
     # save the most frequent capitalization for each Xref symbol
-    dataset["symbol"] = dataset["Xref_symbol_lowercase"].map(symbol_capitalization_mapping)
+    dataset["symbol"] = dataset["Xref_symbol_lowercase"].map(
+        symbol_capitalization_mapping
+    )
 
     # delete temporary lowercase symbols column
     dataset = dataset.drop(columns=["Xref_symbol_lowercase"])
@@ -591,7 +558,9 @@ def dataset_cleanup(dataset):
 
     num_original = dataset["Xref_symbol"].nunique()
     num_merged = dataset["symbol"].nunique()
-    logger.info(f"{num_original} original symbol capitalization variants merged to {num_merged}")
+    logger.info(
+        f"{num_original} original symbol capitalization variants merged to {num_merged}"
+    )
 
     return dataset
 
@@ -635,20 +604,18 @@ def main():
     argument_parser.add_argument(
         "--generate_dataset",
         action="store_true",
-        help="generate training dataset from genome assemblies in the latest Ensembl release",
-    )
-    argument_parser.add_argument(
-        "--dataset_cleanup",
-        action="store_true",
-        help="perform additional cleanup on the dataset, to be merged into the cleanup function",
+        help="generate dataset from genome assemblies in the latest Ensembl release",
     )
     argument_parser.add_argument(
         "--generate_statistics",
         action="store_true",
         help="generate and log dataset statistics",
     )
-    argument_parser.add_argument("--save_all_datasets", action="store_true")
-    argument_parser.add_argument("--save_all_sample_fasta_files", action="store_true")
+    argument_parser.add_argument(
+        "--save_partial_datasets",
+        action="store_true",
+        help="save subsets of the full dataset",
+    )
 
     args = argument_parser.parse_args()
 
@@ -660,21 +627,10 @@ def main():
 
     if args.generate_dataset:
         generate_dataset()
-    elif args.dataset_cleanup:
-        dataset_pickle_path = data_directory / "dataset.pickle"
-        dataset = pd.read_pickle(dataset_pickle_path)
-
-        logger.info("nothing to do")
-        sys.exit()
-
-        dataset.to_pickle(dataset_pickle_path)
-        logger.info("dataset cleanup complete")
     elif args.generate_statistics:
         generate_statistics()
-    elif args.save_all_datasets:
-        save_all_datasets()
-    elif args.save_all_sample_fasta_files:
-        save_all_sample_fasta_files()
+    elif args.save_partial_datasets:
+        save_partial_datasets()
     else:
         print("Error: missing argument.")
         print(__doc__)
