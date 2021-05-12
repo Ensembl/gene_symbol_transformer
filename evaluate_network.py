@@ -199,7 +199,9 @@ def compare_with_database(
             translation_stable_id = csv_stable_id[:-2]
 
             if translation_stable_id in canonical_translations.index:
-                xref_symbol = canonical_translations.loc[translation_stable_id]["Xref_symbol"]
+                xref_symbol = canonical_translations.loc[translation_stable_id][
+                    "Xref_symbol"
+                ]
                 comparisons.append((csv_stable_id, classifier_symbol, xref_symbol))
 
     dataframe_columns = [

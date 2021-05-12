@@ -63,6 +63,12 @@ DEVICE = specify_device()
 data_directory = pathlib.Path("data")
 experiments_directory = pathlib.Path("experiments")
 
+dev_datasets_symbol_frequency = {
+    3: 342,
+    100: 262,
+    1059: 213,
+}
+
 
 class GeneSymbols:
     """
@@ -123,10 +129,7 @@ class SequenceDataset(Dataset):
     """
 
     def __init__(self, num_symbols, sequence_length):
-        logger.info(f"loading {num_symbols} most frequent symbols sequences dataset...")
-        data_pickle_path = data_directory / f"{num_symbols}_symbols.pickle"
-        data = pd.read_pickle(data_pickle_path)
-        logger.info(f"{num_symbols} most frequent symbols sequences dataset loaded")
+        data = load_dataset(num_symbols)
 
         # only the sequences and the symbols are needed as features and labels
         self.data = data[["sequence", "symbol"]]
@@ -317,14 +320,36 @@ class SuppressSettingWithCopyWarning:
         pd.options.mode.chained_assignment = self.original_setting
 
 
-def load_dataset():
+def load_dataset(num_symbols=None):
     """
-    Load dataset dataframe.
+    Load dataset.
+
+    Args:
+        num_symbols (int): number of most frequent symbols and their sequences to load
+    Returns:
+        pandas DataFrame containing the loaded dataset
     """
-    dataset_pickle_path = data_directory / "dataset.pickle"
-    logger.info(f"loading dataset {dataset_pickle_path} ...")
-    dataset = pd.read_pickle(dataset_pickle_path)
-    logger.info("dataset loaded")
+    full_dataset_pickle_path = data_directory / "dataset.pickle"
+    if num_symbols is None:
+        logger.info(f"loading full dataset {full_dataset_pickle_path} ...")
+        dataset = pd.read_pickle(full_dataset_pickle_path)
+        logger.info("full dataset loaded")
+    elif num_symbols in dev_datasets_symbol_frequency:
+        dataset_pickle_path = data_directory / f"{num_symbols}_symbols.pickle"
+        dataset = pd.read_pickle(dataset_pickle_path)
+        logger.info(f"{num_symbols} most frequent symbols samples dataset loaded")
+    # num_symbols not in dev_datasets_symbol_frequency
+    else:
+        logger.info(
+            f"loading {num_symbols} most frequent symbols samples from full dataset..."
+        )
+        dataset = pd.read_pickle(full_dataset_pickle_path)
+
+        # create the dataset subset of num_symbols most frequent symbols and sequences
+        symbol_counts = dataset["symbol"].value_counts()
+        dataset = dataset[dataset["symbol"].isin(symbol_counts[:num_symbols].index)]
+
+        logger.info(f"{num_symbols} most frequent symbols samples dataset loaded")
 
     return dataset
 
