@@ -51,6 +51,7 @@ from utils import (
     TrainingSession,
     experiments_directory,
     load_checkpoint,
+    dev_datasets_symbol_frequency,
     read_fasta_in_chunks,
     specify_device,
     transform_sequences,
@@ -90,13 +91,15 @@ class FullyConnectedNetwork(nn.Module):
         output_size = num_symbols
 
         self.input_layer = nn.Linear(in_features=input_size, out_features=num_connections)
-        self.output_layer = nn.Linear(
-            in_features=num_connections, out_features=output_size
-        )
         if self.dropout_probability > 0:
             self.dropout = nn.Dropout(self.dropout_probability)
 
         self.relu = nn.ReLU()
+
+        self.output_layer = nn.Linear(
+            in_features=num_connections, out_features=output_size
+        )
+
         self.final_activation = nn.LogSoftmax(dim=1)
 
     def forward(self, x):
@@ -461,7 +464,7 @@ def main():
     argument_parser.add_argument(
         "--save_network",
         action="store_true",
-        help="extract the network from a checkpoint file"
+        help="extract the network from a checkpoint file",
     )
 
     args = argument_parser.parse_args()
@@ -564,18 +567,15 @@ def main():
         network = checkpoint["network"]
         training_session = checkpoint["training_session"]
     else:
-        if experiment.num_symbols == 3:
+        if experiment.num_symbols in dev_datasets_symbol_frequency:
             test_ratio = 0.2
             validation_ratio = 0.2
-        elif experiment.num_symbols in {101, 1013}:
-            test_ratio = 0.1
-            validation_ratio = 0.1
         else:
             test_ratio = 0.05
             validation_ratio = 0.05
 
         # larger patience for short epochs and smaller patience for longer epochs
-        if experiment.num_symbols in {3, 101, 1013}:
+        if experiment.num_symbols in dev_datasets_symbol_frequency:
             patience = 11
         else:
             patience = 7
@@ -665,7 +665,7 @@ def main():
     if training_session.batch_size > min_dataset_size:
         training_session.batch_size = min_dataset_size
 
-    if training_session.num_symbols in {3, 101}:
+    if training_session.num_symbols in dev_datasets_symbol_frequency:
         training_session.drop_last = False
     else:
         training_session.drop_last = True

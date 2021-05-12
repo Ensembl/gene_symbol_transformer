@@ -21,7 +21,8 @@
 """
 Generate training dataset of protein sequences for canonical translations from
 assemblies in the latest Ensembl release and useful metadata, generate statistics,
-and create auxiliary partial dataset files for faster prototyping.
+and create auxiliary development dataset files containing a subset of samples from
+the full dataset for faster prototyping.
 """
 
 
@@ -48,6 +49,7 @@ from utils import (
     data_directory,
     fasta_to_dict,
     load_dataset,
+    dev_datasets_symbol_frequency,
     sizeof_fmt,
 )
 
@@ -183,15 +185,6 @@ AND external_db.db_name = 'Uniprot_gn';
 """
 
 
-num_symbols_max_frequencies = {
-    3: 342,
-    100: 262,
-    1059: 213,
-    25228: 24,
-    30241: 11,
-}
-
-
 def get_ensembl_release():
     """
     retrieve the version number of the latest Ensembl release
@@ -223,43 +216,43 @@ def dataframe_to_fasta(df, fasta_path):
 
 def save_dev_datasets(num_samples=100):
     """
-    Generate and save subsets of the full dataset for faster loading during development.
+    Generate and save subsets of the full dataset for faster loading during development,
+    the datasets as FASTA files, and FASTA files with a small number of sample sequences
+    for quick reference.
     """
     dataset = load_dataset()
 
     symbol_counts = dataset["symbol"].value_counts()
 
-    for num_symbols, max_frequency in num_symbols_max_frequencies.items():
+    for num_symbols, max_frequency in dev_datasets_symbol_frequency.items():
         # verify that max_frequency is the cutoff limit for the selected symbols
         assert all(
             symbol_counts[:num_symbols] == symbol_counts[symbol_counts >= max_frequency]
         )
         assert symbol_counts[num_symbols] < max_frequency
 
-        partial_dataset = dataset[
-            dataset["symbol"].isin(symbol_counts[:num_symbols].index)
-        ]
+        dev_dataset = dataset[dataset["symbol"].isin(symbol_counts[:num_symbols].index)]
 
         # save dataframe to a pickle file
         pickle_path = data_directory / f"{num_symbols}_symbols.pickle"
-        partial_dataset.to_pickle(pickle_path)
+        dev_dataset.to_pickle(pickle_path)
         logger.info(
-            f"{num_symbols} most frequent symbols partial dataset saved at {pickle_path}"
+            f"{num_symbols} most frequent symbols dev dataset saved at {pickle_path}"
         )
 
         # save sequences to a FASTA file
         fasta_path = data_directory / f"{num_symbols}_symbols.fasta"
 
-        dataframe_to_fasta(partial_dataset, fasta_path)
+        dataframe_to_fasta(dev_dataset, fasta_path)
         logger.info(
-            f"{num_symbols} most frequent symbols partial dataset FASTA file saved at {fasta_path}"
+            f"{num_symbols} most frequent symbols dev dataset FASTA file saved at {fasta_path}"
         )
 
-        # pick num_samples random samples
-        samples = partial_dataset.sample(num_samples)
+        # pick random sample sequences
+        samples = dev_dataset.sample(num_samples)
         samples = samples.sort_index()
 
-        # save sequences to a FASTA file
+        # save sample sequences to a FASTA file
         fasta_path = data_directory / f"{num_symbols}_symbols-{num_samples}_samples.fasta"
         dataframe_to_fasta(samples, fasta_path)
         logger.info(
