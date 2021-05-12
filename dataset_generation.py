@@ -267,6 +267,28 @@ def save_dev_datasets(num_samples=100):
         )
 
 
+def download_file(file_url, file_path):
+    """
+    Download a file from the Ensembl HTTP server.
+
+    Requesting the file includes a retry loop, because sometimes an erroneous
+    "404 Not Found" response is issued by the server for actually existing files,
+    which subsequently are correctly downloaded on a following request.
+
+    Args:
+        file_url (str): URL of the file to be downloaded
+        file_path (Path or str): path to save the downloaded file
+    """
+    while not file_path.exists():
+        response = requests.get(file_url)
+        if response.ok:
+            with open(file_path, "wb+") as f:
+                f.write(response.content)
+        else:
+            # delay retry
+            time.sleep(5)
+
+
 def get_assemblies_metadata():
     """
     Get metadata for all genome assemblies in the latest Ensembl release.
@@ -286,10 +308,10 @@ def get_assemblies_metadata():
     species_data_url = f"http://ftp.ensembl.org/pub/release-{ensembl_release}/species_EnsemblVertebrates.txt"
     species_data_path = data_directory / "species_EnsemblVertebrates.txt"
     if not species_data_path.exists():
-        response = requests.get(species_data_url)
-        with open(species_data_path, "wb+") as f:
-            f.write(response.content)
+        download_file(species_data_url, species_data_path)
         logger.info(f"downloaded {species_data_path}")
+    else:
+        logger.info(f"{species_data_path} in place")
 
     assemblies_df = pd.read_csv(species_data_path, delimiter="\t", index_col=False)
     assemblies_df = assemblies_df.rename(columns={"#name": "name"})
@@ -342,22 +364,13 @@ def download_protein_sequences_fasta(assembly, ensembl_release):
         assembly.species.capitalize(),
         fix_assembly(assembly.assembly),
     )
-
     archived_fasta_url = f"{base_url}{assembly.species}/pep/{archived_fasta_filename}"
     archived_fasta_path = sequences_directory / archived_fasta_filename
-
-    # Requesting the file includes a retry loop, because sometimes an erroneous
-    # "404 Not Found" response is issued by the server for actually existing files,
-    # which subsequently are correctly downloaded on a following request.
-    while not archived_fasta_path.exists():
-        response = requests.get(archived_fasta_url)
-        if response.ok:
-            with open(archived_fasta_path, "wb+") as f:
-                f.write(response.content)
-            logger.info(f"downloaded {archived_fasta_filename}")
-        else:
-            # delay retry
-            time.sleep(5)
+    if not archived_fasta_path.exists():
+        download_file(archived_fasta_url, archived_fasta_path)
+        logger.info(f"downloaded {archived_fasta_filename}")
+    else:
+        logger.info(f"{archived_fasta_filename} in place")
 
     # extract archived protein sequences FASTA file
     fasta_path = archived_fasta_path.with_suffix("")
