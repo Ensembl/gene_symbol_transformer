@@ -1,6 +1,6 @@
 # Gene Symbol Classifier
 
-Machine Learning pipeline for gene symbol assignment to protein coding gene sequences.
+Machine Learning pipeline for gene symbol assignment to protein coding gene sequences of an Ensembl Genebuild annotation implemented with PyTorch.
 
 More information and background for the project:
 https://www.ebi.ac.uk/seqdb/confluence/display/ENSGBD/Gene+symbol+classifier
@@ -17,24 +17,24 @@ For classification problems, like the current one with symbol assignment, it is 
 
 ## feature engineering
 
-For the current implementation of the classifier, the protein sequences are directly converted to features using an one-hot vector representation. The protein sequences contain all of the 26 IUPAC extended protein letters and the asterisk representing a stop codon. That results to a 27-long one-hot vector for each protein letter in a sequence, and a tensor of length 27 x L for each sequence, where L is the sequence length.
+For the generation of features to be used for training the neural network, the protein sequences are converted to the one-hot vector representation. The protein sequences contain all of the 26 IUPAC extended protein letters and the asterisk representing a stop codon. That results to a 27-long one-hot vector for each protein letter in a sequence, and a tensor of length 27 x L for each sequence, where L is the sequence length.
 
 
 ## neural network architecture
 
-The current implementation of the classifier is implemented as a multilayer perceptron, or fully connected feedforward neural network, which contains two layers of a tunable number of connections between them. The ReLU activation function is applied after the first layer and the LogSoftmax (`log(Softmax(x))`) is applied as the final activation function. No dropout was used.
+Currently, the classifier is implemented as a multilayer perceptron, or fully connected feedforward neural network, which contains two layers with a tunable number of connections between them. The ReLU activation function is applied after the first layer, while Softmax is applied as the final activation function. During training a validation set is being tested and early stopping is used for regularization, halting the training session when the validation loss stops decreasing between epochs.
 
 Example printout of a network:
 ```
 FullyConnectedNetwork(
   (input_layer): Linear(in_features=27000, out_features=512, bias=True)
-  (output_layer): Linear(in_features=512, out_features=25028, bias=True)
   (relu): ReLU()
+  (output_layer): Linear(in_features=512, out_features=25028, bias=True)
   (final_activation): LogSoftmax(dim=1)
 )
 ```
 
-The negative log likelihood loss was applied to the network output as the loss function.
+The negative log likelihood loss is applied to the network output as the loss function.
 
 The example protein sequences are of variable length with mean `580.63`, median `444`, and standard deviation `521.15`. In order to generate uniform sized batches all sequences were normalized to a length of `841`, equal to `mean + 0.5 * standard deviation`, with either truncating longer sequences or padding shorter ones. Therefore, the final feature tensor being fed to the neural network for each example is of size `27 x 841`.
 
@@ -63,6 +63,28 @@ random_state: 5
 
 
 ## create and use a classifier
+
+First, set up a Python virtual environment for the project and install its dependencies:
+
+```
+pyenv install 3.8.6
+
+pyenv virtualenv 3.8.6 gene_symbol_classifier
+
+poetry install
+```
+
+### generate dataset
+
+The dataset generation encompasses downloading canonical translation protein sequences and metadata from the genome assemblies in the latest Ensembl release. It can be recreated with the following command:
+```
+python dataset_generation.py --generate_dataset
+```
+
+Separate files for subsets of the full dataset can be generated that speed up loading times during development:
+```
+python dataset_generation.py --save_dev_datasets
+```
 
 ### training
 
@@ -98,15 +120,6 @@ submit a testing job with bsub
 bash submit_testing.sh <checkpoint file path>
 ```
 
-### assign gene symbols to protein sequences
-
-After training, the network is ready to assign gene symbols to protein sequences in a FASTA file which are saved in a CSV file alongside the identifier in the description of each sequence. (For Ensembl protein sequences FASTA files this is the translation stable ID.)
-
-assign symbols to sequences in a FASTA file and save them to a CSV file
-```
-python fully_connected_pipeline.py --checkpoint <checkpoint path> --sequences_fasta <FASTA file path>
-```
-
 ### evaluate a trained network
 
 A trained network can be evaluated by assigning gene symbols to the canonical translations of protein sequences of annotations in the latest Ensembl release and comparing them to the existing symbol assignments.
@@ -120,3 +133,17 @@ The gene symbol assignments of a classifier can also be directly compared with t
 ```
 python evaluate_network.py --assignments_csv <assignments CSV path> --ensembldb_species_database <species database name>
 ```
+
+### assign gene symbols to protein sequences
+
+After training, the network is ready to assign gene symbols to protein sequences in a FASTA file which are saved in a CSV file alongside the identifier in the description of each sequence. (For Ensembl protein sequences FASTA files this is the translation stable ID.)
+
+assign symbols to sequences in a FASTA file and save them to a CSV file
+```
+python fully_connected_pipeline.py --checkpoint <checkpoint path> --sequences_fasta <FASTA file path>
+```
+
+
+## License
+
+[Apache License 2.0](LICENSE)
