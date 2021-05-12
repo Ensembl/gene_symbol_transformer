@@ -221,7 +221,7 @@ def dataframe_to_fasta(df, fasta_path):
             fasta_file.write(fasta_entry)
 
 
-def save_partial_datasets(num_samples=100):
+def save_dev_datasets(num_samples=100):
     """
     Generate and save subsets of the full dataset for faster loading during development.
     """
@@ -619,9 +619,9 @@ def main():
         help="generate and log dataset statistics",
     )
     argument_parser.add_argument(
-        "--save_partial_datasets",
+        "--save_dev_datasets",
         action="store_true",
-        help="save subsets of the full dataset",
+        help="save subsets of the full dataset for development",
     )
 
     args = argument_parser.parse_args()
@@ -636,8 +636,8 @@ def main():
         generate_dataset()
     elif args.generate_statistics:
         generate_statistics()
-    elif args.save_partial_datasets:
-        save_partial_datasets()
+    elif args.save_dev_datasets:
+        save_dev_datasets()
     else:
         print("Error: missing argument.")
         print(__doc__)
