@@ -17,7 +17,7 @@ For classification problems, like the current one with symbol assignment, it is 
 
 ## feature engineering
 
-For the generation of features to be used for training the neural network, the protein sequences are converted to the one-hot vector representation. The protein sequences contain all of the 26 IUPAC extended protein letters and the asterisk representing a stop codon. That results to a 27-long one-hot vector for each protein letter in a sequence, and a tensor of length 27 x L for each sequence, where L is the sequence length.
+For the generation of features to be used for training the neural network, the protein sequences are converted to the one-hot vector representation. The protein sequences contain all of the 26 IUPAC extended protein letters and the asterisk representing a stop codon. That results to a 27-long one-hot vector for each protein letter in a sequence, and a tensor of size `27 x L` for each sequence, where `L` is the sequence length.
 
 
 ## neural network architecture
