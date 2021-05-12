@@ -446,53 +446,44 @@ def generate_dataset():
     ensembl_release = get_ensembl_release()
     logger.info(f"Ensembl release {ensembl_release}")
 
-    logger.info(f"downloading protein sequences FASTA files")
     assemblies = get_assemblies_metadata()
+    logger.info(f"downloading protein sequences FASTA files")
     for assembly in assemblies:
         fasta_path = download_protein_sequences_fasta(assembly, ensembl_release)
         assembly.fasta_path = str(fasta_path.resolve())
     logger.info("protein sequences FASTA files in place")
 
-    metadata_path = data_directory / pathlib.Path("metadata.pickle")
-    if metadata_path.exists():
-        with open(metadata_path, "rb") as f:
-            metadata = pickle.load(f)
-        logger.info(f"loaded existing metadata file {metadata_path}")
-    else:
-        logger.info(f"retrieving assemblies metadata from the Ensembl REST API")
-        metadata = []
-        for assembly in assemblies:
-            # skip assembly if assembly_accession is missing
-            # (the value is converted to a `nan` float)
-            if type(assembly.assembly_accession) is float:
-                continue
+    logger.info(f"retrieving assemblies metadata from the Ensembl REST API")
+    metadata = []
+    for assembly in assemblies:
+        # skip assembly if assembly_accession is missing
+        # (the value is converted to a `nan` float)
+        if type(assembly.assembly_accession) is float:
+            continue
 
-            # delay between REST API calls
-            time.sleep(0.2)
+        # delay between REST API calls
+        time.sleep(0.2)
 
-            # retrieve additional information for the assembly from the REST API
-            # https://rest.ensembl.org/documentation/info/info_genomes_assembly
-            response = ensembl_rest.info_genomes_assembly(assembly.assembly_accession)
-            rest_assembly = PrettySimpleNamespace(**response)
+        # retrieve additional information for the assembly from the REST API
+        # https://rest.ensembl.org/documentation/info/info_genomes_assembly
+        response = ensembl_rest.info_genomes_assembly(assembly.assembly_accession)
+        rest_assembly = PrettySimpleNamespace(**response)
 
-            assembly_metadata = PrettySimpleNamespace()
+        assembly_metadata = PrettySimpleNamespace()
 
-            assembly_metadata.assembly_accession = assembly.assembly_accession
-            assembly_metadata.scientific_name = rest_assembly.scientific_name
-            assembly_metadata.common_name = rest_assembly.display_name
-            assembly_metadata.taxonomy_id = assembly.taxonomy_id
-            assembly_metadata.core_db = assembly.core_db
-            assembly_metadata.sequences_fasta_path = assembly.fasta_path
+        assembly_metadata.assembly_accession = assembly.assembly_accession
+        assembly_metadata.scientific_name = rest_assembly.scientific_name
+        assembly_metadata.common_name = rest_assembly.display_name
+        assembly_metadata.taxonomy_id = assembly.taxonomy_id
+        assembly_metadata.core_db = assembly.core_db
+        assembly_metadata.sequences_fasta_path = assembly.fasta_path
 
-            metadata.append(assembly_metadata)
+        metadata.append(assembly_metadata)
 
-            species = assembly.species.replace("_", " ").capitalize()
-            logger.info(
-                f"retrieved metadata for {assembly.name}, {species}, {assembly.assembly_accession}"
-            )
-
-        with open(metadata_path, "wb") as f:
-            pickle.dump(metadata, f)
+        species = assembly.species.replace("_", " ").capitalize()
+        logger.info(
+            f"retrieved metadata for {assembly.name}, {species}, {assembly.assembly_accession}"
+        )
 
     logger.info(
         f"retrieving canonical translation stable IDs and metadata from the Ensembl MySQL server"

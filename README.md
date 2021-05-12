@@ -8,7 +8,7 @@ https://www.ebi.ac.uk/seqdb/confluence/display/ENSGBD/Gene+symbol+classifier
 
 ## dataset
 
-The training dataset for the gene symbol classifier consists of the canonical translations of protein coding sequences with an Xref pipeline assignment from the [assemblies](https://www.ensembl.org/info/about/species.html) available in the latest Ensembl release. Assemblies without an assembly accession code where excluded, as they have been annotated many years ago and are consequently of lower quality.
+The training dataset for the gene symbol classifier consists of the canonical translations of protein coding sequences with an Xref pipeline assignment from the [assemblies](https://www.ensembl.org/info/about/species.html) available in the latest Ensembl release. Assemblies without an assembly accession code where excluded, as they have been annotated many years ago and are of lower quality than more recent ones.
 
 This set contains a little more than 3.2 million canonical translations, and almost 130,000 unique gene symbol labels. Some gene symbols have more than one capitalization variants in the set, so a step merging the variants to the most frequent version was performed, resulting to a little more than 95,000 unique gene symbols. The number of times each symbol occurs in the set is very divergent, from 405 times for the most frequently occurring symbol to just a single occurrence for several symbols. The occurrence frequency distribution has a mean of `33.88`, median `1`, and standard deviation `61.94`.
 
