@@ -344,13 +344,20 @@ def download_protein_sequences_fasta(assembly, ensembl_release):
     )
 
     archived_fasta_url = f"{base_url}{assembly.species}/pep/{archived_fasta_filename}"
-
     archived_fasta_path = sequences_directory / archived_fasta_filename
-    if not archived_fasta_path.exists():
+
+    # Requesting the file includes a retry loop, because sometimes an erroneous
+    # "404 Not Found" response is issued by the server for actually existing files,
+    # which subsequently are correctly downloaded on a following request.
+    while not archived_fasta_path.exists():
         response = requests.get(archived_fasta_url)
-        with open(archived_fasta_path, "wb+") as f:
-            f.write(response.content)
-        logger.info(f"downloaded {archived_fasta_filename}")
+        if response.ok:
+            with open(archived_fasta_path, "wb+") as f:
+                f.write(response.content)
+            logger.info(f"downloaded {archived_fasta_filename}")
+        else:
+            # delay retry
+            time.sleep(5)
 
     # extract archived protein sequences FASTA file
     fasta_path = archived_fasta_path.with_suffix("")
