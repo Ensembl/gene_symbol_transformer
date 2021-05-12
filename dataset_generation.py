@@ -446,6 +446,7 @@ def generate_dataset():
     ensembl_release = get_ensembl_release()
     logger.info(f"Ensembl release {ensembl_release}")
 
+    logger.info(f"downloading protein sequences FASTA files")
     assemblies = get_assemblies_metadata()
     for assembly in assemblies:
         fasta_path = download_protein_sequences_fasta(assembly, ensembl_release)
@@ -458,6 +459,7 @@ def generate_dataset():
             metadata = pickle.load(f)
         logger.info(f"loaded existing metadata file {metadata_path}")
     else:
+        logger.info(f"retrieving assemblies metadata from the Ensembl REST API")
         metadata = []
         for assembly in assemblies:
             # skip assembly if assembly_accession is missing
@@ -492,6 +494,9 @@ def generate_dataset():
         with open(metadata_path, "wb") as f:
             pickle.dump(metadata, f)
 
+    logger.info(
+        f"retrieving canonical translation stable IDs and metadata from the Ensembl MySQL server"
+    )
     canonical_translations_list = []
     for assembly in metadata:
         # delay between SQL queries
