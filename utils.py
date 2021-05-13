@@ -259,34 +259,6 @@ def pad_or_truncate_string(string, normalized_length):
     return string
 
 
-def transform_sequences(sequences, normalized_length):
-    """
-    Convert a list of protein sequences to an one-hot encoded sequences tensor.
-    """
-    protein_sequences = ProteinSequences()
-
-    one_hot_sequences = []
-    for sequence in sequences:
-        sequence = pad_or_truncate_string(sequence, normalized_length)
-
-        one_hot_sequence = protein_sequences.protein_letters_to_one_hot_encoding(sequence)
-
-        # convert features and labels to NumPy arrays
-        one_hot_sequence = one_hot_sequence.to_numpy()
-
-        # cast the arrays to `np.float32` data type, so that the PyTorch tensors
-        # will be generated with type `torch.FloatTensor`.
-        one_hot_sequence = one_hot_sequence.astype(np.float32)
-
-        one_hot_sequences.append(one_hot_sequence)
-
-    one_hot_sequences = np.stack(one_hot_sequences)
-
-    one_hot_tensor_sequences = torch.from_numpy(one_hot_sequences)
-
-    return one_hot_tensor_sequences
-
-
 class PrettySimpleNamespace(SimpleNamespace):
     """
     Add a pretty formatting printing to the SimpleNamespace.
