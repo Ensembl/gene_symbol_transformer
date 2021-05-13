@@ -429,54 +429,5 @@ class EarlyStopping:
                 return True
 
 
-class TrainingSession:
-    def __init__(
-        self,
-        num_symbols,
-        datetime,
-        random_state,
-        test_ratio,
-        validation_ratio,
-        sequence_length,
-        batch_size,
-        num_connections,
-        dropout_probability,
-        learning_rate,
-        num_epochs,
-        patience,
-        loss_delta=0.001,
-    ):
-        # dataset
-        self.num_symbols = num_symbols
-
-        # experiment parameters
-        self.datetime = datetime
-        self.random_state = random_state
-
-        # test and validation sets
-        self.test_ratio = test_ratio
-        self.validation_ratio = validation_ratio
-
-        # samples and batches
-        self.sequence_length = sequence_length
-        self.batch_size = batch_size
-
-        # network
-        self.num_connections = num_connections
-        self.dropout_probability = dropout_probability
-        self.learning_rate = learning_rate
-
-        # training length and early stopping
-        self.num_epochs = num_epochs
-        self.num_complete_epochs = 0
-        self.patience = patience
-        self.loss_delta = loss_delta
-
-        self.checkpoint_filename = f"n={self.num_symbols}_{self.datetime}.pth"
-
-    def __repr__(self):
-        return pprint.pformat(self.__dict__, sort_dicts=False)
-
-
 if __name__ == "__main__":
     print("library file, import to use")

@@ -29,6 +29,7 @@ import csv
 import datetime as dt
 import math
 import pathlib
+import pprint
 import sys
 import time
 
@@ -48,7 +49,6 @@ from utils import (
     EarlyStopping,
     PrettySimpleNamespace,
     SequenceDataset,
-    TrainingSession,
     experiments_directory,
     load_checkpoint,
     dev_datasets_symbol_frequency,
@@ -437,6 +437,51 @@ def save_network_from_checkpoint(checkpoint_path):
     return network_path
 
 
+class TrainingSession:
+    def __init__(self, experiment_settings, datetime):
+        # dataset
+        self.num_symbols = experiment_settings.num_symbols
+
+        # experiment parameters
+        self.datetime = datetime
+        self.random_state = experiment_settings.random_state
+
+        # test and validation sets
+        if self.num_symbols in dev_datasets_symbol_frequency:
+            self.test_ratio = 0.2
+            self.validation_ratio = 0.2
+        else:
+            self.test_ratio = 0.05
+            self.validation_ratio = 0.05
+
+        # samples and batches
+        self.sequence_length = experiment_settings.sequence_length
+        self.batch_size = experiment_settings.batch_size
+
+        # network
+        self.num_connections = experiment_settings.num_connections
+        self.dropout_probability = experiment_settings.dropout_probability
+        self.learning_rate = experiment_settings.learning_rate
+
+        # training length and early stopping
+        self.num_epochs = experiment_settings.num_epochs
+        self.num_complete_epochs = 0
+        # larger patience for short epochs and smaller patience for longer epochs
+        if self.num_symbols in dev_datasets_symbol_frequency:
+            self.patience = 11
+        else:
+            self.patience = 7
+        self.loss_delta = 0.001
+
+        self.checkpoint_filename = f"n={self.num_symbols}_{self.datetime}.pth"
+
+        # loss function
+        self.criterion = nn.NLLLoss()
+
+    def __repr__(self):
+        return pprint.pformat(self.__dict__, sort_dicts=False)
+
+
 def main():
     """
     main function
@@ -472,7 +517,7 @@ def main():
     # load experiment settings and generate the log file path
     if args.experiment_settings:
         with open(args.experiment_settings) as f:
-            experiment = PrettySimpleNamespace(**yaml.safe_load(f))
+            experiment_settings = PrettySimpleNamespace(**yaml.safe_load(f))
 
         if args.datetime is None:
             datetime = dt.datetime.now().isoformat(sep="_", timespec="seconds")
@@ -480,7 +525,7 @@ def main():
             datetime = args.datetime
 
         log_file_path = (
-            experiments_directory / f"n={experiment.num_symbols}_{datetime}.log"
+            experiments_directory / f"n={experiment_settings.num_symbols}_{datetime}.log"
         )
     elif args.checkpoint:
         log_file_path = pathlib.Path(args.checkpoint).with_suffix(".log")
@@ -567,36 +612,7 @@ def main():
         network = checkpoint["network"]
         training_session = checkpoint["training_session"]
     else:
-        if experiment.num_symbols in dev_datasets_symbol_frequency:
-            test_ratio = 0.2
-            validation_ratio = 0.2
-        else:
-            test_ratio = 0.05
-            validation_ratio = 0.05
-
-        # larger patience for short epochs and smaller patience for longer epochs
-        if experiment.num_symbols in dev_datasets_symbol_frequency:
-            patience = 11
-        else:
-            patience = 7
-
-        training_session = TrainingSession(
-            experiment.num_symbols,
-            datetime,
-            experiment.random_state,
-            test_ratio,
-            validation_ratio,
-            experiment.sequence_length,
-            experiment.batch_size,
-            experiment.num_connections,
-            experiment.dropout_probability,
-            experiment.learning_rate,
-            experiment.num_epochs,
-            patience,
-        )
-
-        # loss function
-        training_session.criterion = nn.NLLLoss()
+        training_session = TrainingSession(experiment_settings, datetime)
 
     torch.manual_seed(training_session.random_state)
 
