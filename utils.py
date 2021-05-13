@@ -19,7 +19,7 @@
 
 
 """
-Generic training and testing pipeline functions and classes.
+General project functions and classes.
 """
 
 
@@ -36,7 +36,6 @@ import Bio
 import numpy as np
 import pandas as pd
 import torch
-import torch.nn as nn
 
 from Bio import SeqIO
 from loguru import logger
