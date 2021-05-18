@@ -101,7 +101,7 @@ bash submit_training.sh <experiment settings yaml file path>
 bash submit_training.sh experiment.yaml
 ```
 
-Resuming training of a network is also supported. Simply load the saved checkpoiint and pass the `--train` argument to continue training the network with the same configuration and hyperparameters.
+Resuming training of a network is also supported. Simply load the saved checkpoint and pass the `--train` argument to continue training the network with the same configuration and hyperparameters.
 ```
 python fully_connected_pipeline.py --checkpoint <checkpoint path> --train --test
 ```
