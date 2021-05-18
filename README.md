@@ -101,6 +101,11 @@ bash submit_training.sh <experiment settings yaml file path>
 bash submit_training.sh experiment.yaml
 ```
 
+Resuming training of a network is also supported. Simply load the saved checkpoiint and pass the `--train` argument to continue training the network with the same configuration and hyperparameters.
+```
+python fully_connected_pipeline.py --checkpoint <checkpoint path> --train --test
+```
+
 ### testing
 
 Testing of a trained neural network would normally run right after training. In cases when testing didn't complete, it can be issued separately for the saved training checkpoint file.
