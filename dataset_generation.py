@@ -57,7 +57,7 @@ from utils import (
 LOGURU_FORMAT = "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{message}</level>"
 
 sequences_directory = data_directory / "protein_sequences"
-sequences_directory.mkdir(exist_ok=True)
+sequences_directory.mkdir(parents=True, exist_ok=True)
 
 get_xref_symbols_for_canonical_gene_transcripts = """
 -- Xref symbols for canonical translations

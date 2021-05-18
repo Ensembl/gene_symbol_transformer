@@ -60,7 +60,10 @@ def specify_device():
 DEVICE = specify_device()
 
 data_directory = pathlib.Path("data")
+data_directory.mkdir(exist_ok=True)
 experiments_directory = pathlib.Path("experiments")
+experiments_directory.mkdir(exist_ok=True)
+
 
 dev_datasets_symbol_frequency = {
     3: 342,
