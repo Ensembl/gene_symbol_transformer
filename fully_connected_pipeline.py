@@ -46,7 +46,6 @@ from torch.utils.tensorboard import SummaryWriter
 
 # project imports
 from utils import (
-    EarlyStopping,
     PrettySimpleNamespace,
     SequenceDataset,
     experiments_directory,
@@ -181,6 +180,63 @@ def transform_sequences(sequences, normalized_length):
     one_hot_tensor_sequences = torch.from_numpy(one_hot_sequences)
 
     return one_hot_tensor_sequences
+
+
+class EarlyStopping:
+    """
+    Stop training if validation loss doesn't improve during a specified patience period.
+    """
+
+    def __init__(self, checkpoint_path, patience=7, loss_delta=0):
+        """
+        Arguments:
+            checkpoint_path (path-like object): Path to save the checkpoint.
+            patience (int): Number of calls to continue training if validation loss is not improving. Defaults to 7.
+            loss_delta (float): Minimum change in the monitored quantity to qualify as an improvement. Defaults to 0.
+        """
+        self.checkpoint_path = checkpoint_path
+        self.patience = patience
+        self.loss_delta = loss_delta
+
+        self.no_progress = 0
+        self.min_validation_loss = np.Inf
+
+    def __call__(self, network, training_session, validation_loss):
+        if self.min_validation_loss == np.Inf:
+            self.min_validation_loss = validation_loss
+            logger.info("saving initial network checkpoint...")
+            checkpoint = {
+                "network": network,
+                "training_session": training_session,
+            }
+            torch.save(checkpoint, self.checkpoint_path)
+            return False
+
+        elif validation_loss <= self.min_validation_loss - self.loss_delta:
+            validation_loss_decrease = self.min_validation_loss - validation_loss
+            assert (
+                validation_loss_decrease > 0
+            ), f"{validation_loss_decrease=}, should be a positive number"
+            logger.info(
+                f"validation loss decreased by {validation_loss_decrease:.4f}, saving network checkpoint..."
+            )
+            checkpoint = {
+                "network": network,
+                "training_session": training_session,
+            }
+            torch.save(checkpoint, self.checkpoint_path)
+            self.min_validation_loss = validation_loss
+            self.no_progress = 0
+            return False
+
+        else:
+            self.no_progress += 1
+
+            if self.no_progress == self.patience:
+                logger.info(
+                    f"{self.no_progress} calls with no validation loss improvement. Stopping training."
+                )
+                return True
 
 
 def train_network(
