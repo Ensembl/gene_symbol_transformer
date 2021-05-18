@@ -187,21 +187,20 @@ class EarlyStopping:
     Stop training if validation loss doesn't improve during a specified patience period.
     """
 
-    def __init__(self, checkpoint_path, patience=7, loss_delta=0):
+    def __init__(self, patience=7, loss_delta=0):
         """
         Arguments:
             checkpoint_path (path-like object): Path to save the checkpoint.
             patience (int): Number of calls to continue training if validation loss is not improving. Defaults to 7.
             loss_delta (float): Minimum change in the monitored quantity to qualify as an improvement. Defaults to 0.
         """
-        self.checkpoint_path = checkpoint_path
         self.patience = patience
         self.loss_delta = loss_delta
 
         self.no_progress = 0
         self.min_validation_loss = np.Inf
 
-    def __call__(self, network, training_session, validation_loss):
+    def __call__(self, network, training_session, validation_loss, checkpoint_path):
         if self.min_validation_loss == np.Inf:
             self.min_validation_loss = validation_loss
             logger.info("saving initial network checkpoint...")
@@ -209,7 +208,7 @@ class EarlyStopping:
                 "network": network,
                 "training_session": training_session,
             }
-            torch.save(checkpoint, self.checkpoint_path)
+            torch.save(checkpoint, checkpoint_path)
             return False
 
         elif validation_loss <= self.min_validation_loss - self.loss_delta:
@@ -224,7 +223,7 @@ class EarlyStopping:
                 "network": network,
                 "training_session": training_session,
             }
-            torch.save(checkpoint, self.checkpoint_path)
+            torch.save(checkpoint, checkpoint_path)
             self.min_validation_loss = validation_loss
             self.no_progress = 0
             return False
@@ -261,9 +260,6 @@ def train_network(
     clip_max_norm = 5
 
     checkpoint_path = experiments_directory / training_session.checkpoint_filename
-    stop_early = EarlyStopping(
-        checkpoint_path, training_session.patience, training_session.loss_delta
-    )
     logger.info(f"training started, session checkpoints saved at {checkpoint_path}")
 
     num_epochs_length = len(str(num_epochs))
@@ -390,7 +386,9 @@ def train_network(
         train_progress = f"epoch {epoch:{num_epochs_length}} complete | validation loss: {average_validation_loss:.4f} | validation accuracy: {total_validation_accuracy:.4f}"
         logger.info(train_progress)
 
-        if stop_early(network, training_session, average_validation_loss):
+        if training_session.stop_early(
+            network, training_session, average_validation_loss, checkpoint_path
+        ):
             summary_writer.flush()
             summary_writer.close()
             break
@@ -549,12 +547,15 @@ class TrainingSession:
         # training length and early stopping
         self.num_epochs = experiment_settings.num_epochs
         self.num_complete_epochs = 0
+
+        # early stopping
         # larger patience for short epochs and smaller patience for longer epochs
         if self.num_symbols in dev_datasets_symbol_frequency:
-            self.patience = 11
+            patience = 11
         else:
-            self.patience = 7
-        self.loss_delta = 0.001
+            patience = 7
+        loss_delta = 0.001
+        self.stop_early = EarlyStopping(patience, loss_delta)
 
         self.checkpoint_filename = f"n={self.num_symbols}_{self.datetime}.pth"
 
