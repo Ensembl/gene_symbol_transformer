@@ -228,16 +228,27 @@ class SequenceDataset(Dataset):
         )
         one_hot_clade = self.clades_mapper.clade_to_one_hot(clade)
         one_hot_symbol = self.gene_symbols_mapper.symbol_to_one_hot(symbol)
+        # one_hot_sequence.shape: (sequence_length, num_protein_letters)
+        # one_hot_clade.shape: (num_clades,)
+        # one_hot_symbol.shape: (num_symbols,)
 
         # convert features and labels dataframes to NumPy arrays
         one_hot_sequence = one_hot_sequence.to_numpy(dtype=np.float32)
         one_hot_clade = one_hot_clade.to_numpy(dtype=np.float32)
         one_hot_symbol = one_hot_symbol.to_numpy(dtype=np.float32)
 
+        # flatten sequence matrix to a vector
+        flat_one_hot_sequence = one_hot_sequence.flatten()
+        # flat_one_hot_sequence.shape: (sequence_length * num_protein_letters,)
+
         # remove extra dimension for a single example
+        one_hot_clade = np.squeeze(one_hot_clade)
         one_hot_symbol = np.squeeze(one_hot_symbol)
 
-        item = one_hot_sequence, one_hot_symbol
+        one_hot_features = np.concatenate([flat_one_hot_sequence, one_hot_clade], axis=0)
+        # one_hot_features.shape: ((sequence_length * num_protein_letters) + num_clades,)
+
+        item = one_hot_features, one_hot_symbol
 
         return item
 
