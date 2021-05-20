@@ -34,6 +34,8 @@ import pickle
 import sys
 import time
 
+from pprint import pprint
+
 # third party imports
 import ensembl_rest
 import pandas as pd
@@ -58,6 +60,35 @@ LOGURU_FORMAT = "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{message}</l
 
 sequences_directory = data_directory / "protein_sequences"
 sequences_directory.mkdir(parents=True, exist_ok=True)
+
+genebuild_clades = {
+    "Rodentia": "rodentia",
+    "Primates": "primates",
+    "Mammalia": "mammalia",
+    "Amphibia": "amphibians",
+    "Teleostei": "teleostei",
+    "Marsupialia": "marsupials",
+    "Aves": "aves",
+    "Sauropsida": "reptiles",
+    "Chondrichthyes": "sharks",
+    "Eukaryota": "non_vertebrates",
+    "Metazoa": "metazoa",
+    "Viral": "viral",
+    "Viridiplantae": "plants",
+    "Arthropoda": "arthropods",
+    "Lepidoptera": "lepidoptera",
+    "Insecta": "insects",
+    "Alveolata": "protists",
+    "Amoebozoa": "protists",
+    "Choanoflagellida": "protists",
+    "Fornicata": "protists",
+    "Euglenozoa": "protists",
+    "Cryptophyta": "protists",
+    "Heterolobosea": "protists",
+    "Parabasalia": "protists",
+    "Rhizaria": "protists",
+    "Stramenopiles": "protists",
+}
 
 get_xref_symbols_for_canonical_gene_transcripts = """
 -- Xref symbols for canonical translations
@@ -444,6 +475,34 @@ def get_sequence_from_assembly_fasta_dict(df_row, assembly_fasta_dict):
     return sequence
 
 
+def get_clade(taxonomy_id):
+    """
+    Get the Genebuild-defined clade for the species with taxonomy_id taxonomy ID.
+
+    NOTE
+    The function logic makes the assumption that the species' taxons are returned
+    in increasing ranking from the REST API endpoint called.
+
+    Args:
+        taxonomy_id (int): taxonomy ID of the species to map to a clade
+    Returns:
+        string containing the clade of the species
+    """
+    homo_sapiens_taxonomy_id = 9606
+    if taxonomy_id == homo_sapiens_taxonomy_id:
+        return "humans"
+
+    # get taxonomy classification from the REST API
+    taxonomy_classification = ensembl_rest.taxonomy_classification(taxonomy_id)
+    for taxon in taxonomy_classification:
+        taxon_name = taxon["name"]
+        if taxon_name in genebuild_clades:
+            clade = genebuild_clades[taxon_name]
+            break
+
+    return clade
+
+
 def generate_dataset():
     """
     Download canonical translations of protein coding genes from all genome assemblies
@@ -468,7 +527,7 @@ def generate_dataset():
             continue
 
         # delay between REST API calls
-        time.sleep(0.2)
+        time.sleep(0.1)
 
         # retrieve additional information for the assembly from the REST API
         # https://rest.ensembl.org/documentation/info/info_genomes_assembly
@@ -483,6 +542,12 @@ def generate_dataset():
         assembly_metadata.taxonomy_id = assembly.taxonomy_id
         assembly_metadata.core_db = assembly.core_db
         assembly_metadata.sequences_fasta_path = assembly.fasta_path
+
+        # delay between REST API calls
+        time.sleep(0.1)
+
+        # get the Genebuild defined clade for the species
+        assembly_metadata.clade = get_clade(assembly.taxonomy_id)
 
         metadata.append(assembly_metadata)
 
@@ -511,6 +576,7 @@ def generate_dataset():
         assembly_translations["scientific_name"] = assembly.scientific_name
         assembly_translations["common_name"] = assembly.common_name
         assembly_translations["taxonomy_id"] = assembly.taxonomy_id
+        assembly_translations["clade"] = assembly.clade
         assembly_translations["core_db"] = assembly.core_db
 
         num_assembly_translations = len(assembly_translations)
@@ -568,6 +634,7 @@ def dataset_cleanup(dataset):
         "scientific_name",
         "common_name",
         "taxonomy_id",
+        "clade",
         "core_db",
     ]
     dataset = dataset[columns]
