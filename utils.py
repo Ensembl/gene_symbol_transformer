@@ -199,19 +199,12 @@ class SequenceDataset(Dataset):
             )
             self.data["sequence"] = self.data["sequence"].str.slice(stop=sequence_length)
 
-        logger.info("Generating gene symbols mapper...")
+        # create categorical data mappers
         labels = self.data["symbol"].unique().tolist()
         self.gene_symbols_mapper = GeneSymbolsMapper(labels)
-        logger.info("Gene symbols objects generated.")
-
-        logger.info("Generating protein sequences mapper...")
         self.protein_sequences_mapper = ProteinSequencesMapper()
-        logger.info("Protein sequences mapper generated.")
-
-        logger.info("Generating clades mapper...")
         clades = {value for _, value in genebuild_clades.items()}
         self.clades_mapper = CladesMapper(clades)
-        logger.info("Clades mapper generated.")
 
     def __len__(self):
         return len(self.data)
