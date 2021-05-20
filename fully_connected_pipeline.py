@@ -40,6 +40,7 @@ import torch.nn as nn
 import torchmetrics
 import yaml
 
+from icecream import ic
 from loguru import logger
 from torch.utils.data import DataLoader, random_split
 from torch.utils.tensorboard import SummaryWriter
@@ -72,6 +73,7 @@ class FullyConnectedNetwork(nn.Module):
         self,
         sequence_length,
         num_protein_letters,
+        num_clades,
         num_symbols,
         num_connections,
         dropout_probability,
@@ -86,7 +88,7 @@ class FullyConnectedNetwork(nn.Module):
         self.dropout_probability = dropout_probability
         self.gene_symbols_mapper = gene_symbols_mapper
 
-        input_size = self.sequence_length * num_protein_letters
+        input_size = (self.sequence_length * num_protein_letters) + num_clades
         output_size = num_symbols
 
         self.input_layer = nn.Linear(in_features=input_size, out_features=num_connections)
@@ -105,13 +107,6 @@ class FullyConnectedNetwork(nn.Module):
         """
         Perform a forward pass of the network.
         """
-        # flatten sample values to one dimension
-        # original x.shape: torch.Size([batch_size, sequence_length, num_protein_letters])
-        # e.g. torch.Size([512, 1000, 27])
-        # flattened x.shape: torch.Size([batch_size, sequence_length * num_protein_letters])
-        # e.g. torch.Size([512, 27000])
-        x = torch.flatten(x, start_dim=1)
-
         x = self.input_layer(x)
         if self.dropout_probability > 0:
             x = self.dropout(x)
@@ -293,10 +288,6 @@ def train_network(
         # set the network in training mode
         network.train()
         for batch_number, (inputs, labels) in enumerate(training_loader, start=1):
-            # inputs.shape: torch.Size([batch_size, sequence_length, num_protein_letters])
-            # e.g. torch.Size([512, 1000, 27])
-            # inputs[i].shape: torch.Size([sequence_length, num_protein_letters])
-            # e.g. torch.Size([1000, 27])
             inputs, labels = inputs.to(DEVICE), labels.to(DEVICE)
 
             # zero accumulated gradients
@@ -710,12 +701,15 @@ def main():
     if not args.checkpoint:
         # neural network instantiation
         ############################################################################
-        # num_protein_letters = len(dataset.protein_letters)
-        num_protein_letters = 27
+        training_session.num_protein_letters = len(
+            dataset.protein_sequences_mapper.protein_letters
+        )
+        training_session.num_clades = len(dataset.clades_mapper.clades)
 
         network = FullyConnectedNetwork(
             training_session.sequence_length,
-            num_protein_letters,
+            training_session.num_protein_letters,
+            training_session.num_clades,
             training_session.num_symbols,
             training_session.num_connections,
             training_session.dropout_probability,
