@@ -61,35 +61,6 @@ LOGURU_FORMAT = "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{message}</l
 sequences_directory = data_directory / "protein_sequences"
 sequences_directory.mkdir(parents=True, exist_ok=True)
 
-genebuild_clades = {
-    "Rodentia": "rodentia",
-    "Primates": "primates",
-    "Mammalia": "mammalia",
-    "Amphibia": "amphibians",
-    "Teleostei": "teleostei",
-    "Marsupialia": "marsupials",
-    "Aves": "aves",
-    "Sauropsida": "reptiles",
-    "Chondrichthyes": "sharks",
-    "Eukaryota": "non_vertebrates",
-    "Metazoa": "metazoa",
-    "Viral": "viral",
-    "Viridiplantae": "plants",
-    "Arthropoda": "arthropods",
-    "Lepidoptera": "lepidoptera",
-    "Insecta": "insects",
-    "Alveolata": "protists",
-    "Amoebozoa": "protists",
-    "Choanoflagellida": "protists",
-    "Fornicata": "protists",
-    "Euglenozoa": "protists",
-    "Cryptophyta": "protists",
-    "Heterolobosea": "protists",
-    "Parabasalia": "protists",
-    "Rhizaria": "protists",
-    "Stramenopiles": "protists",
-}
-
 get_xref_symbols_for_canonical_gene_transcripts = """
 -- Xref symbols for canonical translations
 SELECT
