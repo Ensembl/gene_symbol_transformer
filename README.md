@@ -27,7 +27,7 @@ Currently, the classifier is implemented as a multilayer perceptron, or fully co
 Example printout of a network:
 ```
 FullyConnectedNetwork(
-  (input_layer): Linear(in_features=22707, out_features=512, bias=True)
+  (input_layer): Linear(in_features=22724, out_features=512, bias=True)
   (relu): ReLU()
   (output_layer): Linear(in_features=512, out_features=30241, bias=True)
   (final_activation): LogSoftmax(dim=1)
