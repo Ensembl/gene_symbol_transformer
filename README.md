@@ -17,7 +17,7 @@ For classification problems, like the current one with symbol assignment, it is 
 
 ## feature engineering
 
-For the generation of features to be used for training the neural network, the protein sequences are converted to the one-hot vector representation. The protein sequences contain all of the 26 IUPAC extended protein letters and the asterisk representing a stop codon. That results to a 27-long one-hot vector for each protein letter in a sequence, and a tensor of size `27 x L` for each sequence, where `L` is the sequence length.
+Two types of features are used for training the neural network, the protein letters of the canonical translation sequences and the canonical translation species clade. Both of them are converted to the one-hot encoding representation. The sequences are converted to one-hot encoding by protein letter, each of them can take as value any of the 26 IUPAC extended protein letters or the asterisk, representing a stop codon. The conversion then results to a 27-long one-hot vector for each protein letter in a sequence, and a matrix of size `27 x L` for each sequence, where `L` is the sequence length. This matrix is subsequently flattened to a vector of length `27 * L`. The clade one-hot vector is a simple translation of the clade categorical data type to the one-hot encoding. These two vectors are concatenated together resulting to a single features vector which is ultimately feed to the neural network during training.
 
 
 ## neural network architecture
