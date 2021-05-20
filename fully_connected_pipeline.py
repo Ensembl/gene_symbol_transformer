@@ -47,6 +47,7 @@ from torch.utils.tensorboard import SummaryWriter
 # project imports
 from utils import (
     PrettySimpleNamespace,
+    ProteinSequencesMapper,
     SequenceDataset,
     experiments_directory,
     load_checkpoint,
@@ -74,7 +75,7 @@ class FullyConnectedNetwork(nn.Module):
         num_symbols,
         num_connections,
         dropout_probability,
-        gene_symbols,
+        gene_symbols_mapper,
     ):
         """
         Initialize the neural network.
@@ -83,7 +84,7 @@ class FullyConnectedNetwork(nn.Module):
 
         self.sequence_length = sequence_length
         self.dropout_probability = dropout_probability
-        self.gene_symbols = gene_symbols
+        self.gene_symbols_mapper = gene_symbols_mapper
 
         input_size = self.sequence_length * num_protein_letters
         output_size = num_symbols
@@ -138,7 +139,7 @@ class FullyConnectedNetwork(nn.Module):
         # get predicted labels from output
         predictions = self.get_predictions(output)
 
-        predictions = self.gene_symbols.one_hot_encoding_to_symbol(predictions)
+        predictions = self.gene_symbols_mapper.one_hot_to_symbol(predictions)
         predictions = predictions.tolist()
 
         return predictions
@@ -158,13 +159,13 @@ def transform_sequences(sequences, normalized_length):
     """
     Convert a list of protein sequences to an one-hot encoded sequences tensor.
     """
-    protein_sequences = ProteinSequences()
+    protein_sequences_mapper = ProteinSequencesMapper()
 
     one_hot_sequences = []
     for sequence in sequences:
         sequence = pad_or_truncate_string(sequence, normalized_length)
 
-        one_hot_sequence = protein_sequences.protein_letters_to_one_hot_encoding(sequence)
+        one_hot_sequence = protein_sequences_mapper.protein_letters_to_one_hot(sequence)
 
         # convert features and labels to NumPy arrays
         one_hot_sequence = one_hot_sequence.to_numpy()
@@ -490,8 +491,8 @@ def test_network(
         logger.add(sys.stderr, format="{message}")
         logger.add(log_file_path, format="{message}")
 
-        assignments = network.gene_symbols.one_hot_encoding_to_symbol(predictions)
-        labels = network.gene_symbols.one_hot_encoding_to_symbol(labels)
+        assignments = network.gene_symbols_mapper.one_hot_to_symbol(predictions)
+        labels = network.gene_symbols_mapper.one_hot_to_symbol(labels)
 
         logger.info("\nsample assignments")
         logger.info("assignment | true label")
@@ -718,7 +719,7 @@ def main():
             training_session.num_symbols,
             training_session.num_connections,
             training_session.dropout_probability,
-            dataset.gene_symbols,
+            dataset.gene_symbols_mapper,
         )
         ############################################################################
         training_session.device = DEVICE
@@ -726,7 +727,7 @@ def main():
         network.to(DEVICE)
 
     pandas_symbols_categories = (
-        dataset.gene_symbols.symbol_categorical_datatype.categories
+        dataset.gene_symbols_mapper.symbol_categorical_datatype.categories
     )
     logger.info(
         "gene symbols:\n{}".format(

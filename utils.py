@@ -27,6 +27,7 @@ General project functions and classes.
 import itertools
 import pathlib
 import pprint
+import sys
 import warnings
 
 from types import SimpleNamespace
@@ -38,6 +39,7 @@ import pandas as pd
 import torch
 
 from Bio import SeqIO
+from icecream import ic
 from loguru import logger
 from torch.utils.data import Dataset
 
@@ -64,57 +66,86 @@ data_directory.mkdir(exist_ok=True)
 experiments_directory = pathlib.Path("experiments")
 experiments_directory.mkdir(exist_ok=True)
 
-
 dev_datasets_symbol_frequency = {
     3: 342,
     100: 262,
     1059: 213,
 }
 
+genebuild_clades = {
+    "Rodentia": "rodentia",
+    "Primates": "primates",
+    "Mammalia": "mammalia",
+    "Amphibia": "amphibians",
+    "Teleostei": "teleostei",
+    "Marsupialia": "marsupials",
+    "Aves": "aves",
+    "Sauropsida": "reptiles",
+    "Chondrichthyes": "sharks",
+    "Eukaryota": "non_vertebrates",
+    "Metazoa": "metazoa",
+    "Viral": "viral",
+    "Viridiplantae": "plants",
+    "Arthropoda": "arthropods",
+    "Lepidoptera": "lepidoptera",
+    "Insecta": "insects",
+    "Alveolata": "protists",
+    "Amoebozoa": "protists",
+    "Choanoflagellida": "protists",
+    "Fornicata": "protists",
+    "Euglenozoa": "protists",
+    "Cryptophyta": "protists",
+    "Heterolobosea": "protists",
+    "Parabasalia": "protists",
+    "Rhizaria": "protists",
+    "Stramenopiles": "protists",
+}
 
-class GeneSymbols:
+
+class GeneSymbolsMapper:
     """
     Class to hold the categorical data type for gene symbols and methods to translate
     between text labels and one-hot encoding.
     """
 
-    def __init__(self, labels):
+    def __init__(self, symbols):
         # generate a categorical data type for symbols
-        labels = sorted(labels)
+        self.symbols = sorted(symbols)
         self.symbol_categorical_datatype = pd.CategoricalDtype(
-            categories=labels, ordered=True
+            categories=symbols, ordered=True
         )
 
-    def symbol_to_one_hot_encoding(self, symbol):
+    def symbol_to_one_hot(self, symbol):
         symbol_categorical = pd.Series(symbol, dtype=self.symbol_categorical_datatype)
         one_hot_symbol = pd.get_dummies(symbol_categorical, prefix="symbol")
 
         return one_hot_symbol
 
-    def one_hot_encoding_to_symbol(self, one_hot_symbol):
+    def one_hot_to_symbol(self, one_hot_symbol):
         symbol = self.symbol_categorical_datatype.categories[one_hot_symbol]
 
         return symbol
 
 
-class ProteinSequences:
+class ProteinSequencesMapper:
     """
     Class to hold the categorical data type for protein letters and methods to translate
     between protein letters and one-hot encoding.
     """
 
     def __init__(self):
+        # get unique protein letters
         stop_codon = ["*"]
         extended_IUPAC_protein_letters = Bio.Data.IUPACData.extended_protein_letters
         protein_letters = list(extended_IUPAC_protein_letters) + stop_codon
+        self.protein_letters = sorted(protein_letters)
 
         # generate a categorical data type for protein letters
-        protein_letters = sorted(protein_letters)
         self.protein_letters_categorical_datatype = pd.CategoricalDtype(
-            categories=protein_letters, ordered=True
+            categories=self.protein_letters, ordered=True
         )
 
-    def protein_letters_to_one_hot_encoding(self, sequence):
+    def protein_letters_to_one_hot(self, sequence):
         protein_letters_categorical = pd.Series(
             list(sequence), dtype=self.protein_letters_categorical_datatype
         )
@@ -125,6 +156,31 @@ class ProteinSequences:
         return one_hot_sequence
 
 
+class CladesMapper:
+    """
+    Class to hold the categorical data type for species clade and methods to translate
+    between text labels and one-hot encoding.
+    """
+
+    def __init__(self, clades):
+        # generate a categorical data type for clades
+        self.clades = sorted(clades)
+        self.clade_categorical_datatype = pd.CategoricalDtype(
+            categories=self.clades, ordered=True
+        )
+
+    def clade_to_one_hot(self, clade):
+        clade_categorical = pd.Series(clade, dtype=self.clade_categorical_datatype)
+        one_hot_clade = pd.get_dummies(clade_categorical, prefix="clade")
+
+        return one_hot_clade
+
+    def one_hot_to_clade(self, one_hot_clade):
+        clade = self.clade_categorical_datatype.categories[one_hot_clade]
+
+        return clade
+
+
 class SequenceDataset(Dataset):
     """
     Custom Dataset for raw sequences.
@@ -133,8 +189,8 @@ class SequenceDataset(Dataset):
     def __init__(self, num_symbols, sequence_length):
         data = load_dataset(num_symbols)
 
-        # only the sequences and the symbols are needed as features and labels
-        self.data = data[["sequence", "symbol"]]
+        # select the features and labels columns
+        self.data = data[["sequence", "clade", "symbol"]]
 
         # pad or truncate all sequences to size `sequence_length`
         with SuppressSettingWithCopyWarning():
@@ -143,35 +199,40 @@ class SequenceDataset(Dataset):
             )
             self.data["sequence"] = self.data["sequence"].str.slice(stop=sequence_length)
 
-        logger.info("Generating gene symbols object...")
+        logger.info("Generating gene symbols mapper...")
         labels = self.data["symbol"].unique().tolist()
-        self.gene_symbols = GeneSymbols(labels)
+        self.gene_symbols_mapper = GeneSymbolsMapper(labels)
         logger.info("Gene symbols objects generated.")
 
-        logger.info("Generating protein sequences object...")
-        self.protein_sequences = ProteinSequences()
-        logger.info("Protein sequences object generated.")
+        logger.info("Generating protein sequences mapper...")
+        self.protein_sequences_mapper = ProteinSequencesMapper()
+        logger.info("Protein sequences mapper generated.")
+
+        logger.info("Generating clades mapper...")
+        clades = {value for _, value in genebuild_clades.items()}
+        self.clades_mapper = CladesMapper(clades)
+        logger.info("Clades mapper generated.")
 
     def __len__(self):
         return len(self.data)
 
     def __getitem__(self, index):
-        sequence = self.data.iloc[index]["sequence"]
-        symbol = self.data.iloc[index]["symbol"]
+        data_row = self.data.iloc[index].to_dict()
 
-        one_hot_sequence = self.protein_sequences.protein_letters_to_one_hot_encoding(
+        sequence = data_row["sequence"]
+        clade = data_row["clade"]
+        symbol = data_row["symbol"]
+
+        one_hot_sequence = self.protein_sequences_mapper.protein_letters_to_one_hot(
             sequence
         )
-        one_hot_symbol = self.gene_symbols.symbol_to_one_hot_encoding(symbol)
+        one_hot_clade = self.clades_mapper.clade_to_one_hot(clade)
+        one_hot_symbol = self.gene_symbols_mapper.symbol_to_one_hot(symbol)
 
-        # convert features and labels to NumPy arrays
-        one_hot_sequence = one_hot_sequence.to_numpy()
-        one_hot_symbol = one_hot_symbol.to_numpy()
-
-        # cast the arrays to `np.float32` data type, so that the PyTorch tensors
-        # will be generated with type `torch.FloatTensor`.
-        one_hot_sequence = one_hot_sequence.astype(np.float32)
-        one_hot_symbol = one_hot_symbol.astype(np.float32)
+        # convert features and labels dataframes to NumPy arrays
+        one_hot_sequence = one_hot_sequence.to_numpy(dtype=np.float32)
+        one_hot_clade = one_hot_clade.to_numpy(dtype=np.float32)
+        one_hot_symbol = one_hot_symbol.to_numpy(dtype=np.float32)
 
         # remove extra dimension for a single example
         one_hot_symbol = np.squeeze(one_hot_symbol)
