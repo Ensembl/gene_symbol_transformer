@@ -313,20 +313,6 @@ def fasta_to_dict(fasta_file_path):
     return fasta_dict
 
 
-def pad_or_truncate_string(string, normalized_length):
-    """
-    Pad or truncate string to be exactly `normalized_length` letters long.
-    """
-    string_length = len(string)
-
-    if string_length <= normalized_length:
-        string = " " * (normalized_length - string_length) + string
-    else:
-        string = string[:normalized_length]
-
-    return string
-
-
 class PrettySimpleNamespace(SimpleNamespace):
     """
     Add a pretty formatting printing to the SimpleNamespace.

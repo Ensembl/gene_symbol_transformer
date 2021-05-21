@@ -42,15 +42,18 @@ import sys
 # third party imports
 import pandas as pd
 
+from icecream import ic
 from loguru import logger
 
 # project imports
 from dataset_generation import (
     download_protein_sequences_fasta,
-    get_canonical_translations,
     get_assemblies_metadata,
+    get_canonical_translations,
+    get_clade,
+    get_ensembl_release,
 )
-from fully_connected_pipeline import FullyConnectedNetwork
+from fully_connected_pipeline import EarlyStopping, FullyConnectedNetwork, TrainingSession
 from utils import load_checkpoint, read_fasta_in_chunks
 
 
@@ -97,12 +100,18 @@ def evaluate_network(checkpoint_path, complete=False):
     network = checkpoint["network"]
     training_session = checkpoint["training_session"]
 
+    ensembl_release = get_ensembl_release()
+    logger.info(f"Ensembl release {ensembl_release}")
+
     assemblies = get_assemblies_metadata()
     for assembly in assemblies:
         if not complete and assembly.species not in selected_species_genomes:
             continue
 
-        download_protein_sequences_fasta(assembly)
+        fasta_path = download_protein_sequences_fasta(assembly, ensembl_release)
+
+        # get the Genebuild defined clade for the species
+        clade = get_clade(assembly.taxonomy_id)
 
         # assign symbols
         assignments_csv_path = pathlib.Path(
@@ -110,7 +119,7 @@ def evaluate_network(checkpoint_path, complete=False):
         )
         if not assignments_csv_path.exists():
             logger.info(f"assigning gene symbols to {fasta_path}")
-            assign_symbols(network, checkpoint_path, fasta_path)
+            assign_symbols(network, checkpoint_path, fasta_path, clade)
 
         comparisons_csv_path = pathlib.Path(
             f"{assignments_csv_path.parent}/{assignments_csv_path.stem}_compare.csv"
@@ -123,7 +132,7 @@ def evaluate_network(checkpoint_path, complete=False):
             )
 
 
-def assign_symbols(network, checkpoint_path, sequences_fasta):
+def assign_symbols(network, checkpoint_path, sequences_fasta, clade):
     """
     Use the trained network to assign symbols to the sequences in the FASTA file.
     """
@@ -149,8 +158,9 @@ def assign_symbols(network, checkpoint_path, sequences_fasta):
 
             stable_ids = [fasta_entry[0].split(" ")[0] for fasta_entry in fasta_entries]
             sequences = [fasta_entry[1] for fasta_entry in fasta_entries]
+            clades = [clade for _ in range(len(fasta_entries))]
 
-            assignments = network.predict(sequences)
+            assignments = network.predict(sequences, clades)
 
             # save assignments to the CSV file
             csv_writer.writerows(zip(stable_ids, assignments))
