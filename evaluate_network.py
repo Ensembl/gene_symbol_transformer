@@ -21,8 +21,8 @@
 """
 Evaluate a trained network or get statistics for existing symbol assignments.
 
-Pass the --assignments_csv and --ensembldb_database arguments to compare
-the assignments in the `assignments_csv` CSV file with the ones in the `ensembldb_database`
+Pass the --assignments_csv and --ensembl_database arguments to compare
+the assignments in the `assignments_csv` CSV file with the ones in the `ensembl_database`
 Ensembl database,
 or
 pass the --checkpoint argument to evaluate a trained network by assigning symbols
@@ -149,19 +149,19 @@ def are_strict_subsets(symbol_a, symbol_b):
 
 def compare_with_database(
     assignments_csv,
-    ensembldb_database,
+    ensembl_database,
     scientific_name=None,
     EntrezGene=False,
     Uniprot_gn=False,
 ):
     """
     Compare classifier assignments with the gene symbols in the genome assembly
-    ensembldb_database core database on the public Ensembl MySQL server.
+    ensembl_database core database on the public Ensembl MySQL server.
     """
     assignments_csv_path = pathlib.Path(assignments_csv)
 
     canonical_translations = get_canonical_translations(
-        ensembldb_database, EntrezGene, Uniprot_gn
+        ensembl_database, EntrezGene, Uniprot_gn
     )
 
     comparisons = []
@@ -249,7 +249,7 @@ def main():
         help="assignments CSV file path",
     )
     argument_parser.add_argument(
-        "--ensembldb_database",
+        "--ensembl_database",
         help="genome assembly core database name on the public Ensembl MySQL server",
     )
     argument_parser.add_argument("--checkpoint", help="training session checkpoint path")
@@ -265,14 +265,14 @@ def main():
     logger.remove()
     logger.add(sys.stderr, format=LOGURU_FORMAT)
 
-    if args.assignments_csv and args.ensembldb_database:
+    if args.assignments_csv and args.ensembl_database:
         assignments_csv_path = pathlib.Path(args.assignments_csv)
         log_file_path = pathlib.Path(
             f"{assignments_csv_path.parent}/{assignments_csv_path.stem}_compare.log"
         )
 
         logger.add(log_file_path, format=LOGURU_FORMAT)
-        compare_with_database(args.assignments_csv, args.ensembldb_database)
+        compare_with_database(args.assignments_csv, args.ensembl_database)
     elif args.checkpoint:
         checkpoint_path = pathlib.Path(args.checkpoint)
         log_file_path = pathlib.Path(
