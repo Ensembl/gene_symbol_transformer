@@ -204,7 +204,7 @@ class EarlyStopping:
 
     def __init__(self, patience=7, loss_delta=0):
         """
-        Arguments:
+        Args:
             checkpoint_path (path-like object): Path to save the checkpoint.
             patience (int): Number of calls to continue training if validation loss is not improving. Defaults to 7.
             loss_delta (float): Minimum change in the monitored quantity to qualify as an improvement. Defaults to 0.
@@ -518,8 +518,7 @@ def save_network_from_checkpoint(checkpoint_path):
     """
     Save a network residing inside a checkpoint file as a separate file.
     """
-    checkpoint = load_checkpoint(checkpoint_path)
-    network = checkpoint["network"]
+    network, training_session = load_checkpoint(checkpoint_path)
 
     path = checkpoint_path
     network_path = pathlib.Path(f"{path.parent}/{path.stem}_network.pth")
@@ -649,9 +648,7 @@ def main():
         fasta_path = pathlib.Path(args.sequences_fasta)
 
         checkpoint_path = pathlib.Path(args.checkpoint)
-        checkpoint = load_checkpoint(checkpoint_path)
-        network = checkpoint["network"]
-        training_session = checkpoint["training_session"]
+        network, training_session = load_checkpoint(checkpoint_path)
 
         logger.info("assigning symbols...")
 
@@ -708,9 +705,7 @@ def main():
     # load training checkpoint or generate new training session
     if args.checkpoint:
         checkpoint_path = pathlib.Path(args.checkpoint)
-        checkpoint = load_checkpoint(checkpoint_path)
-        network = checkpoint["network"]
-        training_session = checkpoint["training_session"]
+        network, training_session = load_checkpoint(checkpoint_path)
     else:
         training_session = TrainingSession(experiment_settings, datetime)
 
@@ -826,9 +821,7 @@ def main():
     if args.test:
         if args.train:
             checkpoint_path = experiments_directory / training_session.checkpoint_filename
-            checkpoint = load_checkpoint(checkpoint_path)
-            network = checkpoint["network"]
-            training_session = checkpoint["training_session"]
+            network, training_session = load_checkpoint(checkpoint_path)
         test_network(
             network,
             training_session,
