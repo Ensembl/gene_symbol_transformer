@@ -47,6 +47,7 @@ from torch.utils.tensorboard import SummaryWriter
 
 # project imports
 from utils import (
+    CladesMapper,
     PrettySimpleNamespace,
     ProteinSequencesMapper,
     SequenceDataset,
@@ -78,6 +79,8 @@ class FullyConnectedNetwork(nn.Module):
         num_connections,
         dropout_probability,
         gene_symbols_mapper,
+        protein_sequences_mapper,
+        clades_mapper,
     ):
         """
         Initialize the neural network.
@@ -87,6 +90,8 @@ class FullyConnectedNetwork(nn.Module):
         self.sequence_length = sequence_length
         self.dropout_probability = dropout_probability
         self.gene_symbols_mapper = gene_symbols_mapper
+        self.protein_sequences_mapper = protein_sequences_mapper
+        self.clades_mapper = clades_mapper
 
         input_size = (self.sequence_length * num_protein_letters) + num_clades
         output_size = num_symbols
@@ -119,17 +124,18 @@ class FullyConnectedNetwork(nn.Module):
 
         return x
 
-    def predict(self, sequences):
+    def predict(self, sequences, clades):
         """
         Get assignments of symbols for a list of protein sequences.
         """
-        tensor_sequences = transform_sequences(sequences, self.sequence_length)
-        tensor_sequences = tensor_sequences.to(DEVICE)
+        features_tensor = self.generate_features_tensor(sequences, clades)
+
+        features_tensor = features_tensor.to(DEVICE)
 
         # run inference
         with torch.no_grad():
             self.eval()
-            output = self.forward(tensor_sequences)
+            output = self.forward(features_tensor)
 
         # get predicted labels from output
         predictions = self.get_predictions(output)
@@ -149,33 +155,46 @@ class FullyConnectedNetwork(nn.Module):
         predictions = torch.argmax(predicted_probabilities, dim=1)
         return predictions
 
+    def generate_features_tensor(self, sequences, clades):
+        """
+        Convert lists of protein sequences and species clades to an one-hot
+        encoded features tensor.
+        """
+        one_hot_features_list = []
+        for sequence, clade in zip(sequences, clades):
+            # pad or truncate sequence to be exactly `self.sequence_length` letters long
+            string_length = len(sequence)
+            if string_length <= self.sequence_length:
+                sequence = " " * (self.sequence_length - string_length) + sequence
+            else:
+                sequence = sequence[: self.sequence_length]
 
-def transform_sequences(sequences, normalized_length):
-    """
-    Convert a list of protein sequences to an one-hot encoded sequences tensor.
-    """
-    protein_sequences_mapper = ProteinSequencesMapper()
+            one_hot_sequence = self.protein_sequences_mapper.protein_letters_to_one_hot(
+                sequence
+            )
+            one_hot_clade = self.clades_mapper.clade_to_one_hot(clade)
 
-    one_hot_sequences = []
-    for sequence in sequences:
-        sequence = pad_or_truncate_string(sequence, normalized_length)
+            # convert the dataframes to NumPy arrays
+            one_hot_sequence = one_hot_sequence.to_numpy(dtype=np.float32)
+            one_hot_clade = one_hot_clade.to_numpy(dtype=np.float32)
 
-        one_hot_sequence = protein_sequences_mapper.protein_letters_to_one_hot(sequence)
+            # flatten sequence matrix to a vector
+            flat_one_hot_sequence = one_hot_sequence.flatten()
 
-        # convert features and labels to NumPy arrays
-        one_hot_sequence = one_hot_sequence.to_numpy()
+            # remove extra dimension
+            one_hot_clade = np.squeeze(one_hot_clade)
 
-        # cast the arrays to `np.float32` data type, so that the PyTorch tensors
-        # will be generated with type `torch.FloatTensor`.
-        one_hot_sequence = one_hot_sequence.astype(np.float32)
+            one_hot_features_vector = np.concatenate(
+                [flat_one_hot_sequence, one_hot_clade], axis=0
+            )
 
-        one_hot_sequences.append(one_hot_sequence)
+            one_hot_features_list.append(one_hot_features_vector)
 
-    one_hot_sequences = np.stack(one_hot_sequences)
+        one_hot_features = np.stack(one_hot_features_list)
 
-    one_hot_tensor_sequences = torch.from_numpy(one_hot_sequences)
+        features_tensor = torch.from_numpy(one_hot_features)
 
-    return one_hot_tensor_sequences
+        return features_tensor
 
 
 class EarlyStopping:
@@ -583,6 +602,10 @@ def main():
         help="path of FASTA file with protein sequences to generate symbol assignments for",
     )
     argument_parser.add_argument(
+        "--clade",
+        help="clade of species the protein sequences belong to",
+    )
+    argument_parser.add_argument(
         "--save_network",
         action="store_true",
         help="extract the network from a checkpoint file",
@@ -622,7 +645,7 @@ def main():
         logger.info(f'saved network at "{network_path}"')
         return
 
-    if args.sequences_fasta:
+    if args.sequences_fasta and args.clade:
         fasta_path = pathlib.Path(args.sequences_fasta)
 
         checkpoint_path = pathlib.Path(args.checkpoint)
@@ -654,6 +677,7 @@ def main():
                     fasta_entry[0].split(" ")[0] for fasta_entry in fasta_entries
                 ]
                 sequences = [fasta_entry[1] for fasta_entry in fasta_entries]
+                clades = [args.clade for _ in range(len(fasta_entries))]
 
                 start = time.time()
                 assignments = network.predict(sequences)
@@ -714,6 +738,8 @@ def main():
             training_session.num_connections,
             training_session.dropout_probability,
             dataset.gene_symbols_mapper,
+            dataset.protein_sequences_mapper,
+            dataset.clades_mapper,
         )
         ############################################################################
         training_session.device = DEVICE
