@@ -29,12 +29,8 @@ the full dataset for faster prototyping.
 # standard library imports
 import argparse
 import gzip
-import pathlib
-import pickle
 import sys
 import time
-
-from pprint import pprint
 
 # third party imports
 import ensembl_rest
@@ -42,7 +38,6 @@ import pandas as pd
 import pymysql
 import requests
 
-from icecream import ic
 from loguru import logger
 
 # project imports

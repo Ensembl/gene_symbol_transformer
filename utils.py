@@ -39,7 +39,6 @@ import pandas as pd
 import torch
 
 from Bio import SeqIO
-from icecream import ic
 from loguru import logger
 from torch.utils.data import Dataset
 
@@ -129,8 +128,8 @@ class GeneSymbolsMapper:
 
 class ProteinSequencesMapper:
     """
-    Class to hold the categorical data type for protein letters and methods to translate
-    between protein letters and one-hot encoding.
+    Class to hold the categorical data type for protein letters and a method
+    to translate from protein letters to one-hot encoding.
     """
 
     def __init__(self):
@@ -158,8 +157,8 @@ class ProteinSequencesMapper:
 
 class CladesMapper:
     """
-    Class to hold the categorical data type for species clade and methods to translate
-    between text labels and one-hot encoding.
+    Class to hold the categorical data type for species clade and a method
+    to translate from text labels to one-hot encoding.
     """
 
     def __init__(self, clades):
@@ -174,11 +173,6 @@ class CladesMapper:
         one_hot_clade = pd.get_dummies(clade_categorical, prefix="clade")
 
         return one_hot_clade
-
-    def one_hot_to_clade(self, one_hot_clade):
-        clade = self.clade_categorical_datatype.categories[one_hot_clade]
-
-        return clade
 
 
 class SequenceDataset(Dataset):
