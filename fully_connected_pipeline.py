@@ -34,12 +34,14 @@ import sys
 import time
 
 # third party imports
+import ensembl_rest
 import numpy as np
 import torch
 import torch.nn as nn
 import torchmetrics
 import yaml
 
+from icecream import ic
 from loguru import logger
 from torch.utils.data import DataLoader, random_split
 from torch.utils.tensorboard import SummaryWriter
@@ -51,6 +53,7 @@ from utils import (
     ProteinSequencesMapper,
     SequenceDataset,
     experiments_directory,
+    get_clade,
     load_checkpoint,
     dev_datasets_symbol_frequency,
     read_fasta_in_chunks,
@@ -575,6 +578,42 @@ class TrainingSession:
         return pprint.pformat(self.__dict__, sort_dicts=False)
 
 
+def assign_symbols(network, sequences_fasta, clade, output_directory):
+    """
+    Use the trained network to assign symbols to the sequences in the FASTA file.
+    """
+    sequences_fasta_path = pathlib.Path(sequences_fasta)
+    assignments_csv_path = pathlib.Path(
+        f"{output_directory}/{sequences_fasta_path.stem}_symbols.csv"
+    )
+
+    # read the FASTA file in chunks and assign symbols
+    with open(assignments_csv_path, "w+") as csv_file:
+        # generate a csv writer, create the CSV file with a header
+        field_names = ["stable_id", "symbol"]
+        csv_writer = csv.writer(csv_file, delimiter="\t")
+        csv_writer.writerow(field_names)
+
+        for fasta_entries in read_fasta_in_chunks(sequences_fasta_path):
+            if fasta_entries[-1] is None:
+                fasta_entries = [
+                    fasta_entry
+                    for fasta_entry in fasta_entries
+                    if fasta_entry is not None
+                ]
+
+            stable_ids = [fasta_entry[0].split(" ")[0] for fasta_entry in fasta_entries]
+            sequences = [fasta_entry[1] for fasta_entry in fasta_entries]
+            clades = [clade for _ in range(len(fasta_entries))]
+
+            assignments = network.predict(sequences, clades)
+
+            # save assignments to the CSV file
+            csv_writer.writerows(zip(stable_ids, assignments))
+
+    logger.info(f"symbol assignments saved at {assignments_csv_path}")
+
+
 def main():
     """
     main function
@@ -600,8 +639,8 @@ def main():
         help="path of FASTA file with protein sequences to generate symbol assignments for",
     )
     argument_parser.add_argument(
-        "--clade",
-        help="clade of species the protein sequences belong to",
+        "--scientific_name",
+        help="scientific name of the species the protein sequences belong to",
     )
     argument_parser.add_argument(
         "--save_network",
@@ -643,47 +682,24 @@ def main():
         logger.info(f'saved network at "{network_path}"')
         return
 
-    if args.sequences_fasta and args.clade:
-        fasta_path = pathlib.Path(args.sequences_fasta)
-
+    if args.sequences_fasta and args.scientific_name:
         checkpoint_path = pathlib.Path(args.checkpoint)
-        network, training_session = load_checkpoint(checkpoint_path)
+        network, _training_session = load_checkpoint(checkpoint_path)
+
+        response = ensembl_rest.taxonomy_name(args.scientific_name)
+        assert len(response) == 1
+
+        taxonomy_id = ensembl_rest.taxonomy_name(args.scientific_name)[0]["id"]
+
+        rest_scientific_name = ensembl_rest.taxonomy_id(taxonomy_id)["scientific_name"]
+        assert rest_scientific_name.lower() == args.scientific_name.lower()
+
+        clade = get_clade(taxonomy_id)
+        logger.info(f"got clade {clade} for {args.scientific_name}")
 
         logger.info("assigning symbols...")
+        assign_symbols(network, args.sequences_fasta, clade, checkpoint_path.parent)
 
-        assignments_csv_path = pathlib.Path(
-            f"{fasta_path.parent}/{fasta_path.stem}_symbols.csv"
-        )
-        # read the FASTA file in chunks and assign symbols
-        with open(assignments_csv_path, "w+") as csv_file:
-            # generate a csv writer, create the CSV file with a header
-            field_names = ["stable_id", "symbol"]
-            csv_writer = csv.writer(csv_file, delimiter="\t")
-            csv_writer.writerow(field_names)
-
-            for fasta_entries in read_fasta_in_chunks(fasta_path):
-                if fasta_entries[-1] is None:
-                    fasta_entries = [
-                        fasta_entry
-                        for fasta_entry in fasta_entries
-                        if fasta_entry is not None
-                    ]
-
-                stable_ids = [
-                    fasta_entry[0].split(" ")[0] for fasta_entry in fasta_entries
-                ]
-                sequences = [fasta_entry[1] for fasta_entry in fasta_entries]
-                clades = [args.clade for _ in range(len(fasta_entries))]
-
-                start = time.time()
-                assignments = network.predict(sequences)
-                end = time.time()
-                inference_duration = end - start
-                logger.debug(f"inference call took {inference_duration:.3f} seconds")
-
-                # save assignments to the CSV file
-                csv_writer.writerows(zip(stable_ids, assignments))
-        logger.debug(f"symbol assignments saved at {assignments_csv_path}")
         sys.exit()
 
     # log PyTorch version information

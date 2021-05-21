@@ -34,6 +34,7 @@ from types import SimpleNamespace
 
 # third party imports
 import Bio
+import ensembl_rest
 import numpy as np
 import pandas as pd
 import torch
@@ -399,6 +400,36 @@ def sizeof_fmt(num, suffix="B"):
             return f"{num:3.1f} {unit}{suffix}"
         num /= 1024
     return f"{num:.1f} Yi{suffix}"
+
+
+def get_clade(taxonomy_id):
+    """
+    Get the Genebuild-defined clade for the species with taxonomy_id taxonomy ID.
+
+    NOTE
+    The function logic makes the assumption that the species' taxons are returned
+    in increasing ranking from the REST API endpoint called.
+
+    Args:
+        taxonomy_id (str or int): taxonomy ID of the species to map to a clade
+    Returns:
+        string containing the clade of the species
+    """
+    taxonomy_id = str(taxonomy_id)
+
+    homo_sapiens_taxonomy_id = "9606"
+    if taxonomy_id == homo_sapiens_taxonomy_id:
+        return "humans"
+
+    # get taxonomy classification from the REST API
+    taxonomy_classification = ensembl_rest.taxonomy_classification(taxonomy_id)
+    for taxon in taxonomy_classification:
+        taxon_name = taxon["name"]
+        if taxon_name in genebuild_clades:
+            clade = genebuild_clades[taxon_name]
+            break
+
+    return clade
 
 
 if __name__ == "__main__":

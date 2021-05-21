@@ -442,34 +442,6 @@ def get_sequence_from_assembly_fasta_dict(df_row, assembly_fasta_dict):
     return sequence
 
 
-def get_clade(taxonomy_id):
-    """
-    Get the Genebuild-defined clade for the species with taxonomy_id taxonomy ID.
-
-    NOTE
-    The function logic makes the assumption that the species' taxons are returned
-    in increasing ranking from the REST API endpoint called.
-
-    Args:
-        taxonomy_id (int): taxonomy ID of the species to map to a clade
-    Returns:
-        string containing the clade of the species
-    """
-    homo_sapiens_taxonomy_id = 9606
-    if taxonomy_id == homo_sapiens_taxonomy_id:
-        return "humans"
-
-    # get taxonomy classification from the REST API
-    taxonomy_classification = ensembl_rest.taxonomy_classification(taxonomy_id)
-    for taxon in taxonomy_classification:
-        taxon_name = taxon["name"]
-        if taxon_name in genebuild_clades:
-            clade = genebuild_clades[taxon_name]
-            break
-
-    return clade
-
-
 def generate_dataset():
     """
     Download canonical translations of protein coding genes from all genome assemblies
