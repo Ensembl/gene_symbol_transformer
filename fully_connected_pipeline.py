@@ -40,7 +40,6 @@ import torch.nn as nn
 import torchmetrics
 import yaml
 
-from icecream import ic
 from loguru import logger
 from torch.utils.data import DataLoader, random_split
 from torch.utils.tensorboard import SummaryWriter

@@ -42,7 +42,6 @@ import sys
 # third party imports
 import pandas as pd
 
-from icecream import ic
 from loguru import logger
 
 # project imports
@@ -100,7 +99,7 @@ def evaluate_network(checkpoint_path, complete=False):
             Defaults to False, which runs the evaluation only for a selection of
             the most important species genome assemblies.
     """
-    network, training_session = load_checkpoint(checkpoint_path)
+    network, _training_session = load_checkpoint(checkpoint_path)
 
     ensembl_release = get_ensembl_release()
     logger.info(f"Ensembl release {ensembl_release}")
@@ -202,7 +201,7 @@ def compare_with_database(
     comparisons = []
     with open(assignments_csv_path, "r") as assignments_file:
         csv_reader = csv.reader(assignments_file, delimiter="\t")
-        csv_field_names = next(csv_reader)
+        _csv_field_names = next(csv_reader)
 
         for csv_row in csv_reader:
             csv_stable_id = csv_row[0]
