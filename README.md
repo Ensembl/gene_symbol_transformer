@@ -87,10 +87,10 @@ Training can be either run directly on a compute node or submitted as an LSF job
 
 train directly on a compute node
 ```
-python fully_connected_pipeline.py -ex <experiment settings YAML file path> --train --test
+python gene_symbol_classifier.py -ex <experiment settings YAML file path> --train --test
 
 # e.g.
-python fully_connected_pipeline.py -ex experiment.yaml --train --test
+python gene_symbol_classifier.py -ex experiment.yaml --train --test
 ```
 
 submit a training job with bsub
@@ -103,7 +103,7 @@ bash submit_training.sh experiment.yaml
 
 Resuming training of a network is also supported. Simply load the saved checkpoint and pass the `--train` argument to continue training the network with the same configuration and hyperparameters.
 ```
-python fully_connected_pipeline.py --checkpoint <checkpoint path> --train --test
+python gene_symbol_classifier.py --checkpoint <checkpoint path> --train --test
 ```
 
 ### testing
@@ -112,7 +112,7 @@ Testing of a trained neural network would normally run right after training. In 
 
 load checkpoint and test the trained network
 ```
-python fully_connected_pipeline.py --checkpoint <checkpoint path> --test
+python gene_symbol_classifier.py --checkpoint <checkpoint path> --test
 ```
 
 submit a testing job with bsub
@@ -140,7 +140,7 @@ After training, the network is ready to assign gene symbols to protein sequences
 
 assign symbols to sequences in a FASTA file and save them to a CSV file
 ```
-python fully_connected_pipeline.py --checkpoint <checkpoint path> --sequences_fasta <FASTA file path>
+python gene_symbol_classifier.py --checkpoint <checkpoint path> --sequences_fasta <FASTA file path>
 ```
 
 

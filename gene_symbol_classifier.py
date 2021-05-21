@@ -19,7 +19,7 @@
 
 
 """
-Fully connected neural network pipeline.
+Gene symbol classifier.
 """
 
 
