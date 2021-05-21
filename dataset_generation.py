@@ -375,17 +375,17 @@ def download_protein_sequences_fasta(assembly, ensembl_release):
     return fasta_path
 
 
-def get_canonical_translations(ensembldb_database, EntrezGene=False, Uniprot_gn=False):
+def get_canonical_translations(ensembl_database, EntrezGene=False, Uniprot_gn=False):
     """
     Get canonical translation sequences from the genome assembly with
-    the ensembldb_database core database.
+    the ensembl_database core database.
     """
     host = "ensembldb.ensembl.org"
     user = "anonymous"
     connection = pymysql.connect(
         host=host,
         user=user,
-        database=ensembldb_database,
+        database=ensembl_database,
         cursorclass=pymysql.cursors.DictCursor,
     )
 
