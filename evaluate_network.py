@@ -49,7 +49,6 @@ from dataset_generation import (
     download_protein_sequences_fasta,
     get_assemblies_metadata,
     get_canonical_translations,
-    get_clade,
     get_ensembl_release,
 )
 from fully_connected_pipeline import (
@@ -58,7 +57,7 @@ from fully_connected_pipeline import (
     TrainingSession,
     assign_symbols,
 )
-from utils import load_checkpoint
+from utils import get_clade, load_checkpoint
 
 
 LOGURU_FORMAT = "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{message}</level>"
@@ -173,12 +172,17 @@ def compare_with_database(
             csv_stable_id = csv_row[0]
             classifier_symbol = csv_row[1]
 
-            translation_stable_id = csv_stable_id[:-2]
+            translation_stable_id = csv_stable_id.split(".")[0]
 
-            if translation_stable_id in canonical_translations.index:
-                xref_symbol = canonical_translations.loc[translation_stable_id][
-                    "Xref_symbol"
-                ]
+            if (
+                translation_stable_id
+                in canonical_translations["translation.stable_id"].values
+            ):
+                xref_symbol = canonical_translations.loc[
+                    canonical_translations["translation.stable_id"]
+                    == translation_stable_id,
+                    "Xref_symbol",
+                ].values[0]
                 comparisons.append((csv_stable_id, classifier_symbol, xref_symbol))
 
     dataframe_columns = [
@@ -202,14 +206,6 @@ def compare_with_database(
         axis=1,
         result_type="reduce",
     )
-
-    fuzzy_matches = compare_df.loc[
-        compare_df["strict_subsets"] == True, ["classifier_symbol", "xref_symbol"]
-    ]
-    fuzzy_matches_csv_path = pathlib.Path(
-        f"{assignments_csv_path.parent}/{assignments_csv_path.stem}_fuzzy_matches.csv"
-    )
-    fuzzy_matches.to_csv(fuzzy_matches_csv_path, sep="\t", index=False)
 
     num_fuzzy_matches = compare_df["strict_subsets"].sum()
 

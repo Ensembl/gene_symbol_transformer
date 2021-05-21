@@ -406,7 +406,6 @@ def get_canonical_translations(ensembl_database, EntrezGene=False, Uniprot_gn=Fa
         "translation.version",
         "Xref_symbol",
         "external_db.db_display_name",
-        "sequence",
     ]
     canonical_translations_df = pd.DataFrame(columns=columns)
 
