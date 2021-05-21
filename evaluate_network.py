@@ -56,6 +56,7 @@ from fully_connected_pipeline import (
     EarlyStopping,
     FullyConnectedNetwork,
     TrainingSession,
+    assign_symbols,
 )
 from utils import load_checkpoint
 
@@ -120,7 +121,7 @@ def evaluate_network(checkpoint_path, complete=False):
         )
         if not assignments_csv_path.exists():
             logger.info(f"assigning gene symbols to {fasta_path}")
-            assign_symbols(network, checkpoint_path, fasta_path, clade)
+            assign_symbols(network, fasta_path, clade, checkpoint_path.parent)
 
         comparisons_csv_path = pathlib.Path(
             f"{assignments_csv_path.parent}/{assignments_csv_path.stem}_compare.csv"
@@ -131,41 +132,6 @@ def evaluate_network(checkpoint_path, complete=False):
                 assembly.core_db,
                 assembly.species,
             )
-
-
-def assign_symbols(network, checkpoint_path, sequences_fasta, clade):
-    """
-    Use the trained network to assign symbols to the sequences in the FASTA file.
-    """
-    fasta_path = pathlib.Path(sequences_fasta)
-    assignments_csv_path = pathlib.Path(
-        f"{checkpoint_path.parent}/{fasta_path.stem}_symbols.csv"
-    )
-
-    # read the FASTA file in chunks and assign symbols
-    with open(assignments_csv_path, "w+") as csv_file:
-        # generate a csv writer, create the CSV file with a header
-        field_names = ["stable_id", "symbol"]
-        csv_writer = csv.writer(csv_file, delimiter="\t")
-        csv_writer.writerow(field_names)
-
-        for fasta_entries in read_fasta_in_chunks(fasta_path):
-            if fasta_entries[-1] is None:
-                fasta_entries = [
-                    fasta_entry
-                    for fasta_entry in fasta_entries
-                    if fasta_entry is not None
-                ]
-
-            stable_ids = [fasta_entry[0].split(" ")[0] for fasta_entry in fasta_entries]
-            sequences = [fasta_entry[1] for fasta_entry in fasta_entries]
-            clades = [clade for _ in range(len(fasta_entries))]
-
-            assignments = network.predict(sequences, clades)
-
-            # save assignments to the CSV file
-            csv_writer.writerows(zip(stable_ids, assignments))
-    logger.info(f"symbol assignments saved at {assignments_csv_path}")
 
 
 def are_strict_subsets(symbol_a, symbol_b):
