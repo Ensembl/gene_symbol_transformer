@@ -49,7 +49,7 @@ checkpoint_filename="${checkpoint_basename%.*}"
 job_name="$checkpoint_filename"
 
 
-pipeline_command="python fully_connected_pipeline.py --checkpoint $checkpoint_path --test"
+pipeline_command="python gene_symbol_classifier.py --checkpoint $checkpoint_path --test"
 
 
 # submit job

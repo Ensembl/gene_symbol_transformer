@@ -67,7 +67,7 @@ datetime=$(date +%Y-%m-%d_%H:%M:%S)
 
 job_name="n=${num_symbols}_${datetime}"
 
-pipeline_command="python fully_connected_pipeline.py --datetime $datetime -ex $experiment_settings --train --test"
+pipeline_command="python gene_symbol_classifier.py --datetime $datetime -ex $experiment_settings --train --test"
 
 
 # submit job to a stardard compute node

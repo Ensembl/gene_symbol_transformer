@@ -29,7 +29,7 @@ COPY \
 RUN poetry install --no-dev
 
 COPY \
-    fully_connected_pipeline.py \
+    gene_symbol_classifier.py \
     utils.py \
     dataset_generation.py \
     /app/
@@ -37,4 +37,4 @@ COPY \
 VOLUME /app/data
 VOLUME /app/experiments
 
-ENTRYPOINT ["python", "fully_connected_pipeline.py"]
+ENTRYPOINT ["python", "gene_symbol_classifier.py"]

@@ -51,7 +51,7 @@ from dataset_generation import (
     get_canonical_translations,
     get_ensembl_release,
 )
-from fully_connected_pipeline import (
+from gene_symbol_classifier import (
     EarlyStopping,
     FullyConnectedNetwork,
     TrainingSession,
