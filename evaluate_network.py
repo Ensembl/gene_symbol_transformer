@@ -53,8 +53,12 @@ from dataset_generation import (
     get_clade,
     get_ensembl_release,
 )
-from fully_connected_pipeline import EarlyStopping, FullyConnectedNetwork, TrainingSession
-from utils import load_checkpoint, read_fasta_in_chunks
+from fully_connected_pipeline import (
+    EarlyStopping,
+    FullyConnectedNetwork,
+    TrainingSession,
+)
+from utils import load_checkpoint
 
 
 LOGURU_FORMAT = "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{message}</level>"
@@ -96,9 +100,7 @@ def evaluate_network(checkpoint_path, complete=False):
             Defaults to False, which runs the evaluation only for a selection of
             the most important species genome assemblies.
     """
-    checkpoint = load_checkpoint(checkpoint_path)
-    network = checkpoint["network"]
-    training_session = checkpoint["training_session"]
+    network, training_session = load_checkpoint(checkpoint_path)
 
     ensembl_release = get_ensembl_release()
     logger.info(f"Ensembl release {ensembl_release}")
