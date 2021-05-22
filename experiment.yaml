@@ -37,6 +37,6 @@ num_epochs: 1
 #num_epochs: 100
 #num_epochs: 1000
 
-random_state: 5
-#random_state: 7
-#random_state: 11
+random_seed: 5
+#random_seed: 7
+#random_seed: 11

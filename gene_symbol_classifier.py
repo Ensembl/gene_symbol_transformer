@@ -535,7 +535,7 @@ class TrainingSession:
 
         # experiment parameters
         self.datetime = datetime
-        self.random_state = experiment_settings.random_state
+        self.random_seed = experiment_settings.random_seed
 
         # test and validation sets
         if self.num_symbols in dev_datasets_symbol_frequency:
@@ -722,7 +722,7 @@ def main():
     else:
         training_session = TrainingSession(experiment_settings, datetime)
 
-    torch.manual_seed(training_session.random_state)
+    torch.manual_seed(training_session.random_seed)
 
     # load data, generate datasets
     ############################################################################
