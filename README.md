@@ -58,7 +58,7 @@ learning_rate: 0.001
 
 num_epochs: 100
 
-random_state: 5
+random_seed: 5
 ```
 
 
