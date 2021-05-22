@@ -67,7 +67,6 @@ selected_species_genomes = {
     "aquila_chrysaetos_chrysaetos": "golden eagle",
     "balaenoptera_musculus": "blue whale",
     "bos_taurus": "cow",
-    "caenorhabditis_elegans": "caenorhabditis elegans",
     "canis_lupus_familiaris": "dog",
     "cyprinus_carpio": "common carp",
     "danio_rerio": "zebrafish",
@@ -83,7 +82,6 @@ selected_species_genomes = {
     "panthera_leo": "lion",
     "saccharomyces_cerevisiae": "saccharomyces cerevisiae",
     "sus_scrofa": "pig",
-    "varanus_komodoensis": "komodo dragon",
 }
 
 
