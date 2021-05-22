@@ -19,7 +19,8 @@
 
 
 """
-Gene symbol classifier.
+Train, test, and use a gene symbol classifier to assign gene symbols to protein
+sequences.
 """
 
 
@@ -30,6 +31,7 @@ import datetime as dt
 import math
 import pathlib
 import pprint
+import random
 import sys
 import time
 
@@ -535,6 +537,10 @@ class TrainingSession:
 
         # experiment parameters
         self.datetime = datetime
+
+        # set the seed of the PyTorch random number generator
+        if not hasattr(experiment_settings, "random_seed"):
+            experiment_settings.random_seed = random.randint(1, 100)
         self.random_seed = experiment_settings.random_seed
 
         # test and validation sets
