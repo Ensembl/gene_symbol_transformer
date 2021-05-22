@@ -45,22 +45,22 @@ import pandas as pd
 from loguru import logger
 
 # project imports
-from dataset_generation import (
-    download_protein_sequences_fasta,
-    get_assemblies_metadata,
-    get_canonical_translations,
-    get_ensembl_release,
-)
 from gene_symbol_classifier import (
     EarlyStopping,
     FullyConnectedNetwork,
     TrainingSession,
     assign_symbols,
 )
-from utils import get_clade, load_checkpoint
+from utils import (
+    download_protein_sequences_fasta,
+    get_assemblies_metadata,
+    get_canonical_translations,
+    get_clade,
+    get_ensembl_release,
+    load_checkpoint,
+    loguru_format,
+)
 
-
-LOGURU_FORMAT = "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{message}</level>"
 
 selected_species_genomes = {
     "ailuropoda_melanoleuca": "giant panda",
@@ -126,10 +126,11 @@ def evaluate_network(checkpoint_path, complete=False):
             f"{assignments_csv_path.parent}/{assignments_csv_path.stem}_compare.csv"
         )
         if not comparisons_csv_path.exists():
+            scientific_name = assembly.species.replace("_", " ").capitalize()
             compare_with_database(
                 assignments_csv_path,
                 assembly.core_db,
-                assembly.species,
+                scientific_name,
             )
 
 
@@ -162,6 +163,15 @@ def compare_with_database(
     canonical_translations = get_canonical_translations(
         ensembl_database, EntrezGene, Uniprot_gn
     )
+
+    if len(canonical_translations) == 0:
+        if scientific_name is None:
+            logger.info("0 canonical translations retrieved, nothing to compare")
+        else:
+            logger.info(
+                f"0 canonical translations retrieved for {scientific_name}, nothing to compare"
+            )
+        return
 
     comparisons = []
     with open(assignments_csv_path, "r") as assignments_file:
@@ -259,7 +269,7 @@ def main():
 
     # set up logger
     logger.remove()
-    logger.add(sys.stderr, format=LOGURU_FORMAT)
+    logger.add(sys.stderr, format=loguru_format)
 
     if args.assignments_csv and args.ensembl_database:
         assignments_csv_path = pathlib.Path(args.assignments_csv)
@@ -267,14 +277,14 @@ def main():
             f"{assignments_csv_path.parent}/{assignments_csv_path.stem}_compare.log"
         )
 
-        logger.add(log_file_path, format=LOGURU_FORMAT)
+        logger.add(log_file_path, format=loguru_format)
         compare_with_database(args.assignments_csv, args.ensembl_database)
     elif args.checkpoint:
         checkpoint_path = pathlib.Path(args.checkpoint)
         log_file_path = pathlib.Path(
             f"{checkpoint_path.parent}/{checkpoint_path.stem}_evaluate.log"
         )
-        logger.add(log_file_path, format=LOGURU_FORMAT)
+        logger.add(log_file_path, format=loguru_format)
 
         evaluate_network(checkpoint_path, args.complete)
     else:
