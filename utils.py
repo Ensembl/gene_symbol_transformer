@@ -71,7 +71,7 @@ experiments_directory.mkdir(exist_ok=True)
 sequences_directory = data_directory / "protein_sequences"
 sequences_directory.mkdir(parents=True, exist_ok=True)
 
-loguru_format = "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{message}</level>"
+logging_format = "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{message}</level>"
 
 dev_datasets_symbol_frequency = {
     3: 342,

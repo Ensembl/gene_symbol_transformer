@@ -58,7 +58,7 @@ from utils import (
     get_clade,
     get_ensembl_release,
     load_checkpoint,
-    loguru_format,
+    logging_format,
 )
 
 
@@ -267,7 +267,7 @@ def main():
 
     # set up logger
     logger.remove()
-    logger.add(sys.stderr, format=loguru_format)
+    logger.add(sys.stderr, format=logging_format)
 
     if args.assignments_csv and args.ensembl_database:
         assignments_csv_path = pathlib.Path(args.assignments_csv)
@@ -275,14 +275,14 @@ def main():
             f"{assignments_csv_path.parent}/{assignments_csv_path.stem}_compare.log"
         )
 
-        logger.add(log_file_path, format=loguru_format)
+        logger.add(log_file_path, format=logging_format)
         compare_with_database(args.assignments_csv, args.ensembl_database)
     elif args.checkpoint:
         checkpoint_path = pathlib.Path(args.checkpoint)
         log_file_path = pathlib.Path(
             f"{checkpoint_path.parent}/{checkpoint_path.stem}_evaluate.log"
         )
-        logger.add(log_file_path, format=loguru_format)
+        logger.add(log_file_path, format=logging_format)
 
         evaluate_network(checkpoint_path, args.complete)
     else:

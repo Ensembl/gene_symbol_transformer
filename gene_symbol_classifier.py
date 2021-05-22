@@ -57,7 +57,7 @@ from utils import (
     experiments_directory,
     get_clade,
     load_checkpoint,
-    loguru_format,
+    logging_format,
     read_fasta_in_chunks,
     specify_device,
 )
@@ -675,8 +675,8 @@ def main():
 
     # set up logger
     logger.remove()
-    logger.add(sys.stderr, format=loguru_format)
-    logger.add(log_file_path, format=loguru_format)
+    logger.add(sys.stderr, format=logging_format)
+    logger.add(log_file_path, format=logging_format)
 
     # save network
     if args.save_network:

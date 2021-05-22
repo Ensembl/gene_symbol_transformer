@@ -49,7 +49,7 @@ from utils import (
     get_clade,
     get_ensembl_release,
     load_dataset,
-    loguru_format,
+    logging_format,
     sizeof_fmt,
 )
 
@@ -340,9 +340,9 @@ def main():
 
     # set up logger
     logger.remove()
-    logger.add(sys.stderr, format=loguru_format)
+    logger.add(sys.stderr, format=logging_format)
     log_file_path = data_directory / "dataset_generation.log"
-    logger.add(log_file_path, format=loguru_format)
+    logger.add(log_file_path, format=logging_format)
 
     if args.generate_dataset:
         generate_dataset()
