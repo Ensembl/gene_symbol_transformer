@@ -41,7 +41,6 @@ import torch.nn as nn
 import torchmetrics
 import yaml
 
-from icecream import ic
 from loguru import logger
 from torch.utils.data import DataLoader, random_split
 from torch.utils.tensorboard import SummaryWriter
@@ -52,16 +51,15 @@ from utils import (
     PrettySimpleNamespace,
     ProteinSequencesMapper,
     SequenceDataset,
+    dev_datasets_symbol_frequency,
     experiments_directory,
     get_clade,
     load_checkpoint,
-    dev_datasets_symbol_frequency,
+    loguru_format,
     read_fasta_in_chunks,
     specify_device,
 )
 
-
-LOGURU_FORMAT = "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{message}</level>"
 
 DEVICE = specify_device()
 
@@ -671,8 +669,8 @@ def main():
 
     # set up logger
     logger.remove()
-    logger.add(sys.stderr, format=LOGURU_FORMAT)
-    logger.add(log_file_path, format=LOGURU_FORMAT)
+    logger.add(sys.stderr, format=loguru_format)
+    logger.add(log_file_path, format=loguru_format)
 
     # save network
     if args.save_network:
