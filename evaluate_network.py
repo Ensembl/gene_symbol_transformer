@@ -18,18 +18,16 @@
 # limitations under the License.
 
 
-"""
-Evaluate a trained network or get statistics for existing symbol assignments.
+"""Evaluate a trained network or get statistics for existing symbol assignments.
 
-Pass the --assignments_csv and --ensembl_database arguments to compare
-the assignments in the `assignments_csv` CSV file with the ones in the `ensembl_database`
-Ensembl database,
-or
-pass the --checkpoint argument to evaluate a trained network by assigning symbols
-to the canonical translations of protein sequences of annotations in the latest
-Ensembl release and comparing them to the existing symbol assignments.
+A trained network, specified with the `--checkpoint` argument with its path,
+is evaluated by assigning symbols to the canonical translations of protein sequences
+of annotations in the latest Ensembl release and comparing them to the existing
+symbol assignments.
 
-A trained network can be evaluated by assigning gene symbols to the assembly annotations on the main Ensembl website and comparing them with the existing gene symbols.
+Gene symbol assignments from a classifier can be compared against the existing
+assignments in the Ensembl database, by specifying the path to the assignments CSV file
+with `--assignments_csv` and the Ensembl database name with `--ensembl_database`.
 """
 
 
@@ -248,6 +246,12 @@ def main():
     main function
     """
     argument_parser = argparse.ArgumentParser()
+    argument_parser.add_argument("--checkpoint", help="training session checkpoint path")
+    argument_parser.add_argument(
+        "--complete",
+        action="store_true",
+        help="run the evaluation for all genome assemblies in the Ensembl release",
+    )
     argument_parser.add_argument(
         "--assignments_csv",
         help="assignments CSV file path",
@@ -256,12 +260,6 @@ def main():
         "--ensembl_database",
         help="genome assembly core database name on the public Ensembl MySQL server",
     )
-    argument_parser.add_argument("--checkpoint", help="training session checkpoint path")
-    argument_parser.add_argument(
-        "--complete",
-        action="store_true",
-        help="run the evaluation for all genome assemblies in the Ensembl release",
-    )
 
     args = argument_parser.parse_args()
 
@@ -269,15 +267,8 @@ def main():
     logger.remove()
     logger.add(sys.stderr, format=logging_format)
 
-    if args.assignments_csv and args.ensembl_database:
-        assignments_csv_path = pathlib.Path(args.assignments_csv)
-        log_file_path = pathlib.Path(
-            f"{assignments_csv_path.parent}/{assignments_csv_path.stem}_compare.log"
-        )
-
-        logger.add(log_file_path, format=logging_format)
-        compare_with_database(args.assignments_csv, args.ensembl_database)
-    elif args.checkpoint:
+    # evaluate a classifier
+    if args.checkpoint:
         checkpoint_path = pathlib.Path(args.checkpoint)
         log_file_path = pathlib.Path(
             f"{checkpoint_path.parent}/{checkpoint_path.stem}_evaluate.log"
@@ -285,8 +276,18 @@ def main():
         logger.add(log_file_path, format=logging_format)
 
         evaluate_network(checkpoint_path, args.complete)
+
+    # compare assignments with the ones on the latest Ensembl release
+    elif args.assignments_csv and args.ensembl_database:
+        assignments_csv_path = pathlib.Path(args.assignments_csv)
+        log_file_path = pathlib.Path(
+            f"{assignments_csv_path.parent}/{assignments_csv_path.stem}_compare.log"
+        )
+
+        logger.add(log_file_path, format=logging_format)
+        compare_with_database(args.assignments_csv, args.ensembl_database)
+
     else:
-        print("Error: missing argument.")
         print(__doc__)
         argument_parser.print_help()
 
