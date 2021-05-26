@@ -1,0 +1,146 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+
+# See the NOTICE file distributed with this work for additional information
+# regarding copyright ownership.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+
+"""Submit an LSF job to train and test a neural network gene symbol classifier.
+"""
+
+
+# standard library imports
+import argparse
+import datetime as dt
+import subprocess
+
+# third party imports
+import yaml
+
+
+def main():
+    """
+    main function
+    """
+    argument_parser = argparse.ArgumentParser()
+    argument_parser.add_argument(
+        "-ex",
+        "--experiment_settings",
+        help="path to the experiment settings configuration YAML file",
+    )
+    argument_parser.add_argument(
+        "--job_type",
+        default="standard",
+        help='submitted job type, one of "standard", "gpu", or "parallel"',
+    )
+    argument_parser.add_argument(
+        "--compute_node",
+        default="gpu-009",
+        help='name of compute node to submit the job, for GPU one of "gpu-009" or "gpu-011"',
+    )
+    argument_parser.add_argument(
+        "--min_tasks",
+        default=8,
+        type=int,
+        help="number of tasks for a parallel job",
+    )
+    argument_parser.add_argument(
+        "--mem_limit",
+        default=8192,
+        type=int,
+        help="memory limit for all the processes that belong to the job",
+    )
+
+    args = argument_parser.parse_args()
+
+    # submit new classifier training
+    if args.experiment_settings:
+        datetime = dt.datetime.now().isoformat(sep="_", timespec="seconds")
+
+        with open(args.experiment_settings) as f:
+            experiment_settings = yaml.safe_load(f)
+
+        num_symbols = experiment_settings["num_symbols"]
+
+        job_name = f"n={num_symbols}_{datetime}"
+
+        pipeline_command_elements = [
+            "python gene_symbol_classifier.py",
+            f"--datetime {datetime}",
+            f"--experiment_settings {args.experiment_settings}",
+            "--train",
+            "--test",
+        ]
+
+        pipeline_command = " ".join(pipeline_command_elements)
+
+        # stardard compute node job
+        if args.job_type == "standard":
+            bsub_command_elements = [
+                "bsub",
+                f"-M {args.mem_limit}",
+                f'-R"select[mem>{args.mem_limit}] rusage[mem={args.mem_limit}]"',
+                f"-o experiments/{job_name}.stdout.log",
+                f"-e experiments/{job_name}.stderr.log",
+                pipeline_command,
+            ]
+
+        # GPU node job
+        elif args.job_type == "gpu":
+            bsub_command_elements = [
+                "bsub",
+                "-P gpu",
+                '-gpu "num=1:j_exclusive=yes"',
+                f"-m {args.compute_node}.ebi.ac.uk",
+                f"-M {args.mem_limit}",
+                f'-R"select[mem>{args.mem_limit}] rusage[mem={args.mem_limit}]"',
+                f"-o experiments/{job_name}.stdout.log",
+                f"-e experiments/{job_name}.stderr.log",
+                pipeline_command,
+            ]
+
+        # parallel job
+        elif args.job_type == "parallel":
+            bsub_command_elements = [
+                "bsub",
+                f"-n {args.min_tasks}",
+                f'-R"span[hosts=1]"',
+                f"-M {args.mem_limit}",
+                f'-R"select[mem>{args.mem_limit}] rusage[mem={args.mem_limit}]"',
+                f"-o experiments/{job_name}.stdout.log",
+                f"-e experiments/{job_name}.stderr.log",
+                pipeline_command,
+            ]
+
+        bsub_command = " ".join(bsub_command_elements)
+        print(f"running command:\n{bsub_command}")
+
+        try:
+            command_output = subprocess.run(bsub_command, check=True, shell=True)
+        except subprocess.CalledProcessError as ex:
+            print(ex)
+
+    # no task specified
+    else:
+        print(__doc__)
+        argument_parser.print_help()
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except KeyboardInterrupt:
+        print("Interrupted with CTRL-C, exiting...")
