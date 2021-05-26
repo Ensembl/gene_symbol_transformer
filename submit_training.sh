@@ -38,10 +38,10 @@ compute_node=gpu-009
 min_tasks=8
 #min_tasks=16
 
-mem_limit=10240
+mem_limit=8192
+#mem_limit=10240
 #mem_limit=16384
 #mem_limit=32768
-#mem_limit=65536
 ################################################################################
 
 
