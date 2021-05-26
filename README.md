@@ -95,10 +95,10 @@ python gene_symbol_classifier.py -ex experiment.yaml --train --test
 
 submit a training job with bsub
 ```
-bash submit_training.sh <experiment settings yaml file path>
+python submit_training.py -ex <experiment settings YAML file path>
 
 # e.g.
-bash submit_training.sh experiment.yaml
+python submit_training.py -ex experiment.yaml
 ```
 
 Resuming training of a network is also supported. Simply load the saved checkpoint and pass the `--train` argument to continue training the network with the same configuration and hyperparameters.
