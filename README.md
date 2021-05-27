@@ -95,10 +95,10 @@ python gene_symbol_classifier.py -ex experiment.yaml --train --test
 
 submit a training job with bsub
 ```
-python submit_training.py -ex <experiment settings YAML file path>
+python submit_LSF_job.py -ex <experiment settings YAML file path>
 
 # e.g.
-python submit_training.py -ex experiment.yaml
+python submit_LSF_job.py -ex experiment.yaml
 ```
 
 Resuming training of a network is also supported. Simply load the saved checkpoint and pass the `--train` argument to continue training the network with the same configuration and hyperparameters.
@@ -117,7 +117,7 @@ python gene_symbol_classifier.py --checkpoint <checkpoint path> --test
 
 submit a testing job with bsub
 ```
-bash submit_testing.sh <checkpoint file path>
+python submit_LSF_job.py --checkpoint <checkpoint path> --test
 ```
 
 ### evaluate a trained network
