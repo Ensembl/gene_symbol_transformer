@@ -18,14 +18,16 @@
 # limitations under the License.
 
 
-"""Submit an LSF job to train and test a neural network gene symbol classifier.
+"""Submit an LSF job to train or test a neural network gene symbol classifier.
 """
 
 
 # standard library imports
 import argparse
 import datetime as dt
+import pathlib
 import subprocess
+import sys
 
 # third party imports
 import yaml
@@ -52,8 +54,8 @@ def main():
         help='name of compute node to submit the job, for GPU one of "gpu-009" or "gpu-011"',
     )
     argument_parser.add_argument(
-        "--min_tasks",
-        default=8,
+        "--num_tasks",
+        default=1,
         type=int,
         help="number of tasks for a parallel job",
     )
@@ -62,6 +64,10 @@ def main():
         default=8192,
         type=int,
         help="memory limit for all the processes that belong to the job",
+    )
+    argument_parser.add_argument(
+        "--checkpoint",
+        help="path to the saved experiment checkpoint",
     )
 
     args = argument_parser.parse_args()
@@ -84,59 +90,64 @@ def main():
             "--train",
             "--test",
         ]
+    # resume training a saved classifier
+    elif args.checkpoint:
+        job_name = pathlib.Path(args.checkpoint).stem
 
-        pipeline_command = " ".join(pipeline_command_elements)
-
-        # stardard compute node job
-        if args.job_type == "standard":
-            bsub_command_elements = [
-                "bsub",
-                f"-M {args.mem_limit}",
-                f'-R"select[mem>{args.mem_limit}] rusage[mem={args.mem_limit}]"',
-                f"-o experiments/{job_name}.stdout.log",
-                f"-e experiments/{job_name}.stderr.log",
-                pipeline_command,
-            ]
-
-        # GPU node job
-        elif args.job_type == "gpu":
-            bsub_command_elements = [
-                "bsub",
-                "-P gpu",
-                '-gpu "num=1:j_exclusive=yes"',
-                f"-m {args.compute_node}.ebi.ac.uk",
-                f"-M {args.mem_limit}",
-                f'-R"select[mem>{args.mem_limit}] rusage[mem={args.mem_limit}]"',
-                f"-o experiments/{job_name}.stdout.log",
-                f"-e experiments/{job_name}.stderr.log",
-                pipeline_command,
-            ]
-
-        # parallel job
-        elif args.job_type == "parallel":
-            bsub_command_elements = [
-                "bsub",
-                f"-n {args.min_tasks}",
-                f'-R"span[hosts=1]"',
-                f"-M {args.mem_limit}",
-                f'-R"select[mem>{args.mem_limit}] rusage[mem={args.mem_limit}]"',
-                f"-o experiments/{job_name}.stdout.log",
-                f"-e experiments/{job_name}.stderr.log",
-                pipeline_command,
-            ]
-
-        bsub_command = " ".join(bsub_command_elements)
-        print(f"running command:\n{bsub_command}")
-
-        try:
-            command_output = subprocess.run(bsub_command, check=True, shell=True)
-        except subprocess.CalledProcessError as ex:
-            print(ex)
-
+        pipeline_command_elements = [
+            "python gene_symbol_classifier.py",
+            f"--checkpoint {args.checkpoint}",
+            "--train",
+            "--test",
+        ]
     # no task specified
     else:
         print(__doc__)
         argument_parser.print_help()
+        sys.exit()
+
+    pipeline_command = " ".join(pipeline_command_elements)
+
+    # common arguments for any job type
+    bsub_command_elements = [
+        "bsub",
+        f"-M {args.mem_limit}",
+        f'-R"select[mem>{args.mem_limit}] rusage[mem={args.mem_limit}]"',
+        f"-o experiments/{job_name}.stdout.log",
+        f"-e experiments/{job_name}.stderr.log",
+    ]
+
+    # GPU node job
+    if args.job_type == "gpu":
+        bsub_command_elements.extend(
+            [
+                "-P gpu",
+                f'-gpu "num={args.num_tasks}:j_exclusive=yes"',
+                f"-m {args.compute_node}.ebi.ac.uk",
+            ]
+        )
+
+    # parallel job
+    if args.job_type == "parallel":
+        if args.num_tasks == 1:
+            raise ValueError("parallel job specified but the number of tasks is set to 1")
+
+        bsub_command_elements.extend(
+            [
+                f"-n {args.num_tasks}",
+                f'-R"span[hosts=1]"',
+            ]
+        )
+
+    bsub_command_elements.append(pipeline_command)
+
+    bsub_command = " ".join(bsub_command_elements)
+    print(f"running command:\n{bsub_command}")
+
+    try:
+        command_output = subprocess.run(bsub_command, check=True, shell=True)
+    except subprocess.CalledProcessError as ex:
+        print(ex)
 
 
 if __name__ == "__main__":
