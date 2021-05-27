@@ -217,13 +217,13 @@ class EarlyStopping:
         self.no_progress = 0
         self.min_validation_loss = np.Inf
 
-    def __call__(self, network, training_session, validation_loss, checkpoint_path):
+    def __call__(self, network, experiment, validation_loss, checkpoint_path):
         if self.min_validation_loss == np.Inf:
             self.min_validation_loss = validation_loss
             logger.info("saving initial network checkpoint...")
             checkpoint = {
                 "network": network,
-                "training_session": training_session,
+                "experiment": experiment,
             }
             torch.save(checkpoint, checkpoint_path)
             return False
@@ -238,7 +238,7 @@ class EarlyStopping:
             )
             checkpoint = {
                 "network": network,
-                "training_session": training_session,
+                "experiment": experiment,
             }
             torch.save(checkpoint, checkpoint_path)
             self.min_validation_loss = validation_loss
@@ -257,49 +257,44 @@ class EarlyStopping:
 
 def train_network(
     network,
-    training_session,
+    experiment,
     training_loader,
     validation_loader,
 ):
     tensorboard_log_dir = (
-        f"runs/{training_session.num_symbols}/{training_session.datetime}"
+        f"runs/{experiment.num_symbols}/{experiment.datetime}"
     )
     summary_writer = SummaryWriter(log_dir=tensorboard_log_dir)
 
-    num_epochs = training_session.num_epochs
-    criterion = training_session.criterion
+    max_epochs = experiment.max_epochs
+    criterion = experiment.criterion
 
     # optimization function
-    training_session.optimizer = torch.optim.Adam(
-        network.parameters(), lr=training_session.learning_rate
+    experiment.optimizer = torch.optim.Adam(
+        network.parameters(), lr=experiment.learning_rate
     )
 
     clip_max_norm = 5
 
-    checkpoint_path = experiments_directory / training_session.checkpoint_filename
+    checkpoint_path = experiments_directory / experiment.checkpoint_filename
     logger.info(f"training started, session checkpoints saved at {checkpoint_path}")
 
-    num_epochs_length = len(str(num_epochs))
+    max_epochs_length = len(str(max_epochs))
 
-    if training_session.drop_last:
-        num_train_batches = int(
-            training_session.training_size / training_session.batch_size
-        )
-    else:
-        num_train_batches = math.ceil(
-            training_session.training_size / training_session.batch_size
-        )
+    num_train_batches = math.ceil(
+        experiment.training_size / experiment.batch_size
+    )
     num_batches_length = len(str(num_train_batches))
 
-    if not hasattr(training_session, "average_training_losses"):
-        training_session.average_training_losses = []
+    if not hasattr(experiment, "average_training_losses"):
+        experiment.average_training_losses = []
 
-    if not hasattr(training_session, "average_validation_losses"):
-        training_session.average_validation_losses = []
+    if not hasattr(experiment, "average_validation_losses"):
+        experiment.average_validation_losses = []
 
-    training_session.epoch = training_session.num_complete_epochs + 1
-    for epoch in range(training_session.epoch, num_epochs + 1):
-        training_session.epoch = epoch
+    experiment.epoch = experiment.num_complete_epochs + 1
+    for epoch in range(experiment.epoch, max_epochs + 1):
+        experiment.epoch = epoch
 
         # training
         ########################################################################
@@ -336,29 +331,24 @@ def train_network(
             nn.utils.clip_grad_norm_(network.parameters(), clip_max_norm)
 
             # perform an optimization step
-            training_session.optimizer.step()
+            experiment.optimizer.step()
 
             batch_train_accuracy = train_accuracy(predictions, labels)
             average_training_loss = np.average(training_losses)
 
-            train_progress = f"epoch {epoch:{num_epochs_length}}, batch {batch_number:{num_batches_length}} of {num_train_batches} | average loss: {average_training_loss:.4f} | accuracy: {batch_train_accuracy:.4f}"
+            train_progress = f"epoch {epoch:{max_epochs_length}}, batch {batch_number:{num_batches_length}} of {num_train_batches} | average loss: {average_training_loss:.4f} | accuracy: {batch_train_accuracy:.4f}"
             logger.info(train_progress)
 
-        training_session.num_complete_epochs += 1
+        experiment.num_complete_epochs += 1
 
         average_training_loss = np.average(training_losses)
-        training_session.average_training_losses.append(average_training_loss)
+        experiment.average_training_losses.append(average_training_loss)
 
         # validation
         ########################################################################
-        if training_session.drop_last:
-            num_validation_batches = int(
-                training_session.validation_size / training_session.batch_size
-            )
-        else:
-            num_validation_batches = math.ceil(
-                training_session.validation_size / training_session.batch_size
-            )
+        num_validation_batches = math.ceil(
+            experiment.validation_size / experiment.batch_size
+        )
         num_batches_length = len(str(num_validation_batches))
 
         validation_losses = []
@@ -388,50 +378,52 @@ def train_network(
                 batch_validation_accuracy = validation_accuracy(predictions, labels)
                 average_validation_loss = np.average(validation_losses)
 
-                validation_progress = f"epoch {epoch:{num_epochs_length}}, validation batch {batch_number:{num_batches_length}} of {num_validation_batches} | average loss: {average_validation_loss:.4f} | accuracy: {batch_validation_accuracy:.4f}"
+                validation_progress = f"epoch {epoch:{max_epochs_length}}, validation batch {batch_number:{num_batches_length}} of {num_validation_batches} | average loss: {average_validation_loss:.4f} | accuracy: {batch_validation_accuracy:.4f}"
                 logger.info(validation_progress)
 
         average_validation_loss = np.average(validation_losses)
-        training_session.average_validation_losses.append(average_validation_loss)
+        experiment.average_validation_losses.append(average_validation_loss)
 
         total_validation_accuracy = validation_accuracy.compute()
 
-        train_progress = f"epoch {epoch:{num_epochs_length}} complete | validation loss: {average_validation_loss:.4f} | validation accuracy: {total_validation_accuracy:.4f}"
+        train_progress = f"epoch {epoch:{max_epochs_length}} complete | validation loss: {average_validation_loss:.4f} | validation accuracy: {total_validation_accuracy:.4f}"
         logger.info(train_progress)
 
-        if training_session.stop_early(
-            network, training_session, average_validation_loss, checkpoint_path
+        if experiment.stop_early(
+            network, experiment, average_validation_loss, checkpoint_path
         ):
             summary_writer.flush()
             summary_writer.close()
             break
 
+    return checkpoint_path
 
-def test_network(
-    network, training_session, test_loader, log_file_path, print_sample_assignments=False
-):
+
+def test_network( checkpoint_path, print_sample_assignments=False):
     """
     Calculate test loss and generate metrics.
     """
     logger.info("testing started")
 
-    criterion = training_session.criterion
+    network, experiment = load_checkpoint(checkpoint_path)
 
-    if training_session.drop_last:
-        num_test_batches = int(training_session.test_size / training_session.batch_size)
-    else:
-        num_test_batches = math.ceil(
-            training_session.test_size / training_session.batch_size
-        )
+    # get test dataloader
+    _, _, test_loader = generate_dataloaders(experiment)
+
+    criterion = experiment.criterion
+
+    num_test_batches = math.ceil(
+        experiment.test_size / experiment.batch_size
+    )
     num_batches_length = len(str(num_test_batches))
 
     test_losses = []
     test_accuracy = torchmetrics.Accuracy()
     test_precision = torchmetrics.Precision(
-        num_classes=training_session.num_symbols, average="macro"
+        num_classes=experiment.num_symbols, average="macro"
     )
     test_recall = torchmetrics.Recall(
-        num_classes=training_session.num_symbols, average="macro"
+        num_classes=experiment.num_symbols, average="macro"
     )
 
     with torch.no_grad():
@@ -501,6 +493,7 @@ def test_network(
         # reset logger, add raw messages format
         logger.remove()
         logger.add(sys.stderr, format="{message}")
+        log_file_path = pathlib.Path(checkpoint_path).with_suffix(".log")
         logger.add(log_file_path, format="{message}")
 
         assignments = network.gene_symbols_mapper.one_hot_to_symbol(predictions)
@@ -518,9 +511,9 @@ def test_network(
 
 def save_network_from_checkpoint(checkpoint_path):
     """
-    Save a network residing inside a checkpoint file as a separate file.
+    Save the network in a checkpoint file as a separate file.
     """
-    network, training_session = load_checkpoint(checkpoint_path)
+    network, _ = load_checkpoint(checkpoint_path)
 
     path = checkpoint_path
     network_path = pathlib.Path(f"{path.parent}/{path.stem}_network.pth")
@@ -530,7 +523,7 @@ def save_network_from_checkpoint(checkpoint_path):
     return network_path
 
 
-class TrainingSession:
+class Experiment:
     def __init__(self, experiment_settings, datetime):
         # dataset
         self.num_symbols = experiment_settings.num_symbols
@@ -561,7 +554,7 @@ class TrainingSession:
         self.learning_rate = experiment_settings.learning_rate
 
         # training length and early stopping
-        self.num_epochs = experiment_settings.num_epochs
+        self.max_epochs = experiment_settings.max_epochs
         self.num_complete_epochs = 0
 
         # early stopping
@@ -618,6 +611,103 @@ def assign_symbols(network, sequences_fasta, clade, output_directory):
     logger.info(f"symbol assignments saved at {assignments_csv_path}")
 
 
+def log_pytorch_cuda_info():
+    """
+    Log PyTorch and CUDA info and device to be used.
+    """
+    logger.debug(f"{torch.__version__=}")
+    logger.debug(f"{DEVICE=}")
+    logger.debug(f"{torch.version.cuda=}")
+    logger.debug(f"{torch.backends.cudnn.enabled=}")
+    logger.debug(f"{torch.cuda.is_available()=}")
+
+    if torch.cuda.is_available():
+        logger.debug(f"{torch.cuda.device_count()=}")
+        logger.debug(f"{torch.cuda.get_device_properties(DEVICE)}")
+
+
+def generate_dataloaders(experiment):
+    """
+    Generate training, validation, and test dataloaders from the dataset files.
+
+    Args:
+        experiment (Experiment): Experiment object containing metadata
+    Returns:
+        tuple containing the training, validation, and test dataloaders
+    """
+    dataset = SequenceDataset(
+        experiment.num_symbols, experiment.sequence_length
+    )
+
+    experiment.gene_symbols_mapper = dataset.gene_symbols_mapper
+    experiment.protein_sequences_mapper = dataset.protein_sequences_mapper
+    experiment.clades_mapper = dataset.clades_mapper
+
+    experiment.num_protein_letters = len(
+        experiment.protein_sequences_mapper.protein_letters
+    )
+    experiment.num_clades = len(experiment.clades_mapper.clades)
+
+    pandas_symbols_categories = (
+        experiment.gene_symbols_mapper.symbol_categorical_datatype.categories
+    )
+    logger.info(
+        "gene symbols:\n{}".format(
+            pandas_symbols_categories.to_series(
+                index=range(len(pandas_symbols_categories)), name="gene symbols"
+            )
+        )
+    )
+
+    # calculate the training, validation, and test set size
+    dataset_size = len(dataset)
+    experiment.validation_size = int(experiment.validation_ratio * dataset_size)
+    experiment.test_size = int(experiment.test_ratio * dataset_size)
+    experiment.training_size = (
+        dataset_size - experiment.validation_size - experiment.test_size
+    )
+
+    # split dataset into training, validation, and test datasets
+    training_dataset, validation_dataset, test_dataset = random_split(
+        dataset,
+        lengths=(
+            experiment.training_size,
+            experiment.validation_size,
+            experiment.test_size,
+        ),
+    )
+
+    logger.info(
+        f"dataset split to training ({experiment.training_size}), validation ({experiment.validation_size}), and test ({experiment.test_size}) datasets"
+    )
+
+    # set the batch size equal to the size of the smallest dataset if larger than that
+    experiment.batch_size = min(
+        experiment.batch_size,
+        experiment.training_size,
+        experiment.validation_size,
+        experiment.test_size,
+    )
+
+    training_loader = DataLoader(
+        training_dataset,
+        batch_size=experiment.batch_size,
+        shuffle=True,
+    )
+    validation_loader = DataLoader(
+        validation_dataset,
+        batch_size=experiment.batch_size,
+        shuffle=True,
+    )
+    test_loader = DataLoader(
+        test_dataset,
+        batch_size=experiment.batch_size,
+        shuffle=True,
+    )
+
+    return (training_loader, validation_loader, test_loader)
+
+
 def main():
     """
     main function
@@ -640,7 +730,7 @@ def main():
     argument_parser.add_argument("--test", action="store_true", help="test a network")
     argument_parser.add_argument(
         "--sequences_fasta",
-        help="path of FASTA file with protein sequences to generate symbol assignments for",
+        help="path of FASTA file with protein sequences to assign symbols to",
     )
     argument_parser.add_argument(
         "--scientific_name",
@@ -649,13 +739,17 @@ def main():
     argument_parser.add_argument(
         "--save_network",
         action="store_true",
-        help="extract the network from a checkpoint file",
+        help="save the network in a checkpoint file as a separate file",
     )
 
     args = argument_parser.parse_args()
 
-    # load experiment settings and generate the log file path
-    if args.experiment_settings:
+    # set up logger
+    logger.remove()
+    logger.add(sys.stderr, format=logging_format)
+
+    # start training a new classifier
+    if args.experiment_settings and args.train:
         with open(args.experiment_settings) as f:
             experiment_settings = PrettySimpleNamespace(**yaml.safe_load(f))
 
@@ -667,26 +761,83 @@ def main():
         log_file_path = (
             experiments_directory / f"n={experiment_settings.num_symbols}_{datetime}.log"
         )
-    elif args.checkpoint:
+
+        logger.add(log_file_path, format=logging_format)
+
+        log_pytorch_cuda_info()
+
+        # generate new training session
+        experiment = Experiment(experiment_settings, datetime)
+
+        torch.manual_seed(experiment.random_seed)
+
+        # get training, validation, and test dataloaders
+        training_loader, validation_loader, test_loader = generate_dataloaders(
+            experiment
+        )
+
+        experiment.device = DEVICE
+
+        # instantiate neural network
+        network = FullyConnectedNetwork(
+            experiment.sequence_length,
+            experiment.num_protein_letters,
+            experiment.num_clades,
+            experiment.num_symbols,
+            experiment.num_connections,
+            experiment.dropout_probability,
+            experiment.gene_symbols_mapper,
+            experiment.protein_sequences_mapper,
+            experiment.clades_mapper,
+        )
+
+        logger.info(f"network:\n{network}")
+        logger.info(f"experiment:\n{experiment}")
+
+        network.to(DEVICE)
+
+        checkpoint_path = train_network(
+            network,
+            experiment,
+            training_loader,
+            validation_loader,
+        )
+
+        test_network(checkpoint_path, print_sample_assignments=True)
+
+    # test trained network
+    elif args.test and args.checkpoint:
+        test_network(args.checkpoint, print_sample_assignments=True)
+
+    # resume training saved classifier
+    elif args.checkpoint and args.train:
+        checkpoint_path = pathlib.Path(args.checkpoint)
+        network, experiment = load_checkpoint(checkpoint_path)
+
+        # get training, validation, and test dataloaders
+        training_loader, validation_loader, test_loader = generate_dataloaders(
+            experiment
+        )
+
+        network.to(DEVICE)
+
+        train_network(
+            network,
+            experiment,
+            training_loader,
+            validation_loader,
+        )
+
+    # save network in a checkpoint file as a separate file
+    elif args.save_network and args.checkpoint:
         log_file_path = pathlib.Path(args.checkpoint).with_suffix(".log")
-    else:
-        argument_parser.print_help()
-        sys.exit()
 
-    # set up logger
-    logger.remove()
-    logger.add(sys.stderr, format=logging_format)
-    logger.add(log_file_path, format=logging_format)
-
-    # save network
-    if args.save_network:
         checkpoint_path = pathlib.Path(args.checkpoint)
         logger.info(f'loading checkpoint "{checkpoint_path}" ...')
         network_path = save_network_from_checkpoint(checkpoint_path)
         logger.info(f'saved network at "{network_path}"')
-        return
 
-    if args.sequences_fasta and args.scientific_name:
+    elif args.sequences_fasta and args.scientific_name:
         checkpoint_path = pathlib.Path(args.checkpoint)
         network, _training_session = load_checkpoint(checkpoint_path)
 
@@ -704,150 +855,9 @@ def main():
         logger.info("assigning symbols...")
         assign_symbols(network, args.sequences_fasta, clade, checkpoint_path.parent)
 
+    else:
+        argument_parser.print_help()
         sys.exit()
-
-    # log PyTorch version information
-    logger.info(f"{torch.__version__=}")
-    # specify GPU devices visible to CUDA applications
-    # https://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#env-vars
-    # os.environ["CUDA_VISIBLE_DEVICES"] = "0,1"
-    logger.info(f"{DEVICE=}")
-
-    logger.debug(f"{torch.version.cuda=}")
-    logger.debug(f"{torch.backends.cudnn.enabled=}")
-    logger.debug(f"{torch.cuda.is_available()=}")
-    if torch.cuda.is_available():
-        logger.debug(f"{torch.cuda.device_count()=}")
-        logger.debug(f"{torch.cuda.get_device_properties(DEVICE)}")
-        # logger.debug(f"{torch.cuda.memory_summary(DEVICE)}")
-
-    # load training checkpoint or generate new training session
-    if args.checkpoint:
-        checkpoint_path = pathlib.Path(args.checkpoint)
-        network, training_session = load_checkpoint(checkpoint_path)
-    else:
-        training_session = TrainingSession(experiment_settings, datetime)
-
-    torch.manual_seed(training_session.random_seed)
-
-    # load data, generate datasets
-    ############################################################################
-    dataset = SequenceDataset(
-        training_session.num_symbols, training_session.sequence_length
-    )
-
-    if not args.checkpoint:
-        # neural network instantiation
-        ############################################################################
-        training_session.num_protein_letters = len(
-            dataset.protein_sequences_mapper.protein_letters
-        )
-        training_session.num_clades = len(dataset.clades_mapper.clades)
-
-        network = FullyConnectedNetwork(
-            training_session.sequence_length,
-            training_session.num_protein_letters,
-            training_session.num_clades,
-            training_session.num_symbols,
-            training_session.num_connections,
-            training_session.dropout_probability,
-            dataset.gene_symbols_mapper,
-            dataset.protein_sequences_mapper,
-            dataset.clades_mapper,
-        )
-        ############################################################################
-        training_session.device = DEVICE
-
-        network.to(DEVICE)
-
-    pandas_symbols_categories = (
-        dataset.gene_symbols_mapper.symbol_categorical_datatype.categories
-    )
-    logger.info(
-        "gene symbols:\n{}".format(
-            pandas_symbols_categories.to_series(
-                index=range(len(pandas_symbols_categories)), name="gene symbols"
-            )
-        )
-    )
-
-    # split dataset into train, validation, and test datasets
-    validation_size = int(training_session.validation_ratio * len(dataset))
-    test_size = int(training_session.test_ratio * len(dataset))
-    training_session.training_size = len(dataset) - validation_size - test_size
-    training_session.validation_size = validation_size
-    training_session.test_size = test_size
-
-    training_dataset, validation_dataset, test_dataset = random_split(
-        dataset,
-        lengths=(
-            training_session.training_size,
-            training_session.validation_size,
-            training_session.test_size,
-        ),
-    )
-
-    logger.info(
-        f"dataset split to train ({training_session.training_size}), validation ({training_session.validation_size}), and test ({training_session.test_size}) datasets"
-    )
-
-    # set the batch size to the size of the smallest dataset if larger than that
-    min_dataset_size = min(
-        training_session.training_size,
-        training_session.validation_size,
-        training_session.test_size,
-    )
-    if training_session.batch_size > min_dataset_size:
-        training_session.batch_size = min_dataset_size
-
-    if training_session.num_symbols in dev_datasets_symbol_frequency:
-        training_session.drop_last = False
-    else:
-        training_session.drop_last = True
-    training_loader = DataLoader(
-        training_dataset,
-        batch_size=training_session.batch_size,
-        shuffle=True,
-        drop_last=training_session.drop_last,
-    )
-    validation_loader = DataLoader(
-        validation_dataset,
-        batch_size=training_session.batch_size,
-        shuffle=True,
-        drop_last=training_session.drop_last,
-    )
-    test_loader = DataLoader(
-        test_dataset,
-        batch_size=training_session.batch_size,
-        shuffle=True,
-        drop_last=training_session.drop_last,
-    )
-    ############################################################################
-
-    logger.info(f"network:\n{network}")
-    logger.info(f"training_session:\n{training_session}")
-
-    # train network
-    if args.train:
-        train_network(
-            network,
-            training_session,
-            training_loader,
-            validation_loader,
-        )
-
-    # test trained network
-    if args.test:
-        if args.train:
-            checkpoint_path = experiments_directory / training_session.checkpoint_filename
-            network, training_session = load_checkpoint(checkpoint_path)
-        test_network(
-            network,
-            training_session,
-            test_loader,
-            log_file_path,
-            print_sample_assignments=True,
-        )
 
 
 if __name__ == "__main__":

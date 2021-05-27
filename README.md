@@ -56,7 +56,7 @@ dropout_probability: 0
 
 learning_rate: 0.001
 
-num_epochs: 100
+max_epochs: 100
 
 random_seed: 5
 ```

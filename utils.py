@@ -684,7 +684,7 @@ def load_dataset(num_symbols=None):
 
 def load_checkpoint(checkpoint_path):
     """
-    Load a training checkpoint and return the network and training_session objects.
+    Load a training checkpoint and return the network and experiment objects.
 
     Args:
         checkpoint_path (path-like object): path to the saved experiment checkpoint
@@ -697,9 +697,9 @@ def load_checkpoint(checkpoint_path):
     logger.info(f'"{checkpoint_path}" training checkpoint loaded')
 
     network = checkpoint["network"]
-    training_session = checkpoint["training_session"]
+    experiment = checkpoint["experiment"]
 
-    return network, training_session
+    return network, experiment
 
 
 def sizeof_fmt(num, suffix="B"):
