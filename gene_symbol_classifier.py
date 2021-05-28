@@ -19,8 +19,19 @@
 
 
 """
-Train, test, and use a gene symbol classifier to assign gene symbols to protein
-sequences.
+Train, test, evaluate, and use a gene symbol classifier to assign gene symbols
+to protein sequences.
+
+Evaluate a trained network
+A trained network, specified with the `--checkpoint` argument with its path,
+is evaluated by assigning symbols to the canonical translations of protein sequences
+of annotations in the latest Ensembl release and comparing them to the existing
+symbol assignments.
+
+Get statistics for existing symbol assignments
+Gene symbol assignments from a classifier can be compared against the existing
+assignments in the Ensembl database, by specifying the path to the assignments CSV file
+with `--assignments_csv` and the Ensembl database name with `--ensembl_database`.
 """
 
 
@@ -38,6 +49,7 @@ import time
 # third party imports
 import ensembl_rest
 import numpy as np
+import pandas as pd
 import torch
 import torch.nn as nn
 import torchmetrics
@@ -54,8 +66,12 @@ from utils import (
     ProteinSequencesMapper,
     SequenceDataset,
     dev_datasets_symbol_frequency,
+    download_protein_sequences_fasta,
     experiments_directory,
+    get_assemblies_metadata,
+    get_canonical_translations,
     get_clade,
+    get_ensembl_release,
     load_checkpoint,
     logging_format,
     read_fasta_in_chunks,
@@ -63,10 +79,33 @@ from utils import (
 )
 
 
+selected_species_genomes = {
+    "ailuropoda_melanoleuca": "giant panda",
+    "aquila_chrysaetos_chrysaetos": "golden eagle",
+    "balaenoptera_musculus": "blue whale",
+    "bos_taurus": "cow",
+    "canis_lupus_familiaris": "dog",
+    "cyprinus_carpio": "common carp",
+    "danio_rerio": "zebrafish",
+    "drosophila_melanogaster": "drosophila melanogaster",
+    "felis_catus": "cat",
+    "gallus_gallus": "chicken",
+    "homo_sapiens": "human",
+    "loxodonta_africana": "elephant",
+    "mus_musculus": "mouse",
+    "oryctolagus_cuniculus": "rabbit",
+    "ovis_aries": "sheep",
+    "pan_troglodytes": "chimpanzee",
+    "panthera_leo": "lion",
+    "saccharomyces_cerevisiae": "saccharomyces cerevisiae",
+    "sus_scrofa": "pig",
+}
+
+
 DEVICE = specify_device()
 
 
-class FullyConnectedNetwork(nn.Module):
+class GeneSymbolClassifier(nn.Module):
     """
     A fully connected neural network for gene name classification of protein sequences
     using the protein letters as features.
@@ -253,6 +292,138 @@ class EarlyStopping:
                     f"{self.no_progress} epochs with no validation loss improvement, stopping training"
                 )
                 return True
+
+
+class Experiment:
+    def __init__(self, experiment_settings, datetime):
+        # dataset
+        self.num_symbols = experiment_settings.num_symbols
+
+        # experiment parameters
+        self.datetime = datetime
+
+        # set the seed of the PyTorch random number generator
+        if not hasattr(experiment_settings, "random_seed"):
+            experiment_settings.random_seed = random.randint(1, 100)
+        self.random_seed = experiment_settings.random_seed
+
+        # test and validation sets
+        if self.num_symbols in dev_datasets_symbol_frequency:
+            self.test_ratio = 0.2
+            self.validation_ratio = 0.2
+        else:
+            self.test_ratio = 0.05
+            self.validation_ratio = 0.05
+
+        # samples and batches
+        self.sequence_length = experiment_settings.sequence_length
+        self.batch_size = experiment_settings.batch_size
+
+        # network
+        self.num_connections = experiment_settings.num_connections
+        self.dropout_probability = experiment_settings.dropout_probability
+        self.learning_rate = experiment_settings.learning_rate
+
+        # training length and early stopping
+        self.max_epochs = experiment_settings.max_epochs
+        self.num_complete_epochs = 0
+
+        # early stopping
+        # larger patience for short epochs and smaller patience for longer epochs
+        if self.num_symbols in dev_datasets_symbol_frequency:
+            patience = 11
+        else:
+            patience = 7
+        loss_delta = 0.001
+        self.stop_early = EarlyStopping(patience, loss_delta)
+
+        self.checkpoint_filename = f"ns{self.num_symbols}_{self.datetime}.pth"
+
+        # loss function
+        self.criterion = nn.NLLLoss()
+
+    def __repr__(self):
+        return pprint.pformat(self.__dict__, sort_dicts=False)
+
+
+def generate_dataloaders(experiment):
+    """
+    Generate training, validation, and test dataloaders from the dataset files.
+
+    Args:
+        experiment (Experiment): Experiment object containing metadata
+    Returns:
+        tuple containing the training, validation, and test dataloaders
+    """
+    dataset = SequenceDataset(experiment.num_symbols, experiment.sequence_length)
+
+    experiment.gene_symbols_mapper = dataset.gene_symbols_mapper
+    experiment.protein_sequences_mapper = dataset.protein_sequences_mapper
+    experiment.clades_mapper = dataset.clades_mapper
+
+    experiment.num_protein_letters = len(
+        experiment.protein_sequences_mapper.protein_letters
+    )
+    experiment.num_clades = len(experiment.clades_mapper.clades)
+
+    pandas_symbols_categories = (
+        experiment.gene_symbols_mapper.symbol_categorical_datatype.categories
+    )
+    logger.info(
+        "gene symbols:\n{}".format(
+            pandas_symbols_categories.to_series(
+                index=range(len(pandas_symbols_categories)), name="gene symbols"
+            )
+        )
+    )
+
+    # calculate the training, validation, and test set size
+    dataset_size = len(dataset)
+    experiment.validation_size = int(experiment.validation_ratio * dataset_size)
+    experiment.test_size = int(experiment.test_ratio * dataset_size)
+    experiment.training_size = (
+        dataset_size - experiment.validation_size - experiment.test_size
+    )
+
+    # split dataset into training, validation, and test datasets
+    training_dataset, validation_dataset, test_dataset = random_split(
+        dataset,
+        lengths=(
+            experiment.training_size,
+            experiment.validation_size,
+            experiment.test_size,
+        ),
+    )
+
+    logger.info(
+        f"dataset split to training ({experiment.training_size}), validation ({experiment.validation_size}), and test ({experiment.test_size}) datasets"
+    )
+
+    # set the batch size equal to the size of the smallest dataset if larger than that
+    experiment.batch_size = min(
+        experiment.batch_size,
+        experiment.training_size,
+        experiment.validation_size,
+        experiment.test_size,
+    )
+
+    training_loader = DataLoader(
+        training_dataset,
+        batch_size=experiment.batch_size,
+        shuffle=True,
+    )
+    validation_loader = DataLoader(
+        validation_dataset,
+        batch_size=experiment.batch_size,
+        shuffle=True,
+    )
+    test_loader = DataLoader(
+        test_dataset,
+        batch_size=experiment.batch_size,
+        shuffle=True,
+    )
+
+    return (training_loader, validation_loader, test_loader)
 
 
 def train_network(
@@ -503,72 +674,6 @@ def test_network(checkpoint_path, print_sample_assignments=False):
                 logger.info(f"{assignment:>10} | {label:>10}  !!!")
 
 
-def save_network_from_checkpoint(checkpoint_path):
-    """
-    Save the network in a checkpoint file as a separate file.
-    """
-    network, _ = load_checkpoint(checkpoint_path)
-
-    path = checkpoint_path
-    network_path = pathlib.Path(f"{path.parent}/{path.stem}_network.pth")
-
-    torch.save(network, network_path)
-
-    return network_path
-
-
-class Experiment:
-    def __init__(self, experiment_settings, datetime):
-        # dataset
-        self.num_symbols = experiment_settings.num_symbols
-
-        # experiment parameters
-        self.datetime = datetime
-
-        # set the seed of the PyTorch random number generator
-        if not hasattr(experiment_settings, "random_seed"):
-            experiment_settings.random_seed = random.randint(1, 100)
-        self.random_seed = experiment_settings.random_seed
-
-        # test and validation sets
-        if self.num_symbols in dev_datasets_symbol_frequency:
-            self.test_ratio = 0.2
-            self.validation_ratio = 0.2
-        else:
-            self.test_ratio = 0.05
-            self.validation_ratio = 0.05
-
-        # samples and batches
-        self.sequence_length = experiment_settings.sequence_length
-        self.batch_size = experiment_settings.batch_size
-
-        # network
-        self.num_connections = experiment_settings.num_connections
-        self.dropout_probability = experiment_settings.dropout_probability
-        self.learning_rate = experiment_settings.learning_rate
-
-        # training length and early stopping
-        self.max_epochs = experiment_settings.max_epochs
-        self.num_complete_epochs = 0
-
-        # early stopping
-        # larger patience for short epochs and smaller patience for longer epochs
-        if self.num_symbols in dev_datasets_symbol_frequency:
-            patience = 11
-        else:
-            patience = 7
-        loss_delta = 0.001
-        self.stop_early = EarlyStopping(patience, loss_delta)
-
-        self.checkpoint_filename = f"ns{self.num_symbols}_{self.datetime}.pth"
-
-        # loss function
-        self.criterion = nn.NLLLoss()
-
-    def __repr__(self):
-        return pprint.pformat(self.__dict__, sort_dicts=False)
-
-
 def assign_symbols(network, sequences_fasta, clade, output_directory):
     """
     Use the trained network to assign symbols to the sequences in the FASTA file.
@@ -605,6 +710,20 @@ def assign_symbols(network, sequences_fasta, clade, output_directory):
     logger.info(f"symbol assignments saved at {assignments_csv_path}")
 
 
+def save_network_from_checkpoint(checkpoint_path):
+    """
+    Save the network in a checkpoint file as a separate file.
+    """
+    network, _ = load_checkpoint(checkpoint_path)
+
+    path = checkpoint_path
+    network_path = pathlib.Path(f"{path.parent}/{path.stem}_network.pth")
+
+    torch.save(network, network_path)
+
+    return network_path
+
+
 def log_pytorch_cuda_info():
     """
     Log PyTorch and CUDA info and device to be used.
@@ -620,84 +739,162 @@ def log_pytorch_cuda_info():
         logger.debug(f"{torch.cuda.get_device_properties(DEVICE)}")
 
 
-def generate_dataloaders(experiment):
+def evaluate_network(checkpoint_path, complete=False):
     """
-    Generate training, validation, and test dataloaders from the dataset files.
+    Evaluate a trained network by assigning gene symbols to the protein sequences
+    of genome assemblies in the latest Ensembl release, and comparing them to the existing
+    Xref assignments.
 
     Args:
-        experiment (Experiment): Experiment object containing metadata
-    Returns:
-        tuple containing the training, validation, and test dataloaders
+        checkpoint_path (Path): path to the training checkpoint
+        complete (bool): Whether or not to run the evaluation for all genome assemblies.
+            Defaults to False, which runs the evaluation only for a selection of
+            the most important species genome assemblies.
     """
-    dataset = SequenceDataset(experiment.num_symbols, experiment.sequence_length)
+    network, _training_session = load_checkpoint(checkpoint_path)
 
-    experiment.gene_symbols_mapper = dataset.gene_symbols_mapper
-    experiment.protein_sequences_mapper = dataset.protein_sequences_mapper
-    experiment.clades_mapper = dataset.clades_mapper
+    ensembl_release = get_ensembl_release()
+    logger.info(f"Ensembl release {ensembl_release}")
 
-    experiment.num_protein_letters = len(
-        experiment.protein_sequences_mapper.protein_letters
-    )
-    experiment.num_clades = len(experiment.clades_mapper.clades)
+    assemblies = get_assemblies_metadata()
+    for assembly in assemblies:
+        if not complete and assembly.species not in selected_species_genomes:
+            continue
 
-    pandas_symbols_categories = (
-        experiment.gene_symbols_mapper.symbol_categorical_datatype.categories
-    )
-    logger.info(
-        "gene symbols:\n{}".format(
-            pandas_symbols_categories.to_series(
-                index=range(len(pandas_symbols_categories)), name="gene symbols"
-            )
+        fasta_path = download_protein_sequences_fasta(assembly, ensembl_release)
+
+        # get the Genebuild defined clade for the species
+        clade = get_clade(assembly.taxonomy_id)
+
+        # assign symbols
+        assignments_csv_path = pathlib.Path(
+            f"{checkpoint_path.parent}/{fasta_path.stem}_symbols.csv"
         )
+        if not assignments_csv_path.exists():
+            logger.info(f"assigning gene symbols to {fasta_path}")
+            assign_symbols(network, fasta_path, clade, checkpoint_path.parent)
+
+        comparisons_csv_path = pathlib.Path(
+            f"{assignments_csv_path.parent}/{assignments_csv_path.stem}_compare.csv"
+        )
+        if not comparisons_csv_path.exists():
+            scientific_name = assembly.species.replace("_", " ").capitalize()
+            compare_with_database(
+                assignments_csv_path,
+                assembly.core_db,
+                scientific_name,
+            )
+
+
+def are_strict_subsets(symbol_a, symbol_b):
+    symbol_a = symbol_a.lower()
+    symbol_b = symbol_b.lower()
+
+    if symbol_a == symbol_b:
+        return False
+
+    if (symbol_a in symbol_b) or (symbol_b in symbol_a):
+        return True
+    else:
+        return False
+
+
+def compare_with_database(
+    assignments_csv,
+    ensembl_database,
+    scientific_name=None,
+    EntrezGene=False,
+    Uniprot_gn=False,
+):
+    """
+    Compare classifier assignments with the gene symbols in the genome assembly
+    ensembl_database core database on the public Ensembl MySQL server.
+    """
+    assignments_csv_path = pathlib.Path(assignments_csv)
+
+    canonical_translations = get_canonical_translations(
+        ensembl_database, EntrezGene, Uniprot_gn
     )
 
-    # calculate the training, validation, and test set size
-    dataset_size = len(dataset)
-    experiment.validation_size = int(experiment.validation_ratio * dataset_size)
-    experiment.test_size = int(experiment.test_ratio * dataset_size)
-    experiment.training_size = (
-        dataset_size - experiment.validation_size - experiment.test_size
+    if len(canonical_translations) == 0:
+        if scientific_name is None:
+            logger.info("0 canonical translations retrieved, nothing to compare")
+        else:
+            logger.info(
+                f"0 canonical translations retrieved for {scientific_name}, nothing to compare"
+            )
+        return
+
+    comparisons = []
+    with open(assignments_csv_path, "r") as assignments_file:
+        csv_reader = csv.reader(assignments_file, delimiter="\t")
+        _csv_field_names = next(csv_reader)
+
+        for csv_row in csv_reader:
+            csv_stable_id = csv_row[0]
+            classifier_symbol = csv_row[1]
+
+            translation_stable_id = csv_stable_id.split(".")[0]
+
+            if (
+                translation_stable_id
+                in canonical_translations["translation.stable_id"].values
+            ):
+                xref_symbol = canonical_translations.loc[
+                    canonical_translations["translation.stable_id"]
+                    == translation_stable_id,
+                    "Xref_symbol",
+                ].values[0]
+                comparisons.append((csv_stable_id, classifier_symbol, xref_symbol))
+
+    dataframe_columns = [
+        "csv_stable_id",
+        "classifier_symbol",
+        "xref_symbol",
+    ]
+    compare_df = pd.DataFrame(comparisons, columns=dataframe_columns)
+
+    num_assignments = len(compare_df)
+
+    num_exact_matches = (
+        compare_df["classifier_symbol"]
+        .str.lower()
+        .eq(compare_df["xref_symbol"].str.lower())
+        .sum()
     )
 
-    # split dataset into training, validation, and test datasets
-    training_dataset, validation_dataset, test_dataset = random_split(
-        dataset,
-        lengths=(
-            experiment.training_size,
-            experiment.validation_size,
-            experiment.test_size,
-        ),
+    compare_df["strict_subsets"] = compare_df.apply(
+        lambda x: are_strict_subsets(x["classifier_symbol"], x["xref_symbol"]),
+        axis=1,
+        result_type="reduce",
     )
 
-    logger.info(
-        f"dataset split to training ({experiment.training_size}), validation ({experiment.validation_size}), and test ({experiment.test_size}) datasets"
-    )
+    num_fuzzy_matches = compare_df["strict_subsets"].sum()
 
-    # set the batch size equal to the size of the smallest dataset if larger than that
-    experiment.batch_size = min(
-        experiment.batch_size,
-        experiment.training_size,
-        experiment.validation_size,
-        experiment.test_size,
+    comparisons_csv_path = pathlib.Path(
+        f"{assignments_csv_path.parent}/{assignments_csv_path.stem}_compare.csv"
     )
+    compare_df.to_csv(comparisons_csv_path, sep="\t", index=False)
 
-    training_loader = DataLoader(
-        training_dataset,
-        batch_size=experiment.batch_size,
-        shuffle=True,
+    matching_percentage = (num_exact_matches / num_assignments) * 100
+    fuzzy_percentage = (num_fuzzy_matches / num_assignments) * 100
+    total_matches_percentage = (
+        (num_exact_matches + num_fuzzy_matches) / num_assignments
+    ) * 100
+    if scientific_name is not None:
+        message = f"{scientific_name}: "
+    else:
+        message = ""
+    message += "{} assignments, {} exact matches ({:.2f}%), {} fuzzy matches ({:.2f}%), {} total matches ({:.2f}%)".format(
+        num_assignments,
+        num_exact_matches,
+        matching_percentage,
+        num_fuzzy_matches,
+        fuzzy_percentage,
+        num_exact_matches + num_fuzzy_matches,
+        total_matches_percentage,
     )
-    validation_loader = DataLoader(
-        validation_dataset,
-        batch_size=experiment.batch_size,
-        shuffle=True,
-    )
-    test_loader = DataLoader(
-        test_dataset,
-        batch_size=experiment.batch_size,
-        shuffle=True,
-    )
-
-    return (training_loader, validation_loader, test_loader)
+    logger.info(message)
 
 
 def main():
@@ -718,8 +915,8 @@ def main():
         "--checkpoint",
         help="training session checkpoint path",
     )
-    argument_parser.add_argument("--train", action="store_true", help="train a network")
-    argument_parser.add_argument("--test", action="store_true", help="test a network")
+    argument_parser.add_argument("--train", action="store_true", help="train a classifier")
+    argument_parser.add_argument("--test", action="store_true", help="test a classifier")
     argument_parser.add_argument(
         "--sequences_fasta",
         help="path of FASTA file with protein sequences to assign symbols to",
@@ -733,6 +930,20 @@ def main():
         action="store_true",
         help="save the network in a checkpoint file as a separate file",
     )
+    argument_parser.add_argument("--evaluate", action="store_true", help="evaluate a classifier")
+    argument_parser.add_argument(
+        "--complete",
+        action="store_true",
+        help="run the evaluation for all genome assemblies in the Ensembl release",
+    )
+    argument_parser.add_argument(
+        "--assignments_csv",
+        help="assignments CSV file path",
+    )
+    argument_parser.add_argument(
+        "--ensembl_database",
+        help="genome assembly core database name on the public Ensembl MySQL server",
+    )
 
     args = argument_parser.parse_args()
 
@@ -740,15 +951,12 @@ def main():
     logger.remove()
     logger.add(sys.stderr, format=logging_format)
 
-    # start training a new classifier
-    if args.experiment_settings and args.train:
+    # train a new classifier
+    if args.train and args.experiment_settings:
         with open(args.experiment_settings) as f:
             experiment_settings = PrettySimpleNamespace(**yaml.safe_load(f))
 
-        if args.datetime is None:
-            datetime = dt.datetime.now().isoformat(sep="_", timespec="seconds")
-        else:
-            datetime = args.datetime
+        datetime = dt.datetime.now().isoformat(sep="_", timespec="seconds")
 
         log_file_path = (
             experiments_directory / f"ns{experiment_settings.num_symbols}_{datetime}.log"
@@ -768,7 +976,7 @@ def main():
         experiment.device = DEVICE
 
         # instantiate neural network
-        network = FullyConnectedNetwork(
+        network = GeneSymbolClassifier(
             experiment.sequence_length,
             experiment.num_protein_letters,
             experiment.num_clades,
@@ -780,7 +988,7 @@ def main():
             experiment.clades_mapper,
         )
 
-        logger.info("start training a new classifier")
+        logger.info("start training new classifier")
         logger.info(f"experiment:\n{experiment}")
         logger.info(f"network:\n{network}")
 
@@ -795,7 +1003,7 @@ def main():
 
         test_network(checkpoint_path, print_sample_assignments=True)
 
-    # test trained network
+    # test classifier
     elif args.test and not args.train and args.checkpoint:
         checkpoint_path = pathlib.Path(args.checkpoint)
 
@@ -804,8 +1012,8 @@ def main():
 
         test_network(checkpoint_path, print_sample_assignments=True)
 
-    # resume training saved classifier
-    elif args.checkpoint and args.train:
+    # resume training classifier
+    elif args.train and args.checkpoint:
         checkpoint_path = pathlib.Path(args.checkpoint)
 
         log_file_path = checkpoint_path.with_suffix(".log")
@@ -829,7 +1037,27 @@ def main():
             validation_loader,
         )
 
-    # save network in a checkpoint file as a separate file
+    # evaluate classifier
+    elif args.evaluate and args.checkpoint:
+        checkpoint_path = pathlib.Path(args.checkpoint)
+        log_file_path = pathlib.Path(
+            f"{checkpoint_path.parent}/{checkpoint_path.stem}_evaluate.log"
+        )
+        logger.add(log_file_path, format=logging_format)
+
+        evaluate_network(checkpoint_path, args.complete)
+
+    # compare assignments with the ones on the latest Ensembl release
+    elif args.assignments_csv and args.ensembl_database:
+        assignments_csv_path = pathlib.Path(args.assignments_csv)
+        log_file_path = pathlib.Path(
+            f"{assignments_csv_path.parent}/{assignments_csv_path.stem}_compare.log"
+        )
+
+        logger.add(log_file_path, format=logging_format)
+        compare_with_database(assignments_csv_path, args.ensembl_database)
+
+    # save a network in a checkpoint as a separate file
     elif args.save_network and args.checkpoint:
         checkpoint_path = pathlib.Path(args.checkpoint)
 
