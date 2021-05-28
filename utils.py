@@ -680,16 +680,16 @@ def load_dataset(num_symbols=None):
 
 def load_checkpoint(checkpoint_path):
     """
-    Load a training checkpoint and return the network and experiment objects.
+    Load a experiment checkpoint and return the network and experiment objects.
 
     Args:
         checkpoint_path (path-like object): path to the saved experiment checkpoint
     Returns:
         tuple[Experiment, torch.nn.Module] with the experiment state and the classifier
     """
-    logger.info(f'loading training checkpoint "{checkpoint_path}" ...')
+    logger.info(f'loading experiment checkpoint "{checkpoint_path}" ...')
     checkpoint = torch.load(checkpoint_path, map_location=DEVICE)
-    logger.info(f'"{checkpoint_path}" training checkpoint loaded')
+    logger.info(f'"{checkpoint_path}" experiment checkpoint loaded')
 
     experiment = checkpoint["experiment"]
 
