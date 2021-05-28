@@ -250,7 +250,7 @@ class EarlyStopping:
 
             if self.no_progress == self.patience:
                 logger.info(
-                    f"{self.no_progress} calls with no validation loss improvement. Stopping training."
+                    f"{self.no_progress} epochs with no validation loss improvement, stopping training"
                 )
                 return True
 
@@ -261,9 +261,7 @@ def train_network(
     training_loader,
     validation_loader,
 ):
-    tensorboard_log_dir = (
-        f"runs/{experiment.num_symbols}/{experiment.datetime}"
-    )
+    tensorboard_log_dir = f"runs/{experiment.num_symbols}/{experiment.datetime}"
     summary_writer = SummaryWriter(log_dir=tensorboard_log_dir)
 
     max_epochs = experiment.max_epochs
@@ -277,13 +275,11 @@ def train_network(
     clip_max_norm = 5
 
     checkpoint_path = experiments_directory / experiment.checkpoint_filename
-    logger.info(f"training started, session checkpoints saved at {checkpoint_path}")
+    logger.info(f"start training, session checkpoints saved at {checkpoint_path}")
 
     max_epochs_length = len(str(max_epochs))
 
-    num_train_batches = math.ceil(
-        experiment.training_size / experiment.batch_size
-    )
+    num_train_batches = math.ceil(experiment.training_size / experiment.batch_size)
     num_batches_length = len(str(num_train_batches))
 
     if not hasattr(experiment, "average_training_losses"):
@@ -399,22 +395,22 @@ def train_network(
     return checkpoint_path
 
 
-def test_network( checkpoint_path, print_sample_assignments=False):
+def test_network(checkpoint_path, print_sample_assignments=False):
     """
     Calculate test loss and generate metrics.
     """
-    logger.info("testing started")
-
     network, experiment = load_checkpoint(checkpoint_path)
+
+    logger.info("start testing classifier")
+    logger.info(f"experiment:\n{experiment}")
+    logger.info(f"network:\n{network}")
 
     # get test dataloader
     _, _, test_loader = generate_dataloaders(experiment)
 
     criterion = experiment.criterion
 
-    num_test_batches = math.ceil(
-        experiment.test_size / experiment.batch_size
-    )
+    num_test_batches = math.ceil(experiment.test_size / experiment.batch_size)
     num_batches_length = len(str(num_test_batches))
 
     test_losses = []
@@ -422,9 +418,7 @@ def test_network( checkpoint_path, print_sample_assignments=False):
     test_precision = torchmetrics.Precision(
         num_classes=experiment.num_symbols, average="macro"
     )
-    test_recall = torchmetrics.Recall(
-        num_classes=experiment.num_symbols, average="macro"
-    )
+    test_recall = torchmetrics.Recall(num_classes=experiment.num_symbols, average="macro")
 
     with torch.no_grad():
         network.eval()
@@ -635,9 +629,7 @@ def generate_dataloaders(experiment):
     Returns:
         tuple containing the training, validation, and test dataloaders
     """
-    dataset = SequenceDataset(
-        experiment.num_symbols, experiment.sequence_length
-    )
+    dataset = SequenceDataset(experiment.num_symbols, experiment.sequence_length)
 
     experiment.gene_symbols_mapper = dataset.gene_symbols_mapper
     experiment.protein_sequences_mapper = dataset.protein_sequences_mapper
@@ -761,7 +753,6 @@ def main():
         log_file_path = (
             experiments_directory / f"n={experiment_settings.num_symbols}_{datetime}.log"
         )
-
         logger.add(log_file_path, format=logging_format)
 
         log_pytorch_cuda_info()
@@ -772,9 +763,7 @@ def main():
         torch.manual_seed(experiment.random_seed)
 
         # get training, validation, and test dataloaders
-        training_loader, validation_loader, test_loader = generate_dataloaders(
-            experiment
-        )
+        training_loader, validation_loader, test_loader = generate_dataloaders(experiment)
 
         experiment.device = DEVICE
 
@@ -791,8 +780,9 @@ def main():
             experiment.clades_mapper,
         )
 
-        logger.info(f"network:\n{network}")
+        logger.info("start training a new classifier")
         logger.info(f"experiment:\n{experiment}")
+        logger.info(f"network:\n{network}")
 
         network.to(DEVICE)
 
@@ -806,18 +796,29 @@ def main():
         test_network(checkpoint_path, print_sample_assignments=True)
 
     # test trained network
-    elif args.test and args.checkpoint:
-        test_network(args.checkpoint, print_sample_assignments=True)
+    elif args.test and not args.train and args.checkpoint:
+        checkpoint_path = pathlib.Path(args.checkpoint)
+
+        log_file_path = checkpoint_path.with_suffix(".log")
+        logger.add(log_file_path, format=logging_format)
+
+        test_network(checkpoint_path, print_sample_assignments=True)
 
     # resume training saved classifier
     elif args.checkpoint and args.train:
         checkpoint_path = pathlib.Path(args.checkpoint)
+
+        log_file_path = checkpoint_path.with_suffix(".log")
+        logger.add(log_file_path, format=logging_format)
+
         network, experiment = load_checkpoint(checkpoint_path)
 
+        logger.info("resume training classifier")
+        logger.info(f"experiment:\n{experiment}")
+        logger.info(f"network:\n{network}")
+
         # get training, validation, and test dataloaders
-        training_loader, validation_loader, test_loader = generate_dataloaders(
-            experiment
-        )
+        training_loader, validation_loader, test_loader = generate_dataloaders(experiment)
 
         network.to(DEVICE)
 
@@ -830,15 +831,21 @@ def main():
 
     # save network in a checkpoint file as a separate file
     elif args.save_network and args.checkpoint:
-        log_file_path = pathlib.Path(args.checkpoint).with_suffix(".log")
-
         checkpoint_path = pathlib.Path(args.checkpoint)
+
+        log_file_path = checkpoint_path.with_suffix(".log")
+        logger.add(log_file_path, format=logging_format)
+
         logger.info(f'loading checkpoint "{checkpoint_path}" ...')
         network_path = save_network_from_checkpoint(checkpoint_path)
         logger.info(f'saved network at "{network_path}"')
 
-    elif args.sequences_fasta and args.scientific_name:
+    elif args.sequences_fasta and args.scientific_name and args.checkpoint:
         checkpoint_path = pathlib.Path(args.checkpoint)
+
+        log_file_path = checkpoint_path.with_suffix(".log")
+        logger.add(log_file_path, format=logging_format)
+
         network, _training_session = load_checkpoint(checkpoint_path)
 
         response = ensembl_rest.taxonomy_name(args.scientific_name)
