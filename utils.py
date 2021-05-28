@@ -486,8 +486,6 @@ def download_protein_sequences_fasta(assembly, ensembl_release):
         with open(fasta_path, "wb+") as f:
             f.write(file_content)
         logger.info(f"extracted {fasta_path}")
-    else:
-        logger.info(f"{fasta_path} in place")
 
     return fasta_path
 
@@ -544,8 +542,6 @@ def get_assemblies_metadata():
     if not species_data_path.exists():
         download_file(species_data_url, species_data_path)
         logger.info(f"downloaded {species_data_path}")
-    else:
-        logger.info(f"{species_data_path} in place")
 
     assemblies_df = pd.read_csv(species_data_path, delimiter="\t", index_col=False)
     assemblies_df = assemblies_df.rename(columns={"#name": "name"})
