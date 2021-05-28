@@ -69,7 +69,12 @@ def main():
         "--checkpoint",
         help="path to the saved experiment checkpoint",
     )
-    argument_parser.add_argument("--test", action="store_true", help="test a trained classifier")
+    argument_parser.add_argument(
+        "--train", action="store_true", help="train a classifier"
+    )
+    argument_parser.add_argument(
+        "--test", action="store_true", help="test a trained classifier"
+    )
 
     args = argument_parser.parse_args()
 
@@ -98,11 +103,13 @@ def main():
         pipeline_command_elements = [
             "python gene_symbol_classifier.py",
             f"--checkpoint {args.checkpoint}",
-            "--test",
         ]
 
-        if args.test is False:
+        if args.train:
             pipeline_command_elements.append("--train")
+
+        if args.test:
+            pipeline_command_elements.append("--test")
     # no task specified
     else:
         print(__doc__)
