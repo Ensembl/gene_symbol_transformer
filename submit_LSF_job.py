@@ -73,8 +73,9 @@ def main():
         "--train", action="store_true", help="train a classifier"
     )
     argument_parser.add_argument(
-        "--test", action="store_true", help="test a trained classifier"
+        "--test", action="store_true", help="test a classifier"
     )
+    argument_parser.add_argument("--evaluate", action="store_true", help="evaluate a classifier")
 
     args = argument_parser.parse_args()
 
@@ -96,7 +97,8 @@ def main():
             "--train",
             "--test",
         ]
-    # resume training or test a saved classifier
+
+    # resume training, test, or evaluate a classifier
     elif args.checkpoint:
         job_name = pathlib.Path(args.checkpoint).stem
 
@@ -110,6 +112,10 @@ def main():
 
         if args.test:
             pipeline_command_elements.append("--test")
+
+        if args.evaluate:
+            pipeline_command_elements.append("--evaluate")
+
     # no task specified
     else:
         print(__doc__)
