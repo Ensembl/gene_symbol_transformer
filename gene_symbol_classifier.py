@@ -560,7 +560,7 @@ class Experiment:
         loss_delta = 0.001
         self.stop_early = EarlyStopping(patience, loss_delta)
 
-        self.checkpoint_filename = f"n={self.num_symbols}_{self.datetime}.pth"
+        self.checkpoint_filename = f"ns{self.num_symbols}_{self.datetime}.pth"
 
         # loss function
         self.criterion = nn.NLLLoss()
@@ -751,7 +751,7 @@ def main():
             datetime = args.datetime
 
         log_file_path = (
-            experiments_directory / f"n={experiment_settings.num_symbols}_{datetime}.log"
+            experiments_directory / f"ns{experiment_settings.num_symbols}_{datetime}.log"
         )
         logger.add(log_file_path, format=logging_format)
 
