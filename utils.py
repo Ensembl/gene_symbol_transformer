@@ -689,17 +689,18 @@ def load_checkpoint(checkpoint_path):
     Args:
         checkpoint_path (path-like object): path to the saved experiment checkpoint
     Returns:
-        torch.nn.Module object of the neural network
-        TrainingSession object of the training session saved state
+        tuple[Experiment, torch.nn.Module] with the experiment state and the classifier
     """
     logger.info(f'loading training checkpoint "{checkpoint_path}" ...')
     checkpoint = torch.load(checkpoint_path, map_location=DEVICE)
     logger.info(f'"{checkpoint_path}" training checkpoint loaded')
 
-    network = checkpoint["network"]
     experiment = checkpoint["experiment"]
 
-    return network, experiment
+    network = checkpoint["network"]
+    network.to(DEVICE)
+
+    return (experiment, network)
 
 
 def sizeof_fmt(num, suffix="B"):

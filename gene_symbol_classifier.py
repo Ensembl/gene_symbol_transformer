@@ -446,7 +446,7 @@ def train_network(
     clip_max_norm = 5
 
     checkpoint_path = experiments_directory / experiment.checkpoint_filename
-    logger.info(f"start training, session checkpoints saved at {checkpoint_path}")
+    logger.info(f"start training, experiment checkpoints saved at {checkpoint_path}")
 
     max_epochs_length = len(str(max_epochs))
 
@@ -570,7 +570,7 @@ def test_network(checkpoint_path, print_sample_assignments=False):
     """
     Calculate test loss and generate metrics.
     """
-    network, experiment = load_checkpoint(checkpoint_path)
+    experiment, network = load_checkpoint(checkpoint_path)
 
     logger.info("start testing classifier")
     logger.info(f"experiment:\n{experiment}")
@@ -714,7 +714,7 @@ def save_network_from_checkpoint(checkpoint_path):
     """
     Save the network in a checkpoint file as a separate file.
     """
-    network, _ = load_checkpoint(checkpoint_path)
+    _experiment, network = load_checkpoint(checkpoint_path)
 
     path = checkpoint_path
     network_path = pathlib.Path(f"{path.parent}/{path.stem}_network.pth")
@@ -751,7 +751,7 @@ def evaluate_network(checkpoint_path, complete=False):
             Defaults to False, which runs the evaluation only for a selection of
             the most important species genome assemblies.
     """
-    network, _training_session = load_checkpoint(checkpoint_path)
+    _experiment, network = load_checkpoint(checkpoint_path)
 
     ensembl_release = get_ensembl_release()
     logger.info(f"Ensembl release {ensembl_release}")
@@ -913,7 +913,7 @@ def main():
     )
     argument_parser.add_argument(
         "--checkpoint",
-        help="training session checkpoint path",
+        help="experiment checkpoint path",
     )
     argument_parser.add_argument("--train", action="store_true", help="train a classifier")
     argument_parser.add_argument("--test", action="store_true", help="test a classifier")
@@ -956,7 +956,10 @@ def main():
         with open(args.experiment_settings) as f:
             experiment_settings = PrettySimpleNamespace(**yaml.safe_load(f))
 
-        datetime = dt.datetime.now().isoformat(sep="_", timespec="seconds")
+        if args.datetime is None:
+            datetime = dt.datetime.now().isoformat(sep="_", timespec="seconds")
+        else:
+            datetime = args.datetime
 
         log_file_path = (
             experiments_directory / f"ns{experiment_settings.num_symbols}_{datetime}.log"
@@ -965,15 +968,13 @@ def main():
 
         log_pytorch_cuda_info()
 
-        # generate new training session
+        # generate new experiment
         experiment = Experiment(experiment_settings, datetime)
 
         torch.manual_seed(experiment.random_seed)
 
         # get training, validation, and test dataloaders
         training_loader, validation_loader, test_loader = generate_dataloaders(experiment)
-
-        experiment.device = DEVICE
 
         # instantiate neural network
         network = GeneSymbolClassifier(
@@ -987,12 +988,11 @@ def main():
             experiment.protein_sequences_mapper,
             experiment.clades_mapper,
         )
+        network.to(DEVICE)
 
         logger.info("start training new classifier")
         logger.info(f"experiment:\n{experiment}")
         logger.info(f"network:\n{network}")
-
-        network.to(DEVICE)
 
         checkpoint_path = train_network(
             network,
@@ -1001,41 +1001,37 @@ def main():
             validation_loader,
         )
 
-        test_network(checkpoint_path, print_sample_assignments=True)
+        if args.test:
+            test_network(checkpoint_path, print_sample_assignments=True)
 
-    # test classifier
-    elif args.test and not args.train and args.checkpoint:
+    # resume training and/or test a classifier
+    elif (args.train or args.test) and args.checkpoint:
         checkpoint_path = pathlib.Path(args.checkpoint)
 
         log_file_path = checkpoint_path.with_suffix(".log")
         logger.add(log_file_path, format=logging_format)
 
-        test_network(checkpoint_path, print_sample_assignments=True)
+        # resume training classifier
+        if args.train:
+            logger.info("resume training classifier")
+            experiment, network = load_checkpoint(checkpoint_path)
 
-    # resume training classifier
-    elif args.train and args.checkpoint:
-        checkpoint_path = pathlib.Path(args.checkpoint)
+            logger.info(f"experiment:\n{experiment}")
+            logger.info(f"network:\n{network}")
 
-        log_file_path = checkpoint_path.with_suffix(".log")
-        logger.add(log_file_path, format=logging_format)
+            # get training, validation, and test dataloaders
+            training_loader, validation_loader, test_loader = generate_dataloaders(experiment)
 
-        network, experiment = load_checkpoint(checkpoint_path)
+            train_network(
+                network,
+                experiment,
+                training_loader,
+                validation_loader,
+            )
 
-        logger.info("resume training classifier")
-        logger.info(f"experiment:\n{experiment}")
-        logger.info(f"network:\n{network}")
-
-        # get training, validation, and test dataloaders
-        training_loader, validation_loader, test_loader = generate_dataloaders(experiment)
-
-        network.to(DEVICE)
-
-        train_network(
-            network,
-            experiment,
-            training_loader,
-            validation_loader,
-        )
+        # test classifier
+        if args.test:
+            test_network(checkpoint_path, print_sample_assignments=True)
 
     # evaluate classifier
     elif args.evaluate and args.checkpoint:
@@ -1074,7 +1070,7 @@ def main():
         log_file_path = checkpoint_path.with_suffix(".log")
         logger.add(log_file_path, format=logging_format)
 
-        network, _training_session = load_checkpoint(checkpoint_path)
+        _experiment, network = load_checkpoint(checkpoint_path)
 
         response = ensembl_rest.taxonomy_name(args.scientific_name)
         assert len(response) == 1
