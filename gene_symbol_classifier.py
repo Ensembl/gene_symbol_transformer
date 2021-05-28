@@ -746,7 +746,7 @@ def evaluate_network(checkpoint_path, complete=False):
     Xref assignments.
 
     Args:
-        checkpoint_path (Path): path to the training checkpoint
+        checkpoint_path (Path): path to the experiment checkpoint
         complete (bool): Whether or not to run the evaluation for all genome assemblies.
             Defaults to False, which runs the evaluation only for a selection of
             the most important species genome assemblies.
@@ -1057,10 +1057,6 @@ def main():
     elif args.save_network and args.checkpoint:
         checkpoint_path = pathlib.Path(args.checkpoint)
 
-        log_file_path = checkpoint_path.with_suffix(".log")
-        logger.add(log_file_path, format=logging_format)
-
-        logger.info(f'loading checkpoint "{checkpoint_path}" ...')
         network_path = save_network_from_checkpoint(checkpoint_path)
         logger.info(f'saved network at "{network_path}"')
 
