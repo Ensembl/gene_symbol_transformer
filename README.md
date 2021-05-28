@@ -126,12 +126,12 @@ A trained network can be evaluated by assigning gene symbols to the canonical tr
 
 evaluate a trained network
 ```
-python evaluate_network.py --checkpoint <checkpoint path>
+python gene_symbol_classifier.py --evaluate --checkpoint <checkpoint path>
 ```
 
 The gene symbol assignments of a classifier can also be directly compared with the existing gene symbols in an Ensembl release.
 ```
-python evaluate_network.py --assignments_csv <assignments CSV path> --ensembl_database <Ensembl core database name>
+python gene_symbol_classifier.py --assignments_csv <assignments CSV path> --ensembl_database <Ensembl core database name>
 ```
 
 ### assign gene symbols to protein sequences
