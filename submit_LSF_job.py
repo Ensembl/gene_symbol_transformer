@@ -98,9 +98,14 @@ def main():
             "--test",
         ]
 
+        root_directory = "experiments"
+
     # resume training, test, or evaluate a classifier
     elif args.checkpoint:
-        job_name = pathlib.Path(args.checkpoint).stem
+        checkpoint_path = pathlib.Path(args.checkpoint)
+
+        job_name = checkpoint_path.stem
+        root_directory = checkpoint_path.parent
 
         pipeline_command_elements = [
             "python gene_symbol_classifier.py",
@@ -129,8 +134,8 @@ def main():
         "bsub",
         f"-M {args.mem_limit}",
         f'-R"select[mem>{args.mem_limit}] rusage[mem={args.mem_limit}]"',
-        f"-o experiments/{job_name}.stdout.log",
-        f"-e experiments/{job_name}.stderr.log",
+        f"-o {root_directory}/{job_name}.stdout.log",
+        f"-e {root_directory}/{job_name}.stderr.log",
     ]
 
     # GPU node job
