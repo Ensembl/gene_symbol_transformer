@@ -72,10 +72,10 @@ def main():
     argument_parser.add_argument(
         "--train", action="store_true", help="train a classifier"
     )
+    argument_parser.add_argument("--test", action="store_true", help="test a classifier")
     argument_parser.add_argument(
-        "--test", action="store_true", help="test a classifier"
+        "--evaluate", action="store_true", help="evaluate a classifier"
     )
-    argument_parser.add_argument("--evaluate", action="store_true", help="evaluate a classifier")
 
     args = argument_parser.parse_args()
 
