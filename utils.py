@@ -543,7 +543,7 @@ def get_assemblies_metadata():
         download_file(species_data_url, species_data_path)
         logger.info(f"downloaded {species_data_path}")
 
-    assemblies_df = pd.read_csv(species_data_path, delimiter="\t", index_col=False)
+    assemblies_df = pd.read_csv(species_data_path, sep="\t", index_col=False)
     assemblies_df = assemblies_df.rename(columns={"#name": "name"})
     assemblies = [
         PrettySimpleNamespace(**genome_row._asdict())
@@ -707,7 +707,7 @@ def sizeof_fmt(num, suffix="B"):
     return f"{num:.1f} Yi{suffix}"
 
 
-def get_clade(taxonomy_id):
+def get_taxonomy_id_clade(taxonomy_id):
     """
     Get the Genebuild-defined clade for the species with taxonomy_id taxonomy ID.
 
@@ -735,6 +735,23 @@ def get_clade(taxonomy_id):
             break
 
     return clade
+
+
+def get_species_taxonomy_id(scientific_name):
+    """
+    Get the taxonomy ID for the `scientific_name` species.
+
+    Args:
+        scientific_name (str): scientific name of the species to map to a clade
+    Returns:
+        string containing the taxonomy ID of the species
+    """
+    response = ensembl_rest.taxonomy_name(scientific_name)
+    assert len(response) == 1
+
+    taxonomy_id = ensembl_rest.taxonomy_name(scientific_name)[0]["id"]
+
+    return taxonomy_id
 
 
 if __name__ == "__main__":

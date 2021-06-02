@@ -46,7 +46,7 @@ from utils import (
     fasta_to_dict,
     get_assemblies_metadata,
     get_canonical_translations,
-    get_clade,
+    get_taxonomy_id_clade,
     get_ensembl_release,
     load_dataset,
     logging_format,
@@ -180,7 +180,7 @@ def generate_dataset():
         time.sleep(0.1)
 
         # get the Genebuild defined clade for the species
-        assembly_metadata.clade = get_clade(assembly.taxonomy_id)
+        assembly_metadata.clade = get_taxonomy_id_clade(assembly.taxonomy_id)
 
         metadata.append(assembly_metadata)
 
