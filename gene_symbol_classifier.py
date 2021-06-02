@@ -795,21 +795,10 @@ def evaluate_network(checkpoint_path, complete=False):
 
         comparison_statistics_list.append(comparison_statistics)
 
-        message = "{} assignments, {} exact matches ({:.2f}%), {} fuzzy matches ({:.2f}%), {} total matches ({:.2f}%)".format(
-            comparison_statistics["num_assignments"],
-            comparison_statistics["num_exact_matches"],
-            comparison_statistics["matching_percentage"],
-            comparison_statistics["num_fuzzy_matches"],
-            comparison_statistics["fuzzy_percentage"],
-            comparison_statistics["num_total_matches"],
-            comparison_statistics["total_matches_percentage"],
-        )
-        # logger.info(message)
-
     dataframe_columns = [
+        "clade",
         "scientific_name",
         "taxonomy_id",
-        "clade",
         "num_assignments",
         "num_exact_matches",
         "matching_percentage",
@@ -822,12 +811,14 @@ def evaluate_network(checkpoint_path, complete=False):
         comparison_statistics_list,
         columns=dataframe_columns,
     )
-    print(comparison_statistics)
+
     clade_groups = comparison_statistics.groupby(["clade"])
-    for clade, group in clade_groups:
-        print(f"clade: {clade}")
-        print(group)
-        print()
+    comparison_statistics_string = "comparison statistics:\n"
+    with pd.option_context("display.float_format", "{:.2f}".format):
+        comparison_statistics_string += "\n\n".join(
+            f"{group.to_string(index=False)}" for clade, group in clade_groups
+        )
+    logger.info(comparison_statistics_string)
 
 
 def are_strict_subsets(symbol_a, symbol_b):
