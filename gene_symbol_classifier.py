@@ -782,11 +782,13 @@ def evaluate_network(checkpoint_path, complete=False):
             f"{assignments_csv_path.parent}/{assignments_csv_path.stem}_compare.csv"
         )
         if not comparisons_csv_path.exists():
-            compare_with_database(
+            comparison_successful = compare_with_database(
                 assignments_csv_path,
                 assembly.core_db,
                 scientific_name,
             )
+            if not comparison_successful:
+                continue
 
         comparison_statistics = get_comparison_statistics(comparisons_csv_path)
         comparison_statistics["scientific_name"] = scientific_name
@@ -858,7 +860,7 @@ def compare_with_database(
             logger.info(
                 f"0 canonical translations retrieved for {scientific_name}, nothing to compare"
             )
-        return
+        return False
 
     comparisons = []
     with open(assignments_csv_path, "r") as assignments_file:
@@ -899,6 +901,8 @@ def compare_with_database(
         f"{assignments_csv_path.parent}/{assignments_csv_path.stem}_compare.csv"
     )
     compare_df.to_csv(comparisons_csv_path, sep="\t", index=False)
+
+    return True
 
 
 def get_comparison_statistics(comparisons_csv_path):
