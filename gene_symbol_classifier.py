@@ -70,8 +70,9 @@ from utils import (
     experiments_directory,
     get_assemblies_metadata,
     get_canonical_translations,
-    get_clade,
     get_ensembl_release,
+    get_species_taxonomy_id,
+    get_taxonomy_id_clade,
     load_checkpoint,
     logging_format,
     read_fasta_in_chunks,
@@ -757,6 +758,7 @@ def evaluate_network(checkpoint_path, complete=False):
     logger.info(f"Ensembl release {ensembl_release}")
 
     assemblies = get_assemblies_metadata()
+    comparison_statistics_list = []
     for assembly in assemblies:
         if not complete and assembly.species not in selected_species_genomes:
             continue
@@ -764,7 +766,7 @@ def evaluate_network(checkpoint_path, complete=False):
         fasta_path = download_protein_sequences_fasta(assembly, ensembl_release)
 
         # get the Genebuild defined clade for the species
-        clade = get_clade(assembly.taxonomy_id)
+        clade = get_taxonomy_id_clade(assembly.taxonomy_id)
 
         # assign symbols
         assignments_csv_path = pathlib.Path(
@@ -774,16 +776,58 @@ def evaluate_network(checkpoint_path, complete=False):
             logger.info(f"assigning gene symbols to {fasta_path}")
             assign_symbols(network, fasta_path, clade, checkpoint_path.parent)
 
+        scientific_name = assembly.species.replace("_", " ").capitalize()
+
         comparisons_csv_path = pathlib.Path(
             f"{assignments_csv_path.parent}/{assignments_csv_path.stem}_compare.csv"
         )
         if not comparisons_csv_path.exists():
-            scientific_name = assembly.species.replace("_", " ").capitalize()
             compare_with_database(
                 assignments_csv_path,
                 assembly.core_db,
                 scientific_name,
             )
+
+        comparison_statistics = get_comparison_statistics(comparisons_csv_path)
+        comparison_statistics["scientific_name"] = scientific_name
+        comparison_statistics["taxonomy_id"] = assembly.taxonomy_id
+        comparison_statistics["clade"] = clade
+
+        comparison_statistics_list.append(comparison_statistics)
+
+        message = "{} assignments, {} exact matches ({:.2f}%), {} fuzzy matches ({:.2f}%), {} total matches ({:.2f}%)".format(
+            comparison_statistics["num_assignments"],
+            comparison_statistics["num_exact_matches"],
+            comparison_statistics["matching_percentage"],
+            comparison_statistics["num_fuzzy_matches"],
+            comparison_statistics["fuzzy_percentage"],
+            comparison_statistics["num_total_matches"],
+            comparison_statistics["total_matches_percentage"],
+        )
+        # logger.info(message)
+
+    dataframe_columns = [
+        "scientific_name",
+        "taxonomy_id",
+        "clade",
+        "num_assignments",
+        "num_exact_matches",
+        "matching_percentage",
+        "num_fuzzy_matches",
+        "fuzzy_percentage",
+        "num_total_matches",
+        "total_matches_percentage",
+    ]
+    comparison_statistics = pd.DataFrame(
+        comparison_statistics_list,
+        columns=dataframe_columns,
+    )
+    print(comparison_statistics)
+    clade_groups = comparison_statistics.groupby(["clade"])
+    for clade, group in clade_groups:
+        print(f"clade: {clade}")
+        print(group)
+        print()
 
 
 def are_strict_subsets(symbol_a, symbol_b):
@@ -854,6 +898,21 @@ def compare_with_database(
     ]
     compare_df = pd.DataFrame(comparisons, columns=dataframe_columns)
 
+    compare_df["strict_subsets"] = compare_df.apply(
+        lambda x: are_strict_subsets(x["classifier_symbol"], x["xref_symbol"]),
+        axis=1,
+        result_type="reduce",
+    )
+
+    comparisons_csv_path = pathlib.Path(
+        f"{assignments_csv_path.parent}/{assignments_csv_path.stem}_compare.csv"
+    )
+    compare_df.to_csv(comparisons_csv_path, sep="\t", index=False)
+
+
+def get_comparison_statistics(comparisons_csv_path):
+    compare_df = pd.read_csv(comparisons_csv_path, sep="\t", index_col=False)
+
     num_assignments = len(compare_df)
 
     num_exact_matches = (
@@ -863,38 +922,24 @@ def compare_with_database(
         .sum()
     )
 
-    compare_df["strict_subsets"] = compare_df.apply(
-        lambda x: are_strict_subsets(x["classifier_symbol"], x["xref_symbol"]),
-        axis=1,
-        result_type="reduce",
-    )
-
     num_fuzzy_matches = compare_df["strict_subsets"].sum()
-
-    comparisons_csv_path = pathlib.Path(
-        f"{assignments_csv_path.parent}/{assignments_csv_path.stem}_compare.csv"
-    )
-    compare_df.to_csv(comparisons_csv_path, sep="\t", index=False)
 
     matching_percentage = (num_exact_matches / num_assignments) * 100
     fuzzy_percentage = (num_fuzzy_matches / num_assignments) * 100
-    total_matches_percentage = (
-        (num_exact_matches + num_fuzzy_matches) / num_assignments
-    ) * 100
-    if scientific_name is not None:
-        message = f"{scientific_name}: "
-    else:
-        message = ""
-    message += "{} assignments, {} exact matches ({:.2f}%), {} fuzzy matches ({:.2f}%), {} total matches ({:.2f}%)".format(
-        num_assignments,
-        num_exact_matches,
-        matching_percentage,
-        num_fuzzy_matches,
-        fuzzy_percentage,
-        num_exact_matches + num_fuzzy_matches,
-        total_matches_percentage,
-    )
-    logger.info(message)
+    num_total_matches = num_exact_matches + num_fuzzy_matches
+    total_matches_percentage = (num_total_matches / num_assignments) * 100
+
+    comparison_statistics = {
+        "num_assignments": num_assignments,
+        "num_exact_matches": num_exact_matches,
+        "matching_percentage": matching_percentage,
+        "num_fuzzy_matches": num_fuzzy_matches,
+        "fuzzy_percentage": fuzzy_percentage,
+        "num_total_matches": num_total_matches,
+        "total_matches_percentage": total_matches_percentage,
+    }
+
+    return comparison_statistics
 
 
 def main():
@@ -915,7 +960,9 @@ def main():
         "--checkpoint",
         help="experiment checkpoint path",
     )
-    argument_parser.add_argument("--train", action="store_true", help="train a classifier")
+    argument_parser.add_argument(
+        "--train", action="store_true", help="train a classifier"
+    )
     argument_parser.add_argument("--test", action="store_true", help="test a classifier")
     argument_parser.add_argument(
         "--sequences_fasta",
@@ -930,7 +977,9 @@ def main():
         action="store_true",
         help="save the network in a checkpoint file as a separate file",
     )
-    argument_parser.add_argument("--evaluate", action="store_true", help="evaluate a classifier")
+    argument_parser.add_argument(
+        "--evaluate", action="store_true", help="evaluate a classifier"
+    )
     argument_parser.add_argument(
         "--complete",
         action="store_true",
@@ -1020,7 +1069,9 @@ def main():
             logger.info(f"network:\n{network}")
 
             # get training, validation, and test dataloaders
-            training_loader, validation_loader, test_loader = generate_dataloaders(experiment)
+            training_loader, validation_loader, test_loader = generate_dataloaders(
+                experiment
+            )
 
             train_network(
                 network,
@@ -1044,14 +1095,61 @@ def main():
         evaluate_network(checkpoint_path, args.complete)
 
     # compare assignments with the ones on the latest Ensembl release
-    elif args.assignments_csv and args.ensembl_database:
+    elif args.assignments_csv and args.ensembl_database and args.scientific_name:
         assignments_csv_path = pathlib.Path(args.assignments_csv)
         log_file_path = pathlib.Path(
             f"{assignments_csv_path.parent}/{assignments_csv_path.stem}_compare.log"
         )
-
         logger.add(log_file_path, format=logging_format)
-        compare_with_database(assignments_csv_path, args.ensembl_database)
+
+        comparisons_csv_path = pathlib.Path(
+            f"{assignments_csv_path.parent}/{assignments_csv_path.stem}_compare.csv"
+        )
+        if not comparisons_csv_path.exists():
+            compare_with_database(
+                assignments_csv_path, args.ensembl_database, args.scientific_name
+            )
+
+        comparison_statistics = get_comparison_statistics(comparisons_csv_path)
+
+        taxonomy_id = get_species_taxonomy_id(args.scientific_name)
+        clade = get_taxonomy_id_clade(taxonomy_id)
+
+        comparison_statistics["scientific_name"] = args.scientific_name
+        comparison_statistics["taxonomy_id"] = taxonomy_id
+        comparison_statistics["clade"] = clade
+
+        message = "{} assignments, {} exact matches ({:.2f}%), {} fuzzy matches ({:.2f}%), {} total matches ({:.2f}%)".format(
+            comparison_statistics["num_assignments"],
+            comparison_statistics["num_exact_matches"],
+            comparison_statistics["matching_percentage"],
+            comparison_statistics["num_fuzzy_matches"],
+            comparison_statistics["fuzzy_percentage"],
+            comparison_statistics["num_total_matches"],
+            comparison_statistics["total_matches_percentage"],
+        )
+        logger.info(message)
+
+        dataframe_columns = [
+            "scientific_name",
+            "taxonomy_id",
+            "clade",
+            "num_assignments",
+            "num_exact_matches",
+            "matching_percentage",
+            "num_fuzzy_matches",
+            "fuzzy_percentage",
+            "num_total_matches",
+            "total_matches_percentage",
+        ]
+        comparison_statistics = pd.DataFrame(
+            [comparison_statistics],
+            columns=dataframe_columns,
+        )
+        with pd.option_context("display.float_format", "{:.2f}".format):
+            logger.info(
+                f"comparison statistics:\n{comparison_statistics.to_string(index=False)}"
+            )
 
     # save a network in a checkpoint as a separate file
     elif args.save_network and args.checkpoint:
@@ -1068,15 +1166,9 @@ def main():
 
         _experiment, network = load_checkpoint(checkpoint_path)
 
-        response = ensembl_rest.taxonomy_name(args.scientific_name)
-        assert len(response) == 1
+        taxonomy_id = get_species_taxonomy_id(args.scientific_name)
+        clade = get_taxonomy_id_clade(taxonomy_id)
 
-        taxonomy_id = ensembl_rest.taxonomy_name(args.scientific_name)[0]["id"]
-
-        rest_scientific_name = ensembl_rest.taxonomy_id(taxonomy_id)["scientific_name"]
-        assert rest_scientific_name.lower() == args.scientific_name.lower()
-
-        clade = get_clade(taxonomy_id)
         logger.info(f"got clade {clade} for {args.scientific_name}")
 
         logger.info("assigning symbols...")
