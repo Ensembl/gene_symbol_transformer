@@ -1045,6 +1045,7 @@ def main():
         else:
             datetime = args.datetime
 
+        experiments_directory.mkdir(exist_ok=True)
         log_file_path = (
             experiments_directory / f"ns{experiment_settings.num_symbols}_{datetime}.log"
         )
