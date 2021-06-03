@@ -54,88 +54,6 @@ from utils import (
 )
 
 
-def dataframe_to_fasta(df, fasta_path):
-    """
-    Save a dataframe containing entries of sequences and metadata to a FASTA file.
-    """
-    with open(fasta_path, "w+") as fasta_file:
-        for index, values in df.iterrows():
-            row_dict = values.to_dict()
-            description_text = "\t".join(
-                f"{key}:{value}"
-                for key, value in row_dict.items()
-                if key not in {"Index", "sequence"}
-            )
-
-            description = ">" + description_text
-
-            sequence = row_dict["sequence"]
-            fasta_entry = f"{description}\n{sequence}\n"
-            fasta_file.write(fasta_entry)
-
-
-def save_dev_datasets(num_samples=100):
-    """
-    Generate and save subsets of the full dataset for faster loading during development,
-    the datasets as FASTA files, and FASTA files with a small number of sample sequences
-    for quick reference.
-    """
-    dataset = load_dataset()
-
-    symbol_counts = dataset["symbol"].value_counts()
-
-    for num_symbols, max_frequency in dev_datasets_symbol_frequency.items():
-        # verify that max_frequency is the cutoff limit for the selected symbols
-        assert all(
-            symbol_counts[:num_symbols] == symbol_counts[symbol_counts >= max_frequency]
-        )
-        assert symbol_counts[num_symbols] < max_frequency
-
-        dev_dataset = dataset[dataset["symbol"].isin(symbol_counts[:num_symbols].index)]
-
-        # save dataframe to a pickle file
-        pickle_path = data_directory / f"{num_symbols}_symbols.pickle"
-        dev_dataset.to_pickle(pickle_path)
-        logger.info(
-            f"{num_symbols} most frequent symbols dev dataset saved at {pickle_path}"
-        )
-
-        # save sequences to a FASTA file
-        fasta_path = data_directory / f"{num_symbols}_symbols.fasta"
-
-        dataframe_to_fasta(dev_dataset, fasta_path)
-        logger.info(
-            f"{num_symbols} most frequent symbols dev dataset FASTA file saved at {fasta_path}"
-        )
-
-        # pick random sample sequences
-        samples = dev_dataset.sample(num_samples)
-        samples = samples.sort_index()
-
-        # save sample sequences to a FASTA file
-        fasta_path = data_directory / f"{num_symbols}_symbols-{num_samples}_samples.fasta"
-        dataframe_to_fasta(samples, fasta_path)
-        logger.info(
-            f"{num_symbols} most frequent symbols {num_samples} samples FASTA file saved at {fasta_path}"
-        )
-
-
-def get_sequence_from_assembly_fasta_dict(df_row, assembly_fasta_dict):
-    """
-    Retrieve the sequence in the assembly FASTA dictionary that the translations
-    dataframe row corresponds to.
-    """
-    if df_row["translation.version"] is None:
-        translation_stable_id_version = df_row["translation.stable_id"]
-    else:
-        translation_stable_id_version = "{}.{}".format(
-            df_row["translation.stable_id"], df_row["translation.version"]
-        )
-    sequence = assembly_fasta_dict[translation_stable_id_version]["sequence"]
-
-    return sequence
-
-
 def generate_dataset():
     """
     Download canonical translations of protein coding genes from all genome assemblies
@@ -284,6 +202,52 @@ def dataset_cleanup(dataset):
     return dataset
 
 
+def save_dev_datasets(num_samples=100):
+    """
+    Generate and save subsets of the full dataset for faster loading during development,
+    the datasets as FASTA files, and FASTA files with a small number of sample sequences
+    for quick reference.
+    """
+    dataset = load_dataset()
+
+    symbol_counts = dataset["symbol"].value_counts()
+
+    for num_symbols, max_frequency in dev_datasets_symbol_frequency.items():
+        # verify that max_frequency is the cutoff limit for the selected symbols
+        assert all(
+            symbol_counts[:num_symbols] == symbol_counts[symbol_counts >= max_frequency]
+        )
+        assert symbol_counts[num_symbols] < max_frequency
+
+        dev_dataset = dataset[dataset["symbol"].isin(symbol_counts[:num_symbols].index)]
+
+        # save dataframe to a pickle file
+        pickle_path = data_directory / f"{num_symbols}_symbols.pickle"
+        dev_dataset.to_pickle(pickle_path)
+        logger.info(
+            f"{num_symbols} most frequent symbols dev dataset saved at {pickle_path}"
+        )
+
+        # save sequences to a FASTA file
+        fasta_path = data_directory / f"{num_symbols}_symbols.fasta"
+
+        dataframe_to_fasta(dev_dataset, fasta_path)
+        logger.info(
+            f"{num_symbols} most frequent symbols dev dataset FASTA file saved at {fasta_path}"
+        )
+
+        # pick random sample sequences
+        samples = dev_dataset.sample(num_samples)
+        samples = samples.sort_index()
+
+        # save sample sequences to a FASTA file
+        fasta_path = data_directory / f"{num_symbols}_symbols-{num_samples}_samples.fasta"
+        dataframe_to_fasta(samples, fasta_path)
+        logger.info(
+            f"{num_symbols} most frequent symbols {num_samples} samples FASTA file saved at {fasta_path}"
+        )
+
+
 def generate_statistics():
     """
     Generate and log dataset statistics.
@@ -315,6 +279,42 @@ def generate_statistics():
     )
 
 
+def dataframe_to_fasta(df, fasta_path):
+    """
+    Save a dataframe containing entries of sequences and metadata to a FASTA file.
+    """
+    with open(fasta_path, "w+") as fasta_file:
+        for index, values in df.iterrows():
+            row_dict = values.to_dict()
+            description_text = "\t".join(
+                f"{key}:{value}"
+                for key, value in row_dict.items()
+                if key not in {"Index", "sequence"}
+            )
+
+            description = ">" + description_text
+
+            sequence = row_dict["sequence"]
+            fasta_entry = f"{description}\n{sequence}\n"
+            fasta_file.write(fasta_entry)
+
+
+def get_sequence_from_assembly_fasta_dict(df_row, assembly_fasta_dict):
+    """
+    Retrieve the sequence in the assembly FASTA dictionary that the translations
+    dataframe row corresponds to.
+    """
+    if df_row["translation.version"] is None:
+        translation_stable_id_version = df_row["translation.stable_id"]
+    else:
+        translation_stable_id_version = "{}.{}".format(
+            df_row["translation.stable_id"], df_row["translation.version"]
+        )
+    sequence = assembly_fasta_dict[translation_stable_id_version]["sequence"]
+
+    return sequence
+
+
 def main():
     """
     main function
@@ -341,6 +341,7 @@ def main():
     # set up logger
     logger.remove()
     logger.add(sys.stderr, format=logging_format)
+    data_directory.mkdir(exist_ok=True)
     log_file_path = data_directory / "dataset_generation.log"
     logger.add(log_file_path, format=logging_format)
 
