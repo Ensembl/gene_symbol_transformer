@@ -140,7 +140,7 @@ After training, the network is ready to assign gene symbols to protein sequences
 
 assign symbols to sequences in a FASTA file and save them to a CSV file
 ```
-python gene_symbol_classifier.py --checkpoint <checkpoint path> --sequences_fasta <FASTA file path>
+python gene_symbol_classifier.py --checkpoint <checkpoint path> --sequences_fasta <FASTA file path> --scientific_name <species scientific name>
 ```
 
 
