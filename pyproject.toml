@@ -14,6 +14,7 @@ PyYAML = "^5.4.1"
 tensorboard = "^2.4.1"
 ensembl-rest = "^0.3.3"
 torchmetrics = "^0.3.1"
+PyMySQL = "^1.0.2"
 
 [tool.poetry.dev-dependencies]
 jupyterlab = "^2.1.4"
@@ -21,7 +22,6 @@ pudb = "^2019.2"
 jupyterlab-git = "^0.21.1"
 pytest = "^6.1.2"
 matplotlib = "^3.3.4"
-PyMySQL = "^1.0.2"
 icecream = "^2.1.0"
 
 [build-system]
