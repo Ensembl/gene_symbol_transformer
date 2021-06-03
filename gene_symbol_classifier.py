@@ -910,29 +910,40 @@ def get_comparison_statistics(comparisons_csv_path):
 
     num_assignments = len(compare_df)
 
-    num_exact_matches = (
-        compare_df["classifier_symbol"]
-        .str.lower()
-        .eq(compare_df["xref_symbol"].str.lower())
-        .sum()
-    )
+    if num_assignments > 0:
+        num_exact_matches = (
+            compare_df["classifier_symbol"]
+            .str.lower()
+            .eq(compare_df["xref_symbol"].str.lower())
+            .sum()
+        )
 
-    num_fuzzy_matches = compare_df["strict_subsets"].sum()
+        num_fuzzy_matches = compare_df["strict_subsets"].sum()
 
-    matching_percentage = (num_exact_matches / num_assignments) * 100
-    fuzzy_percentage = (num_fuzzy_matches / num_assignments) * 100
-    num_total_matches = num_exact_matches + num_fuzzy_matches
-    total_matches_percentage = (num_total_matches / num_assignments) * 100
+        matching_percentage = (num_exact_matches / num_assignments) * 100
+        fuzzy_percentage = (num_fuzzy_matches / num_assignments) * 100
+        num_total_matches = num_exact_matches + num_fuzzy_matches
+        total_matches_percentage = (num_total_matches / num_assignments) * 100
 
-    comparison_statistics = {
-        "num_assignments": num_assignments,
-        "num_exact_matches": num_exact_matches,
-        "matching_percentage": matching_percentage,
-        "num_fuzzy_matches": num_fuzzy_matches,
-        "fuzzy_percentage": fuzzy_percentage,
-        "num_total_matches": num_total_matches,
-        "total_matches_percentage": total_matches_percentage,
-    }
+        comparison_statistics = {
+            "num_assignments": num_assignments,
+            "num_exact_matches": num_exact_matches,
+            "matching_percentage": matching_percentage,
+            "num_fuzzy_matches": num_fuzzy_matches,
+            "fuzzy_percentage": fuzzy_percentage,
+            "num_total_matches": num_total_matches,
+            "total_matches_percentage": total_matches_percentage,
+        }
+    else:
+        comparison_statistics = {
+            "num_assignments": 0,
+            "num_exact_matches": 0,
+            "matching_percentage": 0,
+            "num_fuzzy_matches": 0,
+            "fuzzy_percentage": 0,
+            "num_total_matches": 0,
+            "total_matches_percentage": 0,
+        }
 
     return comparison_statistics
 
