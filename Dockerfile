@@ -5,11 +5,13 @@ FROM python:3.8
 
 LABEL maintainer="William Stark <william@ebi.ac.uk>"
 
+# Poetry installation environment variables
 ENV \
     POETRY_HOME="/opt/poetry" \
-    POETRY_VERSION=1.1.5 \
+    POETRY_VERSION=1.1.6 \
     POETRY_VIRTUALENVS_CREATE=false
 
+# add Poetry bin directory to PATH
 ENV PATH="${POETRY_HOME}/bin:${PATH}"
 
 # install Poetry
@@ -18,23 +20,26 @@ RUN curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-
 # specify working directory
 WORKDIR /app
 
-RUN mkdir --parents --verbose /app/data
-
 # copy project dependencies files
 COPY \
     pyproject.toml \
     poetry.lock \
     /app/
 
+# install project dependencies
 RUN poetry install --no-dev
 
+# create /app/data directory
+RUN mkdir --verbose /app/data
+
+# copy pipeline program files
 COPY \
     gene_symbol_classifier.py \
     utils.py \
     dataset_generation.py \
     /app/
 
+VOLUME /app/checkpoints
 VOLUME /app/data
-VOLUME /app/experiments
 
 ENTRYPOINT ["python", "gene_symbol_classifier.py"]
