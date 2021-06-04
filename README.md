@@ -146,7 +146,7 @@ python gene_symbol_classifier.py --checkpoint <checkpoint path> --sequences_fast
 
 ## production Docker container
 
-The recommended way to use a gene symbol classifier in production is packaging it as a Docker container.
+The recommended way to use a gene symbol classifier in production is packaged as a Docker container.
 
 build a Docker image
 ```
@@ -161,6 +161,11 @@ As the Docker container needs access to the input checkpoint and FASTA sequences
 assign gene symbols with a Docker container
 ```
 CHECKPOINTS_DIRECTORY=<checkpoints directory path>; CHECKPOINT=<checkpoint filename>; SEQUENCES_DIRECTORY=<sequences file directory path>; SEQUENCES=<sequences fasta filename>; SCIENTIFIC_NAME=<species scientific name>; docker run --read-only --volume="$CHECKPOINTS_DIRECTORY":/app/checkpoints --volume="$SEQUENCES_DIRECTORY":/app/data williamebi/gene_symbol_classifier:<gene symbol classifier version> --checkpoint "/app/checkpoints/${CHECKPOINT}" --sequences_fasta "/app/data/${SEQUENCES}" --scientific_name "$SCIENTIFIC_NAME"
+```
+
+upload the Docker image to Docker Hub
+```
+docker push williamebi/gene_symbol_classifier:<gene symbol classifier version>
 ```
 
 
