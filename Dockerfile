@@ -42,4 +42,4 @@ COPY \
 VOLUME /app/checkpoints
 VOLUME /app/data
 
-ENTRYPOINT ["python", "gene_symbol_classifier.py"]
+ENTRYPOINT ["python", "/app/gene_symbol_classifier.py"]
