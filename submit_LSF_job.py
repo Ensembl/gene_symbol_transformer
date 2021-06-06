@@ -134,8 +134,8 @@ def main():
         "bsub",
         f"-M {args.mem_limit}",
         f'-R"select[mem>{args.mem_limit}] rusage[mem={args.mem_limit}]"',
-        f"-o {root_directory}/{job_name}.stdout.log",
-        f"-e {root_directory}/{job_name}.stderr.log",
+        f"-o {root_directory}/{job_name}-stdout.log",
+        f"-e {root_directory}/{job_name}-stderr.log",
     ]
 
     # GPU node job
