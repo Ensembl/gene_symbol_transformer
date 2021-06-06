@@ -800,7 +800,6 @@ def evaluate_network(checkpoint_path, complete=False):
     dataframe_columns = [
         "clade",
         "scientific_name",
-        "taxonomy_id",
         "num_assignments",
         "num_exact_matches",
         "matching_percentage",
@@ -815,11 +814,41 @@ def evaluate_network(checkpoint_path, complete=False):
     )
 
     clade_groups = comparison_statistics.groupby(["clade"])
-    comparison_statistics_string = "comparison statistics:\n"
-    with pd.option_context("display.float_format", "{:.2f}".format):
-        comparison_statistics_string += "\n\n".join(
-            f"{group.to_string(index=False)}" for clade, group in clade_groups
+    clade_groups_statistics = []
+    for clade, group in clade_groups:
+        with pd.option_context("display.float_format", "{:.2f}".format):
+            group_string = group.to_string(index=False)
+
+        num_assignments_sum = group["num_assignments"].sum()
+        num_exact_matches_sum = group["num_exact_matches"].sum()
+        num_fuzzy_matches_sum = group["num_fuzzy_matches"].sum()
+        num_total_matches_sum = num_exact_matches_sum + num_fuzzy_matches_sum
+
+        matching_percentage_weighted_average = (
+            num_exact_matches_sum / num_assignments_sum
+        ) * 100
+        fuzzy_percentage_weighted_average = (
+            num_fuzzy_matches_sum / num_assignments_sum
+        ) * 100
+        total_percentage_weighted_average = (
+            num_total_matches_sum / num_assignments_sum
+        ) * 100
+
+        averages_message = "{} weighted averages: {:.2f}% exact matches, {:.2f}% fuzzy matches, {:.2f}% total matches".format(
+            clade,
+            matching_percentage_weighted_average,
+            fuzzy_percentage_weighted_average,
+            total_percentage_weighted_average,
         )
+
+        clade_statistics = f"{group_string}\n{averages_message}"
+
+        clade_groups_statistics.append(clade_statistics)
+
+    comparison_statistics_string = "comparison statistics:\n"
+    comparison_statistics_string += "\n\n".join(
+        clade_statistics for clade_statistics in clade_groups_statistics
+    )
     logger.info(comparison_statistics_string)
 
 
@@ -1137,9 +1166,8 @@ def main():
         logger.info(message)
 
         dataframe_columns = [
-            "scientific_name",
-            "taxonomy_id",
             "clade",
+            "scientific_name",
             "num_assignments",
             "num_exact_matches",
             "matching_percentage",
