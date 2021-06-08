@@ -144,9 +144,9 @@ python gene_symbol_classifier.py --checkpoint <checkpoint path> --sequences_fast
 ```
 
 
-## production Docker container
+## production Docker / Singularity image
 
-The recommended way to use a gene symbol classifier in production is packaged as a Docker container.
+The recommended way to use a gene symbol classifier in production is packaged as a Docker image and converted to a Singularity image after that.
 
 build a Docker image
 ```
@@ -167,6 +167,15 @@ upload the Docker image to Docker Hub
 ```
 docker push williamebi/gene_symbol_classifier:<gene symbol classifier version>
 ```
+
+generate a Singularity image from a Docker image at Docker Hub
+```
+singularity pull docker://williamebi/gene_symbol_classifier:<gene symbol classifier version>
+```
+
+assign gene symbols with a Singularity image
+```
+SINGULARITY_PATH=<Singularity image path>; CHECKPOINTS_DIRECTORY=<checkpoints directory path>; CHECKPOINT=<checkpoint filename>; SEQUENCES_DIRECTORY=<sequences file directory path>; SEQUENCES=<sequences fasta filename>; SCIENTIFIC_NAME=<species scientific name>; singularity run --bind "$CHECKPOINTS_DIRECTORY":/app/checkpoints --bind "$SEQUENCES_DIRECTORY":/app/data "$SINGULARITY_PATH" --checkpoint "/app/checkpoints/${CHECKPOINT}" --sequences_fasta "/app/data/${SEQUENCES}" --scientific_name "$SCIENTIFIC_NAME"
 
 
 ## License
