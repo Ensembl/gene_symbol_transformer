@@ -163,7 +163,7 @@ def generate_dataset():
         time.sleep(0.1)
 
         # retrieve additional information for the assembly from the REST API
-        # https://rest.ensembl.org/documentation/info/info_genomes_assembly
+        # https://ensemblrest.readthedocs.io/en/latest/#ensembl_rest.EnsemblClient.info_genomes_assembly
         response = ensembl_rest.info_genomes_assembly(assembly.assembly_accession)
         rest_assembly = PrettySimpleNamespace(**response)
 

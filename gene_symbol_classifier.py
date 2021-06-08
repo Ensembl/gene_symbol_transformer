@@ -47,7 +47,6 @@ import sys
 import time
 
 # third party imports
-import ensembl_rest
 import numpy as np
 import pandas as pd
 import torch
@@ -61,9 +60,7 @@ from torch.utils.tensorboard import SummaryWriter
 
 # project imports
 from utils import (
-    CladesMapper,
     PrettySimpleNamespace,
-    ProteinSequencesMapper,
     SequenceDataset,
     dev_datasets_symbol_frequency,
     download_protein_sequences_fasta,
