@@ -64,11 +64,8 @@ def specify_device():
 DEVICE = specify_device()
 
 data_directory = pathlib.Path("data")
-data_directory.mkdir(exist_ok=True)
 experiments_directory = pathlib.Path("experiments")
-experiments_directory.mkdir(exist_ok=True)
 sequences_directory = data_directory / "protein_sequences"
-sequences_directory.mkdir(parents=True, exist_ok=True)
 
 logging_format = "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{message}</level>"
 
@@ -472,6 +469,7 @@ def download_protein_sequences_fasta(assembly, ensembl_release):
         fix_assembly(assembly.assembly),
     )
     archived_fasta_url = f"{base_url}{assembly.species}/pep/{archived_fasta_filename}"
+    sequences_directory.mkdir(parents=True, exist_ok=True)
     archived_fasta_path = sequences_directory / archived_fasta_filename
     if not archived_fasta_path.exists():
         download_file(archived_fasta_url, archived_fasta_path)
@@ -537,6 +535,7 @@ def get_assemblies_metadata():
 
     # download the `species_EnsemblVertebrates.txt` file
     species_data_url = f"http://ftp.ensembl.org/pub/release-{ensembl_release}/species_EnsemblVertebrates.txt"
+    data_directory.mkdir(exist_ok=True)
     species_data_path = data_directory / "species_EnsemblVertebrates.txt"
     if not species_data_path.exists():
         download_file(species_data_url, species_data_path)

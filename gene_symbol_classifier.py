@@ -1042,6 +1042,7 @@ def main():
         else:
             datetime = args.datetime
 
+        experiments_directory.mkdir(exist_ok=True)
         log_file_path = (
             experiments_directory / f"ns{experiment_settings.num_symbols}_{datetime}.log"
         )
@@ -1126,6 +1127,23 @@ def main():
 
         evaluate_network(checkpoint_path, args.complete)
 
+    # assign symbols to sequences
+    elif args.sequences_fasta and args.scientific_name and args.checkpoint:
+        checkpoint_path = pathlib.Path(args.checkpoint)
+
+        log_file_path = checkpoint_path.with_suffix(".log")
+        logger.add(log_file_path, format=logging_format)
+
+        _experiment, network = load_checkpoint(checkpoint_path)
+
+        taxonomy_id = get_species_taxonomy_id(args.scientific_name)
+        clade = get_taxonomy_id_clade(taxonomy_id)
+
+        logger.info(f"got clade {clade} for {args.scientific_name}")
+
+        logger.info("assigning symbols...")
+        assign_symbols(network, args.sequences_fasta, clade, checkpoint_path.parent)
+
     # compare assignments with the ones on the latest Ensembl release
     elif args.assignments_csv and args.ensembl_database and args.scientific_name:
         assignments_csv_path = pathlib.Path(args.assignments_csv)
@@ -1188,22 +1206,6 @@ def main():
 
         network_path = save_network_from_checkpoint(checkpoint_path)
         logger.info(f'saved network at "{network_path}"')
-
-    elif args.sequences_fasta and args.scientific_name and args.checkpoint:
-        checkpoint_path = pathlib.Path(args.checkpoint)
-
-        log_file_path = checkpoint_path.with_suffix(".log")
-        logger.add(log_file_path, format=logging_format)
-
-        _experiment, network = load_checkpoint(checkpoint_path)
-
-        taxonomy_id = get_species_taxonomy_id(args.scientific_name)
-        clade = get_taxonomy_id_clade(taxonomy_id)
-
-        logger.info(f"got clade {clade} for {args.scientific_name}")
-
-        logger.info("assigning symbols...")
-        assign_symbols(network, args.sequences_fasta, clade, checkpoint_path.parent)
 
     else:
         argument_parser.print_help()
