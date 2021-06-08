@@ -176,6 +176,7 @@ singularity pull docker://williamebi/gene_symbol_classifier:<gene symbol classif
 assign gene symbols with a Singularity image
 ```
 SINGULARITY_PATH=<Singularity image path>; CHECKPOINTS_DIRECTORY=<checkpoints directory path>; CHECKPOINT=<checkpoint filename>; SEQUENCES_DIRECTORY=<sequences file directory path>; SEQUENCES=<sequences fasta filename>; SCIENTIFIC_NAME=<species scientific name>; singularity run --bind "$CHECKPOINTS_DIRECTORY":/app/checkpoints --bind "$SEQUENCES_DIRECTORY":/app/data "$SINGULARITY_PATH" --checkpoint "/app/checkpoints/${CHECKPOINT}" --sequences_fasta "/app/data/${SEQUENCES}" --scientific_name "$SCIENTIFIC_NAME"
+```
 
 
 ## License
