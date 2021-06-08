@@ -28,7 +28,6 @@ import gzip
 import itertools
 import pathlib
 import pprint
-import sys
 import warnings
 
 from types import SimpleNamespace
@@ -607,7 +606,7 @@ def get_ensembl_release():
     """
     retrieve the version number of the latest Ensembl release
     """
-    # https://rest.ensembl.org/documentation/info/data
+    # https://ensemblrest.readthedocs.io/en/latest/#ensembl_rest.EnsemblClient.data
     ensembl_release = max(ensembl_rest.data()["releases"])
     return ensembl_release
 
@@ -727,6 +726,7 @@ def get_taxonomy_id_clade(taxonomy_id):
         return "humans"
 
     # get taxonomy classification from the REST API
+    # https://ensemblrest.readthedocs.io/en/latest/#ensembl_rest.EnsemblClient.taxonomy_classification
     taxonomy_classification = ensembl_rest.taxonomy_classification(taxonomy_id)
     for taxon in taxonomy_classification:
         taxon_name = taxon["name"]
@@ -746,10 +746,11 @@ def get_species_taxonomy_id(scientific_name):
     Returns:
         string containing the taxonomy ID of the species
     """
+    # https://ensemblrest.readthedocs.io/en/latest/#ensembl_rest.EnsemblClient.taxonomy_name
     response = ensembl_rest.taxonomy_name(scientific_name)
     assert len(response) == 1
 
-    taxonomy_id = ensembl_rest.taxonomy_name(scientific_name)[0]["id"]
+    taxonomy_id = response[0]["id"]
 
     return taxonomy_id
 
