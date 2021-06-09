@@ -794,6 +794,18 @@ def evaluate_network(checkpoint_path, complete=False):
 
         comparison_statistics_list.append(comparison_statistics)
 
+        message = "{}: {} assignments, {} exact matches ({:.2f}%), {} fuzzy matches ({:.2f}%), {} total matches ({:.2f}%)".format(
+            comparison_statistics["scientific_name"],
+            comparison_statistics["num_assignments"],
+            comparison_statistics["num_exact_matches"],
+            comparison_statistics["matching_percentage"],
+            comparison_statistics["num_fuzzy_matches"],
+            comparison_statistics["fuzzy_percentage"],
+            comparison_statistics["num_total_matches"],
+            comparison_statistics["total_matches_percentage"],
+        )
+        logger.info(message)
+
     dataframe_columns = [
         "clade",
         "scientific_name",
@@ -884,7 +896,7 @@ def compare_with_database(
             logger.info("0 canonical translations retrieved, nothing to compare")
         else:
             logger.info(
-                f"0 canonical translations retrieved for {scientific_name}, nothing to compare"
+                f"{scientific_name}: 0 canonical translations retrieved, nothing to compare"
             )
         return False
 
