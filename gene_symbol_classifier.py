@@ -709,9 +709,7 @@ def test_network(checkpoint_path, print_sample_assignments=False):
                 logger.info(f"{assignment:>10} | {label:>10}  !!!")
 
 
-def assign_symbols(
-    network, sequences_fasta, clade, output_directory, include_probabilities=False
-):
+def assign_symbols(network, sequences_fasta, clade, output_directory):
     """
     Use the trained network to assign symbols to the sequences in the FASTA file.
     """
@@ -722,16 +720,10 @@ def assign_symbols(
 
     # read the FASTA file in chunks and assign symbols
     with open(assignments_csv_path, "w+") as csv_file:
-        if include_probabilities:
-            # generate a csv writer, create the CSV file with a header
-            field_names = ["stable_id", "symbol", "probability"]
-            csv_writer = csv.writer(csv_file, delimiter="\t")
-            csv_writer.writerow(field_names)
-        else:
-            # generate a csv writer, create the CSV file with a header
-            field_names = ["stable_id", "symbol"]
-            csv_writer = csv.writer(csv_file, delimiter="\t")
-            csv_writer.writerow(field_names)
+        # generate a csv writer, create the CSV file with a header
+        field_names = ["stable_id", "symbol", "probability"]
+        csv_writer = csv.writer(csv_file, delimiter="\t")
+        csv_writer.writerow(field_names)
 
         for fasta_entries in read_fasta_in_chunks(sequences_fasta_path):
             if fasta_entries[-1] is None:
@@ -745,20 +737,12 @@ def assign_symbols(
             sequences = [fasta_entry[1] for fasta_entry in fasta_entries]
             clades = [clade for _ in range(len(fasta_entries))]
 
-            if include_probabilities:
-                assignments_probabilities = network.predict_probabilities(
-                    sequences, clades
-                )
-                # save assignments and probabilities to the CSV file
-                for stable_id, (assignment, probability) in zip(
-                    stable_ids, assignments_probabilities
-                ):
-                    csv_writer.writerow([stable_id, assignment, probability])
-
-            else:
-                assignments = network.predict(sequences, clades)
-                # save assignments to the CSV file
-                csv_writer.writerows(zip(stable_ids, assignments))
+            assignments_probabilities = network.predict_probabilities(sequences, clades)
+            # save assignments and probabilities to the CSV file
+            for stable_id, (assignment, probability) in zip(
+                stable_ids, assignments_probabilities
+            ):
+                csv_writer.writerow([stable_id, assignment, probability])
 
     logger.info(f"symbol assignments saved at {assignments_csv_path}")
 
@@ -1228,7 +1212,6 @@ def main():
             args.sequences_fasta,
             clade,
             checkpoint_path.parent,
-            include_probabilities=True,
         )
 
     # compare assignments with the ones on the latest Ensembl release
