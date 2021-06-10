@@ -788,7 +788,8 @@ def evaluate_network(checkpoint_path, complete=False):
             Defaults to False, which runs the evaluation only for a selection of
             the most important species genome assemblies.
     """
-    _experiment, network = load_checkpoint(checkpoint_path)
+    experiment, network = load_checkpoint(checkpoint_path)
+    symbols_set = set(symbol.lower() for symbol in experiment.gene_symbols_mapper.symbols)
 
     ensembl_release = get_ensembl_release()
     logger.info(f"Ensembl release {ensembl_release}")
@@ -822,6 +823,7 @@ def evaluate_network(checkpoint_path, complete=False):
                 assignments_csv_path,
                 assembly.core_db,
                 scientific_name,
+                symbols_set,
             )
             if not comparison_successful:
                 continue
@@ -900,6 +902,16 @@ def evaluate_network(checkpoint_path, complete=False):
     logger.info(comparison_statistics_string)
 
 
+def is_exact_match(symbol_a, symbol_b):
+    symbol_a = symbol_a.lower()
+    symbol_b = symbol_b.lower()
+
+    if symbol_a == symbol_b:
+        return "exact_match"
+    else:
+        return "no_exact_match"
+
+
 def is_fuzzy_match(symbol_a, symbol_b):
     symbol_a = symbol_a.lower()
     symbol_b = symbol_b.lower()
@@ -913,20 +925,20 @@ def is_fuzzy_match(symbol_a, symbol_b):
         return "no_fuzzy_match"
 
 
-def is_exact_match(symbol_a, symbol_b):
-    symbol_a = symbol_a.lower()
-    symbol_b = symbol_b.lower()
+def is_known_symbol(symbol, symbols_set):
+    symbol = symbol.lower()
 
-    if symbol_a == symbol_b:
-        return "exact_match"
+    if symbol in symbols_set:
+        return "known"
     else:
-        return "no_exact_match"
+        return "unknown"
 
 
 def compare_with_database(
     assignments_csv,
     ensembl_database,
     scientific_name=None,
+    symbols_set=None,
     EntrezGene=False,
     Uniprot_gn=False,
 ):
@@ -994,6 +1006,13 @@ def compare_with_database(
         result_type="reduce",
     )
 
+    if symbols_set:
+        compare_df["known_symbol"] = compare_df.apply(
+            lambda x: is_known_symbol(x["xref_symbol"], symbols_set),
+            axis=1,
+            result_type="reduce",
+        )
+
     comparisons_csv_path = pathlib.Path(
         f"{assignments_csv_path.parent}/{assignments_csv_path.stem}_compare.csv"
     )
@@ -1039,7 +1058,9 @@ def get_comparison_statistics(comparisons_csv_path):
     return comparison_statistics
 
 
-def compare_assignments(assignments_csv, ensembl_database, scientific_name):
+def compare_assignments(
+    assignments_csv, ensembl_database, scientific_name, checkpoint=None
+):
     """Compare assignments with the ones on the latest Ensembl release."""
     assignments_csv_path = pathlib.Path(assignments_csv)
     log_file_path = pathlib.Path(
@@ -1047,11 +1068,21 @@ def compare_assignments(assignments_csv, ensembl_database, scientific_name):
     )
     logger.add(log_file_path, format=logging_format)
 
+    if checkpoint is None:
+        symbols_set = None
+    else:
+        experiment, _network = load_checkpoint(checkpoint)
+        symbols_set = set(
+            symbol.lower() for symbol in experiment.gene_symbols_mapper.symbols
+        )
+
     comparisons_csv_path = pathlib.Path(
         f"{assignments_csv_path.parent}/{assignments_csv_path.stem}_compare.csv"
     )
     if not comparisons_csv_path.exists():
-        compare_with_database(assignments_csv_path, ensembl_database, scientific_name)
+        compare_with_database(
+            assignments_csv_path, ensembl_database, scientific_name, symbols_set
+        )
 
     comparison_statistics = get_comparison_statistics(comparisons_csv_path)
 
@@ -1272,7 +1303,10 @@ def main():
     # compare assignments with the ones on the latest Ensembl release
     elif args.assignments_csv and args.ensembl_database and args.scientific_name:
         compare_assignments(
-            args.assignments_csv, args.ensembl_database, args.scientific_name
+            args.assignments_csv,
+            args.ensembl_database,
+            args.scientific_name,
+            args.checkpoint,
         )
 
     # save a network in a checkpoint as a separate file
