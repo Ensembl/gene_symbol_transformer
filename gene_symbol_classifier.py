@@ -1039,6 +1039,61 @@ def get_comparison_statistics(comparisons_csv_path):
     return comparison_statistics
 
 
+def compare_assignments(assignments_csv, ensembl_database, scientific_name):
+    """Compare assignments with the ones on the latest Ensembl release."""
+    assignments_csv_path = pathlib.Path(assignments_csv)
+    log_file_path = pathlib.Path(
+        f"{assignments_csv_path.parent}/{assignments_csv_path.stem}_compare.log"
+    )
+    logger.add(log_file_path, format=logging_format)
+
+    comparisons_csv_path = pathlib.Path(
+        f"{assignments_csv_path.parent}/{assignments_csv_path.stem}_compare.csv"
+    )
+    if not comparisons_csv_path.exists():
+        compare_with_database(assignments_csv_path, ensembl_database, scientific_name)
+
+    comparison_statistics = get_comparison_statistics(comparisons_csv_path)
+
+    taxonomy_id = get_species_taxonomy_id(scientific_name)
+    clade = get_taxonomy_id_clade(taxonomy_id)
+
+    comparison_statistics["scientific_name"] = scientific_name
+    comparison_statistics["taxonomy_id"] = taxonomy_id
+    comparison_statistics["clade"] = clade
+
+    message = "{} assignments, {} exact matches ({:.2f}%), {} fuzzy matches ({:.2f}%), {} total matches ({:.2f}%)".format(
+        comparison_statistics["num_assignments"],
+        comparison_statistics["num_exact_matches"],
+        comparison_statistics["matching_percentage"],
+        comparison_statistics["num_fuzzy_matches"],
+        comparison_statistics["fuzzy_percentage"],
+        comparison_statistics["num_total_matches"],
+        comparison_statistics["total_matches_percentage"],
+    )
+    logger.info(message)
+
+    dataframe_columns = [
+        "clade",
+        "scientific_name",
+        "num_assignments",
+        "num_exact_matches",
+        "matching_percentage",
+        "num_fuzzy_matches",
+        "fuzzy_percentage",
+        "num_total_matches",
+        "total_matches_percentage",
+    ]
+    comparison_statistics = pd.DataFrame(
+        [comparison_statistics],
+        columns=dataframe_columns,
+    )
+    with pd.option_context("display.float_format", "{:.2f}".format):
+        logger.info(
+            f"comparison statistics:\n{comparison_statistics.to_string(index=False)}"
+        )
+
+
 def main():
     """
     main function
@@ -1216,59 +1271,9 @@ def main():
 
     # compare assignments with the ones on the latest Ensembl release
     elif args.assignments_csv and args.ensembl_database and args.scientific_name:
-        assignments_csv_path = pathlib.Path(args.assignments_csv)
-        log_file_path = pathlib.Path(
-            f"{assignments_csv_path.parent}/{assignments_csv_path.stem}_compare.log"
+        compare_assignments(
+            args.assignments_csv, args.ensembl_database, args.scientific_name
         )
-        logger.add(log_file_path, format=logging_format)
-
-        comparisons_csv_path = pathlib.Path(
-            f"{assignments_csv_path.parent}/{assignments_csv_path.stem}_compare.csv"
-        )
-        if not comparisons_csv_path.exists():
-            compare_with_database(
-                assignments_csv_path, args.ensembl_database, args.scientific_name
-            )
-
-        comparison_statistics = get_comparison_statistics(comparisons_csv_path)
-
-        taxonomy_id = get_species_taxonomy_id(args.scientific_name)
-        clade = get_taxonomy_id_clade(taxonomy_id)
-
-        comparison_statistics["scientific_name"] = args.scientific_name
-        comparison_statistics["taxonomy_id"] = taxonomy_id
-        comparison_statistics["clade"] = clade
-
-        message = "{} assignments, {} exact matches ({:.2f}%), {} fuzzy matches ({:.2f}%), {} total matches ({:.2f}%)".format(
-            comparison_statistics["num_assignments"],
-            comparison_statistics["num_exact_matches"],
-            comparison_statistics["matching_percentage"],
-            comparison_statistics["num_fuzzy_matches"],
-            comparison_statistics["fuzzy_percentage"],
-            comparison_statistics["num_total_matches"],
-            comparison_statistics["total_matches_percentage"],
-        )
-        logger.info(message)
-
-        dataframe_columns = [
-            "clade",
-            "scientific_name",
-            "num_assignments",
-            "num_exact_matches",
-            "matching_percentage",
-            "num_fuzzy_matches",
-            "fuzzy_percentage",
-            "num_total_matches",
-            "total_matches_percentage",
-        ]
-        comparison_statistics = pd.DataFrame(
-            [comparison_statistics],
-            columns=dataframe_columns,
-        )
-        with pd.option_context("display.float_format", "{:.2f}".format):
-            logger.info(
-                f"comparison statistics:\n{comparison_statistics.to_string(index=False)}"
-            )
 
     # save a network in a checkpoint as a separate file
     elif args.save_network and args.checkpoint:
