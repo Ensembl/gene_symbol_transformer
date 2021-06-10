@@ -168,7 +168,6 @@ class GeneSymbolClassifier(nn.Module):
         Get assignments of symbols for a list of protein sequences.
         """
         features_tensor = self.generate_features_tensor(sequences, clades)
-
         features_tensor = features_tensor.to(DEVICE)
 
         # run inference
@@ -179,10 +178,35 @@ class GeneSymbolClassifier(nn.Module):
         # get predicted labels from output
         predictions = self.get_predictions(output)
 
-        predictions = self.gene_symbols_mapper.one_hot_to_symbol(predictions)
-        predictions = predictions.tolist()
+        assignments = self.gene_symbols_mapper.one_hot_to_symbol(predictions)
+        assignments = assignments.tolist()
 
-        return predictions
+        return assignments
+
+    def predict_probabilities(self, sequences, clades):
+        """
+        Get assignments of symbols for a list of protein sequences, along with
+        the probabilities of predictions.
+        """
+        features_tensor = self.generate_features_tensor(sequences, clades)
+        features_tensor = features_tensor.to(DEVICE)
+
+        # run inference
+        with torch.no_grad():
+            self.eval()
+            output = self.forward(features_tensor)
+
+        # get predicted labels from output
+        predictions, probabilities = self.get_predictions_probabilities(output)
+
+        assignments = self.gene_symbols_mapper.one_hot_to_symbol(predictions)
+
+        assignments_probabilities = [
+            (prediction, probability.item())
+            for prediction, probability in zip(assignments.tolist(), probabilities)
+        ]
+
+        return assignments_probabilities
 
     @staticmethod
     def get_predictions(output):
@@ -193,6 +217,19 @@ class GeneSymbolClassifier(nn.Module):
         # get class indexes from the one-hot encoded labels
         predictions = torch.argmax(predicted_probabilities, dim=1)
         return predictions
+
+    @staticmethod
+    def get_predictions_probabilities(output):
+        """
+        Get predicted labels from network's forward pass output, along with
+        the probabilities of predictions.
+        """
+        predicted_probabilities = torch.exp(output)
+        # get class indexes from the one-hot encoded labels
+        predictions = torch.argmax(predicted_probabilities, dim=1)
+        # get max probability
+        probabilities, _indices = torch.max(predicted_probabilities, dim=1)
+        return (predictions, probabilities)
 
     def generate_features_tensor(self, sequences, clades):
         """
@@ -672,7 +709,9 @@ def test_network(checkpoint_path, print_sample_assignments=False):
                 logger.info(f"{assignment:>10} | {label:>10}  !!!")
 
 
-def assign_symbols(network, sequences_fasta, clade, output_directory):
+def assign_symbols(
+    network, sequences_fasta, clade, output_directory, include_probabilities=False
+):
     """
     Use the trained network to assign symbols to the sequences in the FASTA file.
     """
@@ -683,10 +722,16 @@ def assign_symbols(network, sequences_fasta, clade, output_directory):
 
     # read the FASTA file in chunks and assign symbols
     with open(assignments_csv_path, "w+") as csv_file:
-        # generate a csv writer, create the CSV file with a header
-        field_names = ["stable_id", "symbol"]
-        csv_writer = csv.writer(csv_file, delimiter="\t")
-        csv_writer.writerow(field_names)
+        if include_probabilities:
+            # generate a csv writer, create the CSV file with a header
+            field_names = ["stable_id", "symbol", "probability"]
+            csv_writer = csv.writer(csv_file, delimiter="\t")
+            csv_writer.writerow(field_names)
+        else:
+            # generate a csv writer, create the CSV file with a header
+            field_names = ["stable_id", "symbol"]
+            csv_writer = csv.writer(csv_file, delimiter="\t")
+            csv_writer.writerow(field_names)
 
         for fasta_entries in read_fasta_in_chunks(sequences_fasta_path):
             if fasta_entries[-1] is None:
@@ -700,10 +745,20 @@ def assign_symbols(network, sequences_fasta, clade, output_directory):
             sequences = [fasta_entry[1] for fasta_entry in fasta_entries]
             clades = [clade for _ in range(len(fasta_entries))]
 
-            assignments = network.predict(sequences, clades)
+            if include_probabilities:
+                assignments_probabilities = network.predict_probabilities(
+                    sequences, clades
+                )
+                # save assignments and probabilities to the CSV file
+                for stable_id, (assignment, probability) in zip(
+                    stable_ids, assignments_probabilities
+                ):
+                    csv_writer.writerow([stable_id, assignment, probability])
 
-            # save assignments to the CSV file
-            csv_writer.writerows(zip(stable_ids, assignments))
+            else:
+                assignments = network.predict(sequences, clades)
+                # save assignments to the CSV file
+                csv_writer.writerows(zip(stable_ids, assignments))
 
     logger.info(f"symbol assignments saved at {assignments_csv_path}")
 
@@ -861,17 +916,27 @@ def evaluate_network(checkpoint_path, complete=False):
     logger.info(comparison_statistics_string)
 
 
-def are_strict_subsets(symbol_a, symbol_b):
+def is_fuzzy_match(symbol_a, symbol_b):
     symbol_a = symbol_a.lower()
     symbol_b = symbol_b.lower()
 
     if symbol_a == symbol_b:
-        return False
+        return "no_fuzzy_match"
 
     if (symbol_a in symbol_b) or (symbol_b in symbol_a):
-        return True
+        return "fuzzy_match"
     else:
-        return False
+        return "no_fuzzy_match"
+
+
+def is_exact_match(symbol_a, symbol_b):
+    symbol_a = symbol_a.lower()
+    symbol_b = symbol_b.lower()
+
+    if symbol_a == symbol_b:
+        return "exact_match"
+    else:
+        return "no_exact_match"
 
 
 def compare_with_database(
@@ -908,6 +973,7 @@ def compare_with_database(
         for csv_row in csv_reader:
             csv_stable_id = csv_row[0]
             classifier_symbol = csv_row[1]
+            probability = csv_row[2]
 
             translation_stable_id = csv_stable_id.split(".")[0]
 
@@ -920,17 +986,26 @@ def compare_with_database(
                     == translation_stable_id,
                     "Xref_symbol",
                 ].values[0]
-                comparisons.append((csv_stable_id, classifier_symbol, xref_symbol))
+                comparisons.append(
+                    (csv_stable_id, xref_symbol, classifier_symbol, probability)
+                )
 
     dataframe_columns = [
         "csv_stable_id",
-        "classifier_symbol",
         "xref_symbol",
+        "classifier_symbol",
+        "probability",
     ]
     compare_df = pd.DataFrame(comparisons, columns=dataframe_columns)
 
-    compare_df["strict_subsets"] = compare_df.apply(
-        lambda x: are_strict_subsets(x["classifier_symbol"], x["xref_symbol"]),
+    compare_df["exact_match"] = compare_df.apply(
+        lambda x: is_exact_match(x["classifier_symbol"], x["xref_symbol"]),
+        axis=1,
+        result_type="reduce",
+    )
+
+    compare_df["fuzzy_match"] = compare_df.apply(
+        lambda x: is_fuzzy_match(x["classifier_symbol"], x["xref_symbol"]),
         axis=1,
         result_type="reduce",
     )
@@ -949,14 +1024,8 @@ def get_comparison_statistics(comparisons_csv_path):
     num_assignments = len(compare_df)
 
     if num_assignments > 0:
-        num_exact_matches = (
-            compare_df["classifier_symbol"]
-            .str.lower()
-            .eq(compare_df["xref_symbol"].str.lower())
-            .sum()
-        )
-
-        num_fuzzy_matches = compare_df["strict_subsets"].sum()
+        num_exact_matches = len(compare_df[compare_df["exact_match"] == "exact_match"])
+        num_fuzzy_matches = len(compare_df[compare_df["fuzzy_match"] == "fuzzy_match"])
 
         matching_percentage = (num_exact_matches / num_assignments) * 100
         fuzzy_percentage = (num_fuzzy_matches / num_assignments) * 100
@@ -1154,7 +1223,13 @@ def main():
         logger.info(f"got clade {clade} for {args.scientific_name}")
 
         logger.info("assigning symbols...")
-        assign_symbols(network, args.sequences_fasta, clade, checkpoint_path.parent)
+        assign_symbols(
+            network,
+            args.sequences_fasta,
+            clade,
+            checkpoint_path.parent,
+            include_probabilities=True,
+        )
 
     # compare assignments with the ones on the latest Ensembl release
     elif args.assignments_csv and args.ensembl_database and args.scientific_name:
