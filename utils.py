@@ -466,7 +466,7 @@ def download_protein_sequences_fasta(assembly, ensembl_release):
     """
     base_url = f"http://ftp.ensembl.org/pub/release-{ensembl_release}/fasta/"
 
-    # download archived protein sequences FASTA file
+    # download and extract archived protein sequences FASTA file
     archived_fasta_filename = "{}.{}.pep.all.fa.gz".format(
         assembly.species.capitalize(),
         fix_assembly(assembly.assembly),
@@ -474,13 +474,11 @@ def download_protein_sequences_fasta(assembly, ensembl_release):
     archived_fasta_url = f"{base_url}{assembly.species}/pep/{archived_fasta_filename}"
     sequences_directory.mkdir(parents=True, exist_ok=True)
     archived_fasta_path = sequences_directory / archived_fasta_filename
-    if not archived_fasta_path.exists():
+    fasta_path = archived_fasta_path.with_suffix("")
+    if not archived_fasta_path.exists() or not fasta_path.exists():
         download_file(archived_fasta_url, archived_fasta_path)
         logger.info(f"downloaded {archived_fasta_filename}")
 
-    # extract archived protein sequences FASTA file
-    fasta_path = archived_fasta_path.with_suffix("")
-    if not fasta_path.exists():
         with gzip.open(archived_fasta_path, "rb") as f:
             file_content = f.read()
         with open(fasta_path, "wb+") as f:
