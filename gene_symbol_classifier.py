@@ -310,13 +310,14 @@ class EarlyStopping:
             logger.info(
                 f"validation loss decreased by {validation_loss_decrease:.4f}, saving network checkpoint..."
             )
+
+            self.min_validation_loss = validation_loss
+            self.no_progress = 0
             checkpoint = {
                 "network": network,
                 "experiment": experiment,
             }
             torch.save(checkpoint, checkpoint_path)
-            self.min_validation_loss = validation_loss
-            self.no_progress = 0
             return False
 
         else:
