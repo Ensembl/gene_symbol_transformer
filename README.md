@@ -41,24 +41,37 @@ The example protein sequences are of variable length with mean `580.63`, median 
 
 ## experiment setup
 
-A YAML file has been defined for specifying hyperparameters for an experiment. It has a flat dictionary structure with mostly self-explanatory variables.
+A YAML file has been defined for specifying hyperparameters for an experiment, using a flat dictionary structure:
 
 ```yaml
+# PyTorch random number generator initialization seed
+random_seed: 5
+
 num_symbols: 30241
+
+# training, validation, test split
+test_ratio: 0.1
+validation_ratio: 0.1
 
 sequence_length: 841
 
-batch_size: 1024
-
+# number of connections between fully connected network layers
 num_connections: 512
+
+# max norm for gradient clipping
+clip_max_norm: 5
 
 dropout_probability: 0
 
+batch_size: 1024
+
 learning_rate: 0.001
 
-max_epochs: 100
+# number of epochs without validation loss improvement before training stops
+patience: 5
 
-random_seed: 5
+# maximum number of training epochs
+max_epochs: 100
 ```
 
 
