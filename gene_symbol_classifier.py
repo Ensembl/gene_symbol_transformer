@@ -241,7 +241,7 @@ class GeneSymbolClassifier(nn.Module):
             # pad or truncate sequence to be exactly `self.sequence_length` letters long
             string_length = len(sequence)
             if string_length <= self.sequence_length:
-                sequence = " " * (self.sequence_length - string_length) + sequence
+                sequence = sequence + " " * (self.sequence_length - string_length)
             else:
                 sequence = sequence[: self.sequence_length]
 
