@@ -367,9 +367,9 @@ class Experiment:
         # early stopping
         # larger patience for short epochs and smaller patience for longer epochs
         if self.num_symbols in dev_datasets_symbol_frequency:
-            patience = 11
-        else:
             patience = 7
+        else:
+            patience = 5
         loss_delta = 0.001
         self.stop_early = EarlyStopping(patience, loss_delta)
 
