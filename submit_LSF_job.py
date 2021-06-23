@@ -129,11 +129,18 @@ def main():
 
     pipeline_command = " ".join(pipeline_command_elements)
 
+    # specify lower mem_limit for dev datasets jobs
+    num_symbols_mem_limit = {3: 1024, 100: 2048, 1059: 2048}
+    if num_symbols in num_symbols_mem_limit.keys():
+        mem_limit = num_symbols_mem_limit[num_symbols]
+    else:
+        mem_limit = args.mem_limit
+
     # common arguments for any job type
     bsub_command_elements = [
         "bsub",
-        f"-M {args.mem_limit}",
-        f'-R"select[mem>{args.mem_limit}] rusage[mem={args.mem_limit}]"',
+        f"-M {mem_limit}",
+        f'-R"select[mem>{mem_limit}] rusage[mem={mem_limit}]"',
         f"-o {root_directory}/{job_name}-stdout.log",
         f"-e {root_directory}/{job_name}-stderr.log",
     ]
