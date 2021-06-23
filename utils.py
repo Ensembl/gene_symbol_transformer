@@ -321,7 +321,7 @@ class SequenceDataset(Dataset):
         # pad or truncate all sequences to size `sequence_length`
         with SuppressSettingWithCopyWarning():
             self.data["sequence"] = self.data["sequence"].str.pad(
-                width=sequence_length, side="left", fillchar=" "
+                width=sequence_length, side="right", fillchar=" "
             )
             self.data["sequence"] = self.data["sequence"].str.slice(stop=sequence_length)
 
