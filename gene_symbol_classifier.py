@@ -60,7 +60,6 @@ from torch.utils.tensorboard import SummaryWriter
 
 # project imports
 from utils import (
-    PrettySimpleNamespace,
     SequenceDataset,
     dev_datasets_symbol_frequency,
     download_protein_sequences_fasta,
@@ -331,52 +330,31 @@ class EarlyStopping:
 
 
 class Experiment:
+    """
+    Object containing settings values and status of an experiment.
+    """
+
     def __init__(self, experiment_settings, datetime):
-        # dataset
-        self.num_symbols = experiment_settings.num_symbols
+        for attribute, value in experiment_settings.items():
+            setattr(self, attribute, value)
 
         # experiment parameters
         self.datetime = datetime
 
-        # set the seed of the PyTorch random number generator
-        if not hasattr(experiment_settings, "random_seed"):
-            experiment_settings.random_seed = random.randint(1, 100)
-        self.random_seed = experiment_settings.random_seed
-
-        # test and validation sets
-        if self.num_symbols in dev_datasets_symbol_frequency:
-            self.test_ratio = 0.2
-            self.validation_ratio = 0.2
-        else:
-            self.test_ratio = 0.05
-            self.validation_ratio = 0.05
-
-        # samples and batches
-        self.sequence_length = experiment_settings.sequence_length
-        self.batch_size = experiment_settings.batch_size
-
-        # network
-        self.num_connections = experiment_settings.num_connections
-        self.dropout_probability = experiment_settings.dropout_probability
-        self.learning_rate = experiment_settings.learning_rate
-
-        # training length and early stopping
-        self.max_epochs = experiment_settings.max_epochs
-        self.num_complete_epochs = 0
+        # set a seed for the PyTorch random number generator if not present
+        if not hasattr(self, "random_seed"):
+            self.random_seed = random.randint(1, 100)
 
         # early stopping
-        # larger patience for short epochs and smaller patience for longer epochs
-        if self.num_symbols in dev_datasets_symbol_frequency:
-            patience = 7
-        else:
-            patience = 5
         loss_delta = 0.001
-        self.stop_early = EarlyStopping(patience, loss_delta)
-
-        self.checkpoint_filename = f"ns{self.num_symbols}_{self.datetime}.pth"
+        self.stop_early = EarlyStopping(self.patience, loss_delta)
 
         # loss function
         self.criterion = nn.NLLLoss()
+
+        self.num_complete_epochs = 0
+
+        self.checkpoint_filename = f"ns{self.num_symbols}_{self.datetime}.pth"
 
     def __repr__(self):
         return pprint.pformat(self.__dict__, sort_dicts=False)
@@ -479,8 +457,6 @@ def train_network(
         network.parameters(), lr=experiment.learning_rate
     )
 
-    clip_max_norm = 5
-
     checkpoint_path = experiments_directory / experiment.checkpoint_filename
     logger.info(f"start training, experiment checkpoints saved at {checkpoint_path}")
 
@@ -531,7 +507,7 @@ def train_network(
             training_loss.backward()
 
             # prevent the exploding gradient problem
-            nn.utils.clip_grad_norm_(network.parameters(), clip_max_norm)
+            nn.utils.clip_grad_norm_(network.parameters(), experiment.clip_max_norm)
 
             # perform an optimization step
             experiment.optimizer.step()
@@ -1186,24 +1162,25 @@ def main():
 
     # train a new classifier
     if args.train and args.experiment_settings:
+        # read the experiment settings YAML file to a dictionary
         with open(args.experiment_settings) as f:
-            experiment_settings = PrettySimpleNamespace(**yaml.safe_load(f))
+            experiment_settings = yaml.safe_load(f)
 
         if args.datetime is None:
             datetime = dt.datetime.now().isoformat(sep="_", timespec="seconds")
         else:
             datetime = args.datetime
 
+        # generate new experiment
+        experiment = Experiment(experiment_settings, datetime)
+
         experiments_directory.mkdir(exist_ok=True)
         log_file_path = (
-            experiments_directory / f"ns{experiment_settings.num_symbols}_{datetime}.log"
+            experiments_directory / f"ns{experiment.num_symbols}_{datetime}.log"
         )
         logger.add(log_file_path, format=logging_format)
 
         log_pytorch_cuda_info()
-
-        # generate new experiment
-        experiment = Experiment(experiment_settings, datetime)
 
         torch.manual_seed(experiment.random_seed)
 

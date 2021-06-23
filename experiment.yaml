@@ -1,13 +1,52 @@
+# general
+################################################################################
+# PyTorch random number generator initialization seed
+#random_seed: 5
+#random_seed: 7
+#random_seed: 11
+################################################################################
+
+# dataset
+################################################################################
 num_symbols: 3
 #num_symbols: 100
 #num_symbols: 1059
 #num_symbols: 25228
 #num_symbols: 30241
 
+# training, validation, test split
+#test_ratio: 0.1
+#validation_ratio: 0.1
+test_ratio: 0.05
+validation_ratio: 0.05
+################################################################################
+
+# features
+################################################################################
 #sequence_length: 581
 sequence_length: 841
 #sequence_length: 1102
+################################################################################
 
+# network architecture
+################################################################################
+# number of connections between fully connected network layers
+#num_connections: 256
+num_connections: 512
+#num_connections: 1024
+#num_connections: 2048
+
+# max norm for gradient clipping
+clip_max_norm: 5
+
+dropout_probability: 0
+#dropout_probability: 0.05
+#dropout_probability: 0.1
+#dropout_probability: 0.2
+################################################################################
+
+# training
+################################################################################
 #batch_size: 32
 #batch_size: 64
 #batch_size: 128
@@ -18,25 +57,20 @@ batch_size: 2048
 #batch_size: 4096
 #batch_size: 8192
 
-#num_connections: 256
-num_connections: 512
-#num_connections: 1024
-#num_connections: 2048
-
-dropout_probability: 0
-#dropout_probability: 0.05
-#dropout_probability: 0.1
-#dropout_probability: 0.2
-
 #learning_rate: 0.01
-learning_rate: 0.001
+learning_rate: 0.005
+#learning_rate: 0.001
+#learning_rate: 0.0005
+#learning_rate: 0.0001
 
+# number of epochs without validation loss improvement before training stops
+patience: 5
+#patience: 7
+
+# maximum number of training epochs
 max_epochs: 1
 #max_epochs: 3
 #max_epochs: 10
 #max_epochs: 100
 #max_epochs: 1000
-
-random_seed: 5
-#random_seed: 7
-#random_seed: 11
+################################################################################
