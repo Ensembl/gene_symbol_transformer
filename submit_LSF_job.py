@@ -32,6 +32,11 @@ import sys
 # third party imports
 import yaml
 
+# project imports
+from utils import load_checkpoint
+
+from gene_symbol_classifier import EarlyStopping, Experiment, GeneSymbolClassifier
+
 
 def main():
     """
@@ -103,6 +108,10 @@ def main():
     # resume training, test, or evaluate a classifier
     elif args.checkpoint:
         checkpoint_path = pathlib.Path(args.checkpoint)
+
+        experiment, _network = load_checkpoint(checkpoint_path)
+
+        num_symbols = experiment.num_symbols
 
         job_name = checkpoint_path.stem
         root_directory = checkpoint_path.parent
