@@ -166,7 +166,7 @@ build a Docker image
 docker image build --tag williamebi/gene_symbol_classifier:<gene symbol classifier version> --file Dockerfile .
 
 # e.g.
-docker image build --tag williamebi/gene_symbol_classifier:0.7 --file Dockerfile .
+docker image build --tag williamebi/gene_symbol_classifier:0.8 --file Dockerfile .
 ```
 
 As the Docker container needs access to the input checkpoint and FASTA sequences files, the directories of these files along with their filenames are required as arguments in order to set up Docker volumes to these directories.
