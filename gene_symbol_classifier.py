@@ -686,11 +686,14 @@ def test_network(checkpoint_path, print_sample_assignments=False):
                 logger.info(f"{assignment:>10} | {label:>10}  !!!")
 
 
-def assign_symbols(network, sequences_fasta, clade, output_directory):
+def assign_symbols(network, sequences_fasta, clade, output_directory=None):
     """
     Use the trained network to assign symbols to the sequences in the FASTA file.
     """
     sequences_fasta_path = pathlib.Path(sequences_fasta)
+
+    if output_directory is None:
+        output_directory = sequences_fasta_path.parent
     assignments_csv_path = pathlib.Path(
         f"{output_directory}/{sequences_fasta_path.stem}_symbols.csv"
     )
@@ -1271,12 +1274,7 @@ def main():
         logger.info(f"got clade {clade} for {args.scientific_name}")
 
         logger.info("assigning symbols...")
-        assign_symbols(
-            network,
-            args.sequences_fasta,
-            clade,
-            checkpoint_path.parent,
-        )
+        assign_symbols(network, args.sequences_fasta, clade)
 
     # compare assignments with the ones on the latest Ensembl release
     elif args.assignments_csv and args.ensembl_database and args.scientific_name:
