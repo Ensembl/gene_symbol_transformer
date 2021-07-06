@@ -42,7 +42,12 @@ def plot_threshold_statistics(comparison_csv_path, text_title=False):
     end_b = 1
     num_values_b = 100 + 1
 
-    for threshold in np.concatenate([np.linspace(start_a, end_a, num_values_a), np.linspace(start_b, end_b, num_values_b)]):
+    for threshold in np.concatenate(
+        [
+            np.linspace(start_a, end_a, num_values_a),
+            np.linspace(start_b, end_b, num_values_b),
+        ]
+    ):
         threshold = round(threshold, ndigits=3)
 
         df = complete_df.loc[complete_df["probability"] >= threshold]
@@ -70,8 +75,7 @@ def plot_threshold_statistics(comparison_csv_path, text_title=False):
     axis_2.plot(thresholds_list, num_assignments_list, "b-")
 
     if not text_title:
-        title = comparison_csv_path.stem
-        axis_1.set(title=title)
+        axis_1.set(title=comparison_csv_path.stem)
 
     axis_1.set(xlabel="threshold probability")
 
