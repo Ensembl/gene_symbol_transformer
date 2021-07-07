@@ -356,7 +356,7 @@ class Experiment:
 
         self.checkpoint_filename = f"ns{self.num_symbols}_{self.datetime}.pth"
 
-    def __repr__(self):
+    def __str__(self):
         return pprint.pformat(self.__dict__, sort_dicts=False)
 
 

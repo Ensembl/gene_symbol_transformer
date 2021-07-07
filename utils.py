@@ -621,7 +621,7 @@ class PrettySimpleNamespace(SimpleNamespace):
     for pretty-printing types.SimpleNamespace has been added to pprint in that version.
     """
 
-    def __repr__(self):
+    def __str__(self):
         return pprint.pformat(self.__dict__, sort_dicts=False)
 
 
