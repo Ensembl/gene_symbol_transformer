@@ -92,9 +92,9 @@ def plot_threshold_statistics(comparison_csv_path, text_title=False):
     )
 
     if text_title:
-        title = comparison_csv_path.stem
-    else:
         title = comparison_csv_path.stem.split(".")[0]
+    else:
+        title = comparison_csv_path.stem
 
     figure.update_layout(
         title_text=title,
@@ -119,4 +119,4 @@ for comparison_csv_path in sorted(pathlib.Path("../compare").iterdir()):
     print()
     if text_title:
         print(comparison_csv_path.stem)
-    plot_threshold_statistics(comparison_csv_path)
+    plot_threshold_statistics(comparison_csv_path, text_title=text_title)
