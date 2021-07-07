@@ -28,6 +28,7 @@ import gzip
 import itertools
 import pathlib
 import pprint
+import time
 import warnings
 
 from types import SimpleNamespace
