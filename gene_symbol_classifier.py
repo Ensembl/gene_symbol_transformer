@@ -61,7 +61,6 @@ from torch.utils.tensorboard import SummaryWriter
 # project imports
 from utils import (
     SequenceDataset,
-    dev_datasets_symbol_frequency,
     download_protein_sequences_fasta,
     experiments_directory,
     get_assemblies_metadata,
