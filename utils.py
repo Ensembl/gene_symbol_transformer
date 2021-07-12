@@ -309,8 +309,8 @@ class SequenceDataset(Dataset):
     Custom Dataset for raw sequences.
     """
 
-    def __init__(self, num_symbols, sequence_length):
-        data = load_dataset(num_symbols)
+    def __init__(self, num_symbols=None, min_frequency=None, sequence_length=500):
+        data = load_dataset(num_symbols, min_frequency)
 
         # select the features and labels columns
         self.data = data[["sequence", "clade", "symbol"]]

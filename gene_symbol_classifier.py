@@ -368,7 +368,9 @@ def generate_dataloaders(experiment):
     Returns:
         tuple containing the training, validation, and test dataloaders
     """
-    dataset = SequenceDataset(experiment.num_symbols, experiment.sequence_length)
+    dataset = SequenceDataset(
+        num_symbols=experiment.num_symbols, sequence_length=experiment.sequence_length
+    )
 
     experiment.gene_symbols_mapper = dataset.gene_symbols_mapper
     experiment.protein_sequences_mapper = dataset.protein_sequences_mapper
