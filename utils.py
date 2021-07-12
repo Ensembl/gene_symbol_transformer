@@ -640,38 +640,65 @@ class SuppressSettingWithCopyWarning:
         pd.options.mode.chained_assignment = self.original_setting
 
 
-def load_dataset(num_symbols=None):
+def load_dataset(num_symbols=None, min_frequency=None):
     """
-    Load dataset.
+    Load full dataset if none of num_symbols and min_frequency are specified.
+    With num_symbols specified, load the dataset subset of the num_symbols
+    most frequent symbols.
+    With min_frequency specified, load the dataset subset of symbols with
+    at least min_frequency sequences.
+
+    num_symbols and min_frequency are mutually exclusive.
 
     Args:
-        num_symbols (int): number of most frequent symbols and their sequences to load
+        num_symbols (int): number of most frequent symbols to be included in the dataset
+        min_frequency (int): minimum frequency for a symbol to be included in the dataset
     Returns:
         pandas DataFrame containing the loaded dataset
     """
+    if num_symbols is not None and min_frequency is not None:
+        raise ValueError(
+            "num_symbols and min_frequency are mutually exclusive, please select the one to use"
+        )
+
     full_dataset_pickle_path = data_directory / "dataset.pickle"
-    if num_symbols is None:
+    if num_symbols is None and min_frequency is None:
         logger.info(f"loading full dataset {full_dataset_pickle_path} ...")
         dataset = pd.read_pickle(full_dataset_pickle_path)
         logger.info("full dataset loaded")
-    elif num_symbols in dev_datasets_num_symbols:
-        dataset_pickle_path = data_directory / f"{num_symbols}_symbols.pickle"
-        if not dataset_pickle_path.exists():
-            logger.info(f"generating dedicated files for the dev datasets...")
+    elif num_symbols is not None:
+        if num_symbols in dev_datasets_num_symbols:
+            dataset_pickle_path = data_directory / f"{num_symbols}_symbols.pickle"
+            if not dataset_pickle_path.exists():
+                logger.info(f"generating dedicated files for the dev datasets...")
+                dataset = pd.read_pickle(full_dataset_pickle_path)
+                save_dev_datasets(dataset=dataset)
+            dataset = pd.read_pickle(dataset_pickle_path)
+            logger.info(f"{num_symbols} most frequent symbols samples dataset loaded")
+        # num_symbols not in dev_datasets_num_symbols
+        else:
+            logger.info(
+                f"loading {num_symbols} most frequent symbols samples from full dataset..."
+            )
             dataset = pd.read_pickle(full_dataset_pickle_path)
-            save_dev_datasets(dataset=dataset)
-        dataset = pd.read_pickle(dataset_pickle_path)
-        logger.info(f"{num_symbols} most frequent symbols samples dataset loaded")
-    # num_symbols not in dev_datasets_num_symbols
+
+            # create the dataset subset of num_symbols most frequent symbols and sequences
+            symbol_counts = dataset["symbol"].value_counts()
+            dataset = dataset[dataset["symbol"].isin(symbol_counts[:num_symbols].index)]
+
+            logger.info(f"{num_symbols} most frequent symbols samples dataset loaded")
+    # min_frequency is not None
     else:
         logger.info(
-            f"loading {num_symbols} most frequent symbols samples from full dataset..."
+            f"loading symbols with {min_frequency} minimum frequency from full dataset..."
         )
         dataset = pd.read_pickle(full_dataset_pickle_path)
 
-        # create the dataset subset of num_symbols most frequent symbols and sequences
+        # create the dataset subset of symbols with min_frequency minimum frequency
         symbol_counts = dataset["symbol"].value_counts()
-        dataset = dataset[dataset["symbol"].isin(symbol_counts[:num_symbols].index)]
+        dataset = dataset[
+            dataset["symbol"].isin(symbol_counts[symbol_counts >= min_frequency].index)
+        ]
 
         logger.info(f"{num_symbols} most frequent symbols samples dataset loaded")
 
