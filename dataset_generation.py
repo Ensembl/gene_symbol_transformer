@@ -234,26 +234,6 @@ def generate_statistics():
     )
 
 
-def dataframe_to_fasta(df, fasta_path):
-    """
-    Save a dataframe containing entries of sequences and metadata to a FASTA file.
-    """
-    with open(fasta_path, "w+") as fasta_file:
-        for index, values in df.iterrows():
-            row_dict = values.to_dict()
-            description_text = "\t".join(
-                f"{key}:{value}"
-                for key, value in row_dict.items()
-                if key not in {"Index", "sequence"}
-            )
-
-            description = ">" + description_text
-
-            sequence = row_dict["sequence"]
-            fasta_entry = f"{description}\n{sequence}\n"
-            fasta_file.write(fasta_entry)
-
-
 def get_sequence_from_assembly_fasta_dict(df_row, assembly_fasta_dict):
     """
     Retrieve the sequence in the assembly FASTA dictionary that the translations

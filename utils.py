@@ -70,7 +70,7 @@ sequences_directory = data_directory / "protein_sequences"
 
 logging_format = "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{message}</level>"
 
-dev_datasets_num_symbols = {3, 100, 1000}
+dev_datasets_num_symbols = [3, 100, 1000]
 
 genebuild_clades = {
     "Amphibia": "amphibians",
@@ -656,6 +656,10 @@ def load_dataset(num_symbols=None):
         logger.info("full dataset loaded")
     elif num_symbols in dev_datasets_num_symbols:
         dataset_pickle_path = data_directory / f"{num_symbols}_symbols.pickle"
+        if not dataset_pickle_path.exists():
+            logger.info(f"generating dedicated files for the dev datasets...")
+            dataset = pd.read_pickle(full_dataset_pickle_path)
+            save_dev_datasets(dataset=dataset)
         dataset = pd.read_pickle(dataset_pickle_path)
         logger.info(f"{num_symbols} most frequent symbols samples dataset loaded")
     # num_symbols not in dev_datasets_num_symbols
@@ -674,13 +678,18 @@ def load_dataset(num_symbols=None):
     return dataset
 
 
-def save_dev_datasets(num_samples=100):
+def save_dev_datasets(dataset=None, num_samples=100):
     """
     Generate and save subsets of the full dataset for faster loading during development,
     the datasets as FASTA files, and FASTA files with a small number of sample sequences
     for quick reference.
+
+    Args:
+        dataset (pandas DataFrame): full dataset dataframe
+        num_samples (int): number of samples to include in the samples FASTA files
     """
-    dataset = load_dataset()
+    if dataset is None:
+        dataset = load_dataset()
 
     symbol_counts = dataset["symbol"].value_counts()
 
@@ -712,6 +721,26 @@ def save_dev_datasets(num_samples=100):
         logger.info(
             f"{num_symbols} most frequent symbols {num_samples} samples FASTA file saved at {fasta_path}"
         )
+
+
+def dataframe_to_fasta(df, fasta_path):
+    """
+    Save a dataframe containing entries of sequences and metadata to a FASTA file.
+    """
+    with open(fasta_path, "w+") as fasta_file:
+        for index, values in df.iterrows():
+            row_dict = values.to_dict()
+            description_text = "\t".join(
+                f"{key}:{value}"
+                for key, value in row_dict.items()
+                if key not in {"Index", "sequence"}
+            )
+
+            description = ">" + description_text
+
+            sequence = row_dict["sequence"]
+            fasta_entry = f"{description}\n{sequence}\n"
+            fasta_file.write(fasta_entry)
 
 
 def load_checkpoint(checkpoint_path):
