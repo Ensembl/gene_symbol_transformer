@@ -70,11 +70,7 @@ sequences_directory = data_directory / "protein_sequences"
 
 logging_format = "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{message}</level>"
 
-dev_datasets_symbol_frequency = {
-    3: 342,
-    100: 262,
-    1059: 213,
-}
+dev_datasets_num_symbols = {3, 100, 1000}
 
 genebuild_clades = {
     "Amphibia": "amphibians",
@@ -658,11 +654,11 @@ def load_dataset(num_symbols=None):
         logger.info(f"loading full dataset {full_dataset_pickle_path} ...")
         dataset = pd.read_pickle(full_dataset_pickle_path)
         logger.info("full dataset loaded")
-    elif num_symbols in dev_datasets_symbol_frequency:
+    elif num_symbols in dev_datasets_num_symbols:
         dataset_pickle_path = data_directory / f"{num_symbols}_symbols.pickle"
         dataset = pd.read_pickle(dataset_pickle_path)
         logger.info(f"{num_symbols} most frequent symbols samples dataset loaded")
-    # num_symbols not in dev_datasets_symbol_frequency
+    # num_symbols not in dev_datasets_num_symbols
     else:
         logger.info(
             f"loading {num_symbols} most frequent symbols samples from full dataset..."

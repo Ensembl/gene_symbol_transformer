@@ -41,7 +41,7 @@ from loguru import logger
 from utils import (
     PrettySimpleNamespace,
     data_directory,
-    dev_datasets_symbol_frequency,
+    dev_datasets_num_symbols,
     download_protein_sequences_fasta,
     fasta_to_dict,
     get_assemblies_metadata,
@@ -212,13 +212,7 @@ def save_dev_datasets(num_samples=100):
 
     symbol_counts = dataset["symbol"].value_counts()
 
-    for num_symbols, max_frequency in dev_datasets_symbol_frequency.items():
-        # verify that max_frequency is the cutoff limit for the selected symbols
-        assert all(
-            symbol_counts[:num_symbols] == symbol_counts[symbol_counts >= max_frequency]
-        )
-        assert symbol_counts[num_symbols] < max_frequency
-
+    for num_symbols in dev_datasets_num_symbols:
         dev_dataset = dataset[dataset["symbol"].isin(symbol_counts[:num_symbols].index)]
 
         # save dataframe to a pickle file
