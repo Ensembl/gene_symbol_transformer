@@ -46,10 +46,11 @@ from utils import (
     fasta_to_dict,
     get_assemblies_metadata,
     get_canonical_translations,
-    get_taxonomy_id_clade,
     get_ensembl_release,
+    get_taxonomy_id_clade,
     load_dataset,
     logging_format,
+    save_dev_datasets,
     sizeof_fmt,
 )
 
@@ -200,46 +201,6 @@ def dataset_cleanup(dataset):
     )
 
     return dataset
-
-
-def save_dev_datasets(num_samples=100):
-    """
-    Generate and save subsets of the full dataset for faster loading during development,
-    the datasets as FASTA files, and FASTA files with a small number of sample sequences
-    for quick reference.
-    """
-    dataset = load_dataset()
-
-    symbol_counts = dataset["symbol"].value_counts()
-
-    for num_symbols in dev_datasets_num_symbols:
-        dev_dataset = dataset[dataset["symbol"].isin(symbol_counts[:num_symbols].index)]
-
-        # save dataframe to a pickle file
-        pickle_path = data_directory / f"{num_symbols}_symbols.pickle"
-        dev_dataset.to_pickle(pickle_path)
-        logger.info(
-            f"{num_symbols} most frequent symbols dev dataset saved at {pickle_path}"
-        )
-
-        # save sequences to a FASTA file
-        fasta_path = data_directory / f"{num_symbols}_symbols.fasta"
-
-        dataframe_to_fasta(dev_dataset, fasta_path)
-        logger.info(
-            f"{num_symbols} most frequent symbols dev dataset FASTA file saved at {fasta_path}"
-        )
-
-        # pick random sample sequences
-        samples = dev_dataset.sample(num_samples)
-        samples = samples.sort_index()
-
-        # save sample sequences to a FASTA file
-        fasta_path = data_directory / f"{num_symbols}_symbols-{num_samples}_samples.fasta"
-        dataframe_to_fasta(samples, fasta_path)
-        logger.info(
-            f"{num_symbols} most frequent symbols {num_samples} samples FASTA file saved at {fasta_path}"
-        )
 
 
 def generate_statistics():
