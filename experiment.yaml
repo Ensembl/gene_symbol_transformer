@@ -1,5 +1,10 @@
 # general
 ################################################################################
+# experiment filenames prefix
+filename_prefix: experiment
+#filename_prefix: only_human
+#filename_prefix: exclude_bos
+
 # PyTorch random number generator initialization seed
 #random_seed: 5
 #random_seed: 7
