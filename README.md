@@ -44,6 +44,9 @@ The example protein sequences are of variable length with mean `580.63`, median 
 A YAML file has been defined for specifying hyperparameters for an experiment, using a flat dictionary structure:
 
 ```yaml
+# experiment filenames prefix
+filename_prefix: experiment
+
 # PyTorch random number generator initialization seed
 random_seed: 5
 

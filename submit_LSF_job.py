@@ -93,7 +93,8 @@ def main():
 
         num_symbols = experiment_settings["num_symbols"]
 
-        job_name = f"ns{num_symbols}_{datetime}"
+        experiment = Experiment(experiment_settings, datetime)
+        job_name = experiment.filename
 
         pipeline_command_elements = [
             "python gene_symbol_classifier.py",

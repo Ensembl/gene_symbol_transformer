@@ -353,7 +353,7 @@ class Experiment:
 
         self.num_complete_epochs = 0
 
-        self.checkpoint_filename = f"ns{self.num_symbols}_{self.datetime}.pth"
+        self.filename = f"{self.filename_prefix}_ns{self.num_symbols}_{self.datetime}"
 
     def __str__(self):
         return pprint.pformat(self.__dict__, sort_dicts=False)
@@ -458,7 +458,7 @@ def train_network(
         network.parameters(), lr=experiment.learning_rate
     )
 
-    checkpoint_path = experiments_directory / experiment.checkpoint_filename
+    checkpoint_path = experiments_directory / f"{experiment.filename}.pth"
     logger.info(f"start training, experiment checkpoints saved at {checkpoint_path}")
 
     max_epochs_length = len(str(max_epochs))
@@ -1179,9 +1179,7 @@ def main():
         experiment = Experiment(experiment_settings, datetime)
 
         experiments_directory.mkdir(exist_ok=True)
-        log_file_path = (
-            experiments_directory / f"ns{experiment.num_symbols}_{datetime}.log"
-        )
+        log_file_path = experiments_directory / f"{experiment.filename}.log"
         logger.add(log_file_path, format=logging_format)
 
         log_pytorch_cuda_info()
