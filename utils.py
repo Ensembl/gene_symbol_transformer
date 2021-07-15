@@ -104,7 +104,24 @@ genebuild_clades = {
     "Viral": "viral",
 }
 
-get_xref_symbols_for_canonical_gene_transcripts = """
+get_canonical_transcripts_sql = """
+-- gene transcripts of canonical translations
+SELECT
+  gene.stable_id AS 'gene.stable_id',
+  gene.version AS 'gene.version',
+  transcript.stable_id AS 'transcript.stable_id',
+  transcript.version AS 'transcript.version',
+  translation.stable_id AS 'translation.stable_id',
+  translation.version AS 'translation.version'
+FROM gene
+INNER JOIN transcript
+  ON gene.canonical_transcript_id = transcript.transcript_id
+INNER JOIN translation
+  ON transcript.canonical_translation_id = translation.translation_id
+WHERE gene.biotype = 'protein_coding';
+"""
+
+get_xref_symbols_for_canonical_gene_transcripts_sql = """
 -- Xref symbols for canonical translations
 SELECT
   gene.stable_id AS 'gene.stable_id',
@@ -125,7 +142,7 @@ INNER JOIN external_db
 WHERE gene.biotype = 'protein_coding';
 """
 
-get_entrezgene_symbols = """
+get_entrezgene_symbols_sql = """
 -- EntrezGene symbols for translations with no Xref symbols
 SELECT
   gene.stable_id AS 'gene.stable_id',
@@ -162,7 +179,7 @@ AND object_xref.ensembl_object_type = 'Gene'
 AND external_db.db_name = 'EntrezGene';
 """
 
-get_uniprot_gn_symbols = """
+get_uniprot_gn_symbols_sql = """
 -- Uniprot_gn symbols for translations with no Xref and no EntrezGene symbols
 SELECT
   gene.stable_id AS 'gene.stable_id',
@@ -564,14 +581,14 @@ def get_canonical_translations(ensembl_database, EntrezGene=False, Uniprot_gn=Fa
     )
 
     sql_queries = [
-        get_xref_symbols_for_canonical_gene_transcripts,
+        get_xref_symbols_for_canonical_gene_transcripts_sql,
     ]
 
     if EntrezGene:
-        sql_queries.append(get_entrezgene_symbols)
+        sql_queries.append(get_entrezgene_symbols_sql)
 
     if Uniprot_gn:
-        sql_queries.append(get_uniprot_gn_symbols)
+        sql_queries.append(get_uniprot_gn_symbols_sql)
 
     columns = [
         "gene.stable_id",
@@ -597,6 +614,38 @@ def get_canonical_translations(ensembl_database, EntrezGene=False, Uniprot_gn=Fa
     )
 
     return canonical_translations_df
+
+
+def get_canonical_transcripts(ensembl_database):
+    """
+    Get canonical transcripts of protein coding genes from the genome assembly with
+    the ensembl_database core database.
+    """
+    host = "ensembldb.ensembl.org"
+    user = "anonymous"
+    connection = pymysql.connect(
+        host=host,
+        user=user,
+        database=ensembl_database,
+        cursorclass=pymysql.cursors.DictCursor,
+    )
+
+    with connection:
+        with connection.cursor() as cursor:
+            cursor.execute(get_canonical_transcripts_sql)
+            canonical_transcripts_list = cursor.fetchall()
+
+    columns = [
+        "gene.stable_id",
+        "gene.version",
+        "transcript.stable_id",
+        "transcript.version",
+        "translation.stable_id",
+        "translation.version",
+    ]
+    canonical_transcripts_df = pd.DataFrame(canonical_transcripts_list, columns=columns)
+
+    return canonical_transcripts_df
 
 
 def get_ensembl_release():
