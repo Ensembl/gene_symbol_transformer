@@ -104,7 +104,7 @@ genebuild_clades = {
     "Viral": "viral",
 }
 
-get_canonical_transcripts_sql = """
+get_canonical_transcripts_translations_sql = """
 -- gene transcripts of canonical translations
 SELECT
   gene.stable_id AS 'gene.stable_id',
@@ -126,6 +126,8 @@ get_xref_symbols_for_canonical_gene_transcripts_sql = """
 SELECT
   gene.stable_id AS 'gene.stable_id',
   gene.version AS 'gene.version',
+  transcript.stable_id AS 'transcript.stable_id',
+  transcript.version AS 'transcript.version',
   translation.stable_id AS 'translation.stable_id',
   translation.version AS 'translation.version',
   xref.display_label AS 'Xref_symbol',
@@ -147,6 +149,8 @@ get_entrezgene_symbols_sql = """
 SELECT
   gene.stable_id AS 'gene.stable_id',
   gene.version AS 'gene.version',
+  transcript.stable_id AS 'transcript.stable_id',
+  transcript.version AS 'transcript.version',
   translation.stable_id AS 'translation.stable_id',
   translation.version AS 'translation.version',
   xref.display_label AS 'EntrezGene_symbol',
@@ -184,6 +188,8 @@ get_uniprot_gn_symbols_sql = """
 SELECT
   gene.stable_id AS 'gene.stable_id',
   gene.version AS 'gene.version',
+  transcript.stable_id AS 'transcript.stable_id',
+  transcript.version AS 'transcript.version',
   translation.stable_id AS 'translation.stable_id',
   translation.version AS 'translation.version',
   xref.display_label AS 'Uniprot_gn_symbol',
@@ -481,11 +487,9 @@ def download_protein_sequences_fasta(assembly, ensembl_release):
     base_url = f"http://ftp.ensembl.org/pub/release-{ensembl_release}/fasta/"
 
     # download and extract archived protein sequences FASTA file
-    archived_fasta_filename = "{}.{}.pep.all.fa.gz".format(
-        assembly.species.capitalize(),
-        fix_assembly(assembly.assembly),
-    )
-    archived_fasta_url = f"{base_url}{assembly.species}/pep/{archived_fasta_filename}"
+    archived_fasta_filename = f"{assembly.fasta_filename}.gz"
+    species = assembly.scientific_name.replace(" ", "_").lower()
+    archived_fasta_url = f"{base_url}{species}/pep/{archived_fasta_filename}"
     sequences_directory.mkdir(parents=True, exist_ok=True)
     archived_fasta_path = sequences_directory / archived_fasta_filename
     fasta_path = archived_fasta_path.with_suffix("")
@@ -533,19 +537,19 @@ def fasta_to_dict(fasta_file_path):
     return fasta_dict
 
 
-def get_assemblies_metadata():
+def generate_assemblies_metadata():
     """
     Get metadata for all genome assemblies in the latest Ensembl release.
 
     The metadata are loaded from the `species_EnsemblVertebrates.txt` file of
-    the latest Ensembl release.
-
-    It would have been more elegant to get the metadata from the Ensembl REST API
-    `/info/species` endpoint but that lacks the core database name.
-    https://rest.ensembl.org/documentation/info/species
-
-    The metadata REST API could also be used when it's been updated.
+    the latest Ensembl release and the Ensembl REST API `/info/info_genomes_assembly`
+    endpoint.
     """
+    assemblies_metadata_path = data_directory / "assemblies_metadata.pickle"
+    if assemblies_metadata_path.exists():
+        assemblies_metadata = pd.read_pickle(assemblies_metadata_path)
+        return assemblies_metadata
+
     ensembl_release = get_ensembl_release()
 
     # download the `species_EnsemblVertebrates.txt` file
@@ -563,20 +567,72 @@ def get_assemblies_metadata():
         for genome_row in assemblies_df.itertuples()
     ]
 
-    return assemblies
+    logger.info(f"retrieving additional metadata from the Ensembl REST API")
+    assemblies_metadata = []
+    for assembly in assemblies:
+        # skip assembly if assembly_accession is missing
+        # (the value is converted to a `nan` float)
+        if type(assembly.assembly_accession) is float:
+            continue
+
+        # delay between REST API calls
+        time.sleep(0.1)
+
+        assembly_metadata = PrettySimpleNamespace()
+
+        # retrieve additional information for the assembly from the REST API
+        # https://ensemblrest.readthedocs.io/en/latest/#ensembl_rest.EnsemblClient.info_genomes_assembly
+        response = ensembl_rest.info_genomes_assembly(assembly.assembly_accession)
+        rest_assembly = PrettySimpleNamespace(**response)
+
+        assembly_metadata.assembly_accession = assembly.assembly_accession
+        assembly_metadata.scientific_name = rest_assembly.scientific_name
+        assembly_metadata.common_name = rest_assembly.display_name
+        assembly_metadata.taxonomy_id = assembly.taxonomy_id
+
+        # get the Genebuild defined clade for the species
+        assembly_metadata.clade = get_taxonomy_id_clade(assembly.taxonomy_id)
+
+        assembly_metadata.core_db = assembly.core_db
+
+        assembly_metadata.fasta_filename = "{}.{}.pep.all.fa".format(
+            assembly.species.capitalize(),
+            fix_assembly(assembly.assembly),
+        )
+
+        # delay between REST API calls
+        time.sleep(0.1)
+
+        assemblies_metadata.append(assembly_metadata)
+
+        logger.info(
+            f"retrieved metadata for {assembly.name}, {rest_assembly.scientific_name}, {assembly.assembly_accession}"
+        )
+
+    assemblies_metadata_df = pd.DataFrame(
+        assembly_metadata.__dict__ for assembly_metadata in assemblies_metadata
+    )
+    assemblies_metadata_df.to_pickle(assemblies_metadata_path)
+    logger.info(f"dataset metadata saved at {assemblies_metadata_path}")
+
+    return assemblies_metadata_df
 
 
-def get_canonical_translations(ensembl_database, EntrezGene=False, Uniprot_gn=False):
+def get_xref_canonical_translations(
+    ensembl_core_database,
+    host="ensembldb.ensembl.org",
+    user="anonymous",
+    EntrezGene=False,
+    Uniprot_gn=False,
+):
     """
     Get canonical translation sequences from the genome assembly with
-    the ensembl_database core database.
+    the ensembl_core_database database at the public Ensembl MySQL server.
     """
-    host = "ensembldb.ensembl.org"
-    user = "anonymous"
     connection = pymysql.connect(
         host=host,
         user=user,
-        database=ensembl_database,
+        database=ensembl_core_database,
         cursorclass=pymysql.cursors.DictCursor,
     )
 
@@ -593,6 +649,8 @@ def get_canonical_translations(ensembl_database, EntrezGene=False, Uniprot_gn=Fa
     columns = [
         "gene.stable_id",
         "gene.version",
+        "transcript.stable_id",
+        "transcript.version",
         "translation.stable_id",
         "translation.version",
         "Xref_symbol",
@@ -616,23 +674,25 @@ def get_canonical_translations(ensembl_database, EntrezGene=False, Uniprot_gn=Fa
     return canonical_translations_df
 
 
-def get_canonical_transcripts(ensembl_database):
+def get_canonical_transcripts_translations(
+    ensembl_core_database,
+    host="ensembldb.ensembl.org",
+    user="anonymous",
+):
     """
     Get canonical transcripts of protein coding genes from the genome assembly with
-    the ensembl_database core database.
+    the ensembl_core_database database at the public Ensembl MySQL server.
     """
-    host = "ensembldb.ensembl.org"
-    user = "anonymous"
     connection = pymysql.connect(
         host=host,
         user=user,
-        database=ensembl_database,
+        database=ensembl_core_database,
         cursorclass=pymysql.cursors.DictCursor,
     )
 
     with connection:
         with connection.cursor() as cursor:
-            cursor.execute(get_canonical_transcripts_sql)
+            cursor.execute(get_canonical_transcripts_translations_sql)
             canonical_transcripts_list = cursor.fetchall()
 
     columns = [

@@ -44,13 +44,14 @@ from utils import (
     dev_datasets_num_symbols,
     download_protein_sequences_fasta,
     fasta_to_dict,
-    get_assemblies_metadata,
-    get_canonical_translations,
+    generate_assemblies_metadata,
+    get_xref_canonical_translations,
     get_ensembl_release,
     get_taxonomy_id_clade,
     load_dataset,
     logging_format,
     save_dev_datasets,
+    sequences_directory,
     sizeof_fmt,
 )
 
@@ -63,59 +64,24 @@ def generate_dataset():
     ensembl_release = get_ensembl_release()
     logger.info(f"Ensembl release {ensembl_release}")
 
-    assemblies = get_assemblies_metadata()
+    assemblies_df = generate_assemblies_metadata()
+
     logger.info(f"downloading protein sequences FASTA files")
-    for assembly in assemblies:
-        fasta_path = download_protein_sequences_fasta(assembly, ensembl_release)
-        assembly.fasta_path = str(fasta_path.resolve())
+    for index, values in assemblies_df.iterrows():
+        assembly = PrettySimpleNamespace(**values.to_dict())
+        _fasta_path = download_protein_sequences_fasta(assembly, ensembl_release)
     logger.info("protein sequences FASTA files in place")
 
-    logger.info(f"retrieving assemblies metadata from the Ensembl REST API")
-    metadata = []
-    for assembly in assemblies:
-        # skip assembly if assembly_accession is missing
-        # (the value is converted to a `nan` float)
-        if type(assembly.assembly_accession) is float:
-            continue
-
-        # delay between REST API calls
-        time.sleep(0.1)
-
-        # retrieve additional information for the assembly from the REST API
-        # https://ensemblrest.readthedocs.io/en/latest/#ensembl_rest.EnsemblClient.info_genomes_assembly
-        response = ensembl_rest.info_genomes_assembly(assembly.assembly_accession)
-        rest_assembly = PrettySimpleNamespace(**response)
-
-        assembly_metadata = PrettySimpleNamespace()
-
-        assembly_metadata.assembly_accession = assembly.assembly_accession
-        assembly_metadata.scientific_name = rest_assembly.scientific_name
-        assembly_metadata.common_name = rest_assembly.display_name
-        assembly_metadata.taxonomy_id = assembly.taxonomy_id
-        assembly_metadata.core_db = assembly.core_db
-        assembly_metadata.sequences_fasta_path = assembly.fasta_path
-
-        # delay between REST API calls
-        time.sleep(0.1)
-
-        # get the Genebuild defined clade for the species
-        assembly_metadata.clade = get_taxonomy_id_clade(assembly.taxonomy_id)
-
-        metadata.append(assembly_metadata)
-
-        logger.info(
-            f"retrieved metadata for {assembly.name}, {rest_assembly.scientific_name}, {assembly.assembly_accession}"
-        )
-
     logger.info(
-        f"retrieving canonical translation stable IDs and metadata from the Ensembl MySQL server"
+        f"retrieving protein coding gene canonical translation IDs and metadata from the public Ensembl MySQL server"
     )
     canonical_translations_list = []
-    for assembly in metadata:
+    for index, values in assemblies_df.iterrows():
+        assembly = PrettySimpleNamespace(**values.to_dict())
         # delay between SQL queries
         time.sleep(0.1)
 
-        assembly_translations = get_canonical_translations(assembly.core_db)
+        assembly_translations = get_xref_canonical_translations(assembly.core_db)
         num_assembly_translations = len(assembly_translations)
 
         logger.info(
@@ -125,7 +91,8 @@ def generate_dataset():
         if num_assembly_translations == 0:
             continue
 
-        assembly_fasta_dict = fasta_to_dict(assembly.sequences_fasta_path)
+        sequences_fasta_path = sequences_directory / assembly.fasta_filename
+        assembly_fasta_dict = fasta_to_dict(sequences_fasta_path)
 
         assembly_translations["sequence"] = assembly_translations.apply(
             lambda x: get_sequence_from_assembly_fasta_dict(x, assembly_fasta_dict),
@@ -179,6 +146,8 @@ def dataset_cleanup(dataset):
     columns = [
         "gene.stable_id",
         "gene.version",
+        "transcript.stable_id",
+        "transcript.version",
         "translation.stable_id",
         "translation.version",
         "Xref_symbol",
