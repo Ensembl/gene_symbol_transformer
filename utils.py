@@ -104,7 +104,7 @@ genebuild_clades = {
     "Viral": "viral",
 }
 
-get_canonical_transcripts_translations_sql = """
+get_canonical_translations_sql = """
 -- gene transcripts of canonical translations
 SELECT
   gene.stable_id AS 'gene.stable_id',
@@ -665,7 +665,7 @@ def get_xref_canonical_translations(
         "Xref_symbol",
         "external_db.db_display_name",
     ]
-    canonical_translations_df = pd.DataFrame(columns=columns)
+    xref_canonical_translations_df = pd.DataFrame(columns=columns)
 
     canonical_translations_list = []
     with connection:
@@ -675,15 +675,15 @@ def get_xref_canonical_translations(
                 response = cursor.fetchall()
             canonical_translations_list.extend(response)
 
-    canonical_translations_df = pd.concat(
-        [canonical_translations_df, pd.DataFrame(canonical_translations_list)],
+    xref_canonical_translations_df = pd.concat(
+        [xref_canonical_translations_df, pd.DataFrame(canonical_translations_list)],
         ignore_index=True,
     )
 
-    return canonical_translations_df
+    return xref_canonical_translations_df
 
 
-def get_canonical_transcripts_translations(
+def get_canonical_translations(
     ensembl_core_database,
     host="ensembldb.ensembl.org",
     user="anonymous",
@@ -701,7 +701,7 @@ def get_canonical_transcripts_translations(
 
     with connection:
         with connection.cursor() as cursor:
-            cursor.execute(get_canonical_transcripts_translations_sql)
+            cursor.execute(get_canonical_translations_sql)
             canonical_transcripts_list = cursor.fetchall()
 
     columns = [
