@@ -76,25 +76,25 @@ from utils import (
 
 
 selected_species_genomes = {
-    "ailuropoda_melanoleuca": "giant panda",
-    "aquila_chrysaetos_chrysaetos": "golden eagle",
-    "balaenoptera_musculus": "blue whale",
-    "bos_taurus": "cow",
-    "canis_lupus_familiaris": "dog",
-    "cyprinus_carpio": "common carp",
-    "danio_rerio": "zebrafish",
-    "drosophila_melanogaster": "drosophila melanogaster",
-    "felis_catus": "cat",
-    "gallus_gallus": "chicken",
-    "homo_sapiens": "human",
-    "loxodonta_africana": "elephant",
-    "mus_musculus": "mouse",
-    "oryctolagus_cuniculus": "rabbit",
-    "ovis_aries": "sheep",
-    "pan_troglodytes": "chimpanzee",
-    "panthera_leo": "lion",
-    "saccharomyces_cerevisiae": "saccharomyces cerevisiae",
-    "sus_scrofa": "pig",
+    "Ailuropoda melanoleuca": "giant panda",
+    "Aquila chrysaetos chrysaetos": "golden eagle",
+    "Balaenoptera musculus": "blue whale",
+    "Bos taurus": "cow",
+    "Canis lupus familiaris": "dog",
+    "Cyprinus carpio": "common carp",
+    "Danio rerio": "zebrafish",
+    "Drosophila melanogaster": "drosophila melanogaster",
+    "Felis catus": "cat",
+    "Gallus gallus": "chicken",
+    "Homo sapiens": "human",
+    "Loxodonta africana": "elephant",
+    "Mus musculus": "mouse",
+    "Oryctolagus cuniculus": "rabbit",
+    "Ovis aries": "sheep",
+    "Pan troglodytes": "chimpanzee",
+    "Panthera leo": "lion",
+    "Saccharomyces cerevisiae": "saccharomyces cerevisiae",
+    "Sus scrofa": "pig",
 }
 
 
@@ -778,13 +778,10 @@ def evaluate_network(checkpoint_path, complete=False):
     assemblies = get_assemblies_metadata()
     comparison_statistics_list = []
     for assembly in assemblies:
-        if not complete and assembly.species not in selected_species_genomes:
+        if not complete and assembly.scientific_name not in selected_species_genomes:
             continue
 
         fasta_path = download_protein_sequences_fasta(assembly, ensembl_release)
-
-        # get the Genebuild defined clade for the species
-        clade = get_taxonomy_id_clade(assembly.taxonomy_id)
 
         # assign symbols
         assignments_csv_path = pathlib.Path(
@@ -792,27 +789,25 @@ def evaluate_network(checkpoint_path, complete=False):
         )
         if not assignments_csv_path.exists():
             logger.info(f"assigning gene symbols to {fasta_path}")
-            assign_symbols(network, fasta_path, clade, checkpoint_path.parent)
-
-        scientific_name = assembly.species.replace("_", " ").capitalize()
+            assign_symbols(network, fasta_path, assembly.clade, checkpoint_path.parent)
 
         comparisons_csv_path = pathlib.Path(
-            f"{assignments_csv_path.parent}/{assignments_csv_path.stem}_compare.csv"
+            f"{checkpoint_path.parent}/{assignments_csv_path.stem}_compare.csv"
         )
         if not comparisons_csv_path.exists():
             comparison_successful = compare_with_database(
                 assignments_csv_path,
                 assembly.core_db,
-                scientific_name,
+                assembly.scientific_name,
                 symbols_set,
             )
             if not comparison_successful:
                 continue
 
         comparison_statistics = get_comparison_statistics(comparisons_csv_path)
-        comparison_statistics["scientific_name"] = scientific_name
+        comparison_statistics["scientific_name"] = assembly.scientific_name
         comparison_statistics["taxonomy_id"] = assembly.taxonomy_id
-        comparison_statistics["clade"] = clade
+        comparison_statistics["clade"] = assembly.clade
 
         comparison_statistics_list.append(comparison_statistics)
 
@@ -930,7 +925,7 @@ def compare_with_database(
     assignments_csv_path = pathlib.Path(assignments_csv)
 
     canonical_translations = get_xref_canonical_translations(
-        ensembl_database, EntrezGene, Uniprot_gn
+        ensembl_database, EntrezGene=EntrezGene, Uniprot_gn=Uniprot_gn
     )
 
     if len(canonical_translations) == 0:
