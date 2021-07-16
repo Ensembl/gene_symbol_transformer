@@ -44,7 +44,7 @@ from utils import (
     dev_datasets_num_symbols,
     download_protein_sequences_fasta,
     fasta_to_dict,
-    generate_assemblies_metadata,
+    get_assemblies_metadata,
     get_xref_canonical_translations,
     get_ensembl_release,
     get_taxonomy_id_clade,
@@ -64,11 +64,10 @@ def generate_dataset():
     ensembl_release = get_ensembl_release()
     logger.info(f"Ensembl release {ensembl_release}")
 
-    assemblies_df = generate_assemblies_metadata()
+    assemblies = get_assemblies_metadata()
 
     logger.info(f"downloading protein sequences FASTA files")
-    for index, values in assemblies_df.iterrows():
-        assembly = PrettySimpleNamespace(**values.to_dict())
+    for assembly in assemblies:
         _fasta_path = download_protein_sequences_fasta(assembly, ensembl_release)
     logger.info("protein sequences FASTA files in place")
 
@@ -76,8 +75,7 @@ def generate_dataset():
         f"retrieving protein coding gene canonical translation IDs and metadata from the public Ensembl MySQL server"
     )
     canonical_translations_list = []
-    for index, values in assemblies_df.iterrows():
-        assembly = PrettySimpleNamespace(**values.to_dict())
+    for assembly in assemblies:
         # delay between SQL queries
         time.sleep(0.1)
 
