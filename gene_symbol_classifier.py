@@ -687,11 +687,15 @@ def test_network(checkpoint_path, print_sample_assignments=False):
                 logger.info(f"{assignment:>10} | {label:>10}  !!!")
 
 
-def assign_symbols(network, sequences_fasta, clade, output_directory=None):
+def assign_symbols(network, sequences_fasta, scientific_name, output_directory=None):
     """
     Use the trained network to assign symbols to the sequences in the FASTA file.
     """
     sequences_fasta_path = pathlib.Path(sequences_fasta)
+
+    taxonomy_id = get_species_taxonomy_id(scientific_name)
+    clade = get_taxonomy_id_clade(taxonomy_id)
+    logger.info(f"got clade {clade} for {scientific_name}")
 
     if output_directory is None:
         output_directory = sequences_fasta_path.parent
@@ -714,16 +718,16 @@ def assign_symbols(network, sequences_fasta, clade, output_directory=None):
                     if fasta_entry is not None
                 ]
 
-            stable_ids = [fasta_entry[0].split(" ")[0] for fasta_entry in fasta_entries]
+            identifiers = [fasta_entry[0].split(" ")[0] for fasta_entry in fasta_entries]
             sequences = [fasta_entry[1] for fasta_entry in fasta_entries]
             clades = [clade for _ in range(len(fasta_entries))]
 
             assignments_probabilities = network.predict_probabilities(sequences, clades)
             # save assignments and probabilities to the CSV file
-            for stable_id, (assignment, probability) in zip(
-                stable_ids, assignments_probabilities
+            for identifier, (assignment, probability) in zip(
+                identifiers, assignments_probabilities
             ):
-                csv_writer.writerow([stable_id, assignment, probability])
+                csv_writer.writerow([identifier, assignment, probability])
 
     logger.info(f"symbol assignments saved at {assignments_csv_path}")
 
@@ -789,7 +793,9 @@ def evaluate_network(checkpoint_path, complete=False):
         )
         if not assignments_csv_path.exists():
             logger.info(f"assigning gene symbols to {fasta_path}")
-            assign_symbols(network, fasta_path, assembly.clade, checkpoint_path.parent)
+            assign_symbols(
+                network, fasta_path, assembly.scientific_name, checkpoint_path.parent
+            )
 
         comparisons_csv_path = pathlib.Path(
             f"{checkpoint_path.parent}/{assignments_csv_path.stem}_compare.csv"
@@ -1262,13 +1268,8 @@ def main():
 
         _experiment, network = load_checkpoint(checkpoint_path)
 
-        taxonomy_id = get_species_taxonomy_id(args.scientific_name)
-        clade = get_taxonomy_id_clade(taxonomy_id)
-
-        logger.info(f"got clade {clade} for {args.scientific_name}")
-
         logger.info("assigning symbols...")
-        assign_symbols(network, args.sequences_fasta, clade)
+        assign_symbols(network, args.sequences_fasta, args.scientific_name)
 
     # compare assignments with the ones on the latest Ensembl release
     elif args.assignments_csv and args.ensembl_database and args.scientific_name:
