@@ -537,7 +537,7 @@ def fasta_to_dict(fasta_file_path):
     return fasta_dict
 
 
-def generate_assemblies_metadata():
+def get_assemblies_metadata():
     """
     Get metadata for all genome assemblies in the latest Ensembl release.
 
@@ -547,7 +547,11 @@ def generate_assemblies_metadata():
     """
     assemblies_metadata_path = data_directory / "assemblies_metadata.pickle"
     if assemblies_metadata_path.exists():
-        assemblies_metadata = pd.read_pickle(assemblies_metadata_path)
+        assemblies_metadata_df = pd.read_pickle(assemblies_metadata_path)
+        assemblies_metadata = [
+            PrettySimpleNamespace(**values.to_dict())
+            for index, values in assemblies_metadata_df.iterrows()
+        ]
         return assemblies_metadata
 
     ensembl_release = get_ensembl_release()
@@ -615,7 +619,12 @@ def generate_assemblies_metadata():
     assemblies_metadata_df.to_pickle(assemblies_metadata_path)
     logger.info(f"dataset metadata saved at {assemblies_metadata_path}")
 
-    return assemblies_metadata_df
+    assemblies_metadata = [
+        PrettySimpleNamespace(**values.to_dict())
+        for index, values in assemblies_metadata_df.iterrows()
+    ]
+
+    return assemblies_metadata
 
 
 def get_xref_canonical_translations(

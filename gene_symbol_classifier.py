@@ -63,7 +63,7 @@ from utils import (
     SequenceDataset,
     download_protein_sequences_fasta,
     experiments_directory,
-    generate_assemblies_metadata,
+    get_assemblies_metadata,
     get_xref_canonical_translations,
     get_ensembl_release,
     get_species_taxonomy_id,
@@ -775,7 +775,7 @@ def evaluate_network(checkpoint_path, complete=False):
     ensembl_release = get_ensembl_release()
     logger.info(f"Ensembl release {ensembl_release}")
 
-    assemblies = generate_assemblies_metadata()
+    assemblies = get_assemblies_metadata()
     comparison_statistics_list = []
     for assembly in assemblies:
         if not complete and assembly.species not in selected_species_genomes:
