@@ -121,7 +121,7 @@ INNER JOIN translation
 WHERE gene.biotype = 'protein_coding';
 """
 
-get_xref_symbols_for_canonical_gene_transcripts_sql = """
+get_xref_symbols_sql = """
 -- Xref symbols for canonical translations
 SELECT
   gene.stable_id AS 'gene.stable_id',
@@ -475,11 +475,12 @@ def download_file(file_url, file_path):
             with open(file_path, "wb+") as f:
                 f.write(response.content)
         else:
+            logger.info(f"retrying downloading {file_url}")
             # delay retry
             time.sleep(5)
 
 
-def download_protein_sequences_fasta(assembly, ensembl_release):
+def generate_canonical_protein_sequences_fasta(assembly, ensembl_release):
     """
     Download and extract the archived protein sequences FASTA file for the species
     described in the assembly object.
@@ -488,22 +489,71 @@ def download_protein_sequences_fasta(assembly, ensembl_release):
 
     # download and extract archived protein sequences FASTA file
     archived_fasta_filename = f"{assembly.fasta_filename}.gz"
-    species = assembly.scientific_name.replace(" ", "_").lower()
-    archived_fasta_url = f"{base_url}{species}/pep/{archived_fasta_filename}"
+    archived_fasta_url = f"{base_url}{assembly.species}/pep/{archived_fasta_filename}"
     sequences_directory.mkdir(parents=True, exist_ok=True)
     archived_fasta_path = sequences_directory / archived_fasta_filename
     fasta_path = archived_fasta_path.with_suffix("")
-    if not archived_fasta_path.exists() or not fasta_path.exists():
+    canonical_fasta_filename = assembly.fasta_filename.replace(
+        "pep.all.fa", "pep.all_canonical.fa"
+    )
+    canonical_fasta_path = sequences_directory / canonical_fasta_filename
+    if (
+        not archived_fasta_path.exists()
+        or not fasta_path.exists()
+        or not canonical_fasta_path.exists()
+    ):
+        # download archived FASTA file
         download_file(archived_fasta_url, archived_fasta_path)
         logger.info(f"downloaded {archived_fasta_filename}")
 
+        # extract archived FASTA file
         with gzip.open(archived_fasta_path, "rb") as f:
             file_content = f.read()
         with open(fasta_path, "wb+") as f:
             f.write(file_content)
         logger.info(f"extracted {fasta_path}")
 
-    return fasta_path
+        # save FASTA file with just protein coding canonical translations
+        translations_dict = fasta_to_dict(fasta_path)
+        num_translations = len(translations_dict)
+
+        canonical_translations = get_canonical_translations(assembly.core_db)
+        canonical_translations[
+            "translation_stable_id_version"
+        ] = canonical_translations.apply(
+            lambda x: merge_stable_id_version(
+                x["translation.stable_id"], x["translation.version"]
+            ),
+            axis=1,
+        )
+        canonical_translations = set(
+            canonical_translations["translation_stable_id_version"].tolist()
+        )
+
+        num_canonical_translations = 0
+        with open(canonical_fasta_path, "w+") as canonical_fasta_file:
+            for translation_stable_id_version, values_dict in translations_dict.items():
+                if translation_stable_id_version in canonical_translations:
+                    description = ">" + values_dict["description"]
+                    sequence = values_dict["sequence"]
+                    fasta_entry = f"{description}\n{sequence}\n"
+                    canonical_fasta_file.write(fasta_entry)
+                    num_canonical_translations += 1
+
+        logger.info(
+            f"saved {num_canonical_translations} canonical out of {num_translations} translations sequences to {canonical_fasta_path}"
+        )
+
+    return canonical_fasta_path
+
+
+def merge_stable_id_version(stable_id, version):
+    if version == "None":
+        stable_id_version = stable_id
+    else:
+        stable_id_version = "{}.{}".format(stable_id, version)
+
+    return stable_id_version
 
 
 def fasta_to_dict(fasta_file_path):
@@ -597,6 +647,7 @@ def get_assemblies_metadata():
         # get the Genebuild defined clade for the species
         assembly_metadata.clade = get_taxonomy_id_clade(assembly.taxonomy_id)
 
+        assembly_metadata.species = assembly.species
         assembly_metadata.core_db = assembly.core_db
 
         assembly_metadata.fasta_filename = "{}.{}.pep.all.fa".format(
@@ -645,9 +696,7 @@ def get_xref_canonical_translations(
         cursorclass=pymysql.cursors.DictCursor,
     )
 
-    sql_queries = [
-        get_xref_symbols_for_canonical_gene_transcripts_sql,
-    ]
+    sql_queries = [get_xref_symbols_sql]
 
     if EntrezGene:
         sql_queries.append(get_entrezgene_symbols_sql)
@@ -679,6 +728,16 @@ def get_xref_canonical_translations(
         [xref_canonical_translations_df, pd.DataFrame(canonical_translations_list)],
         ignore_index=True,
     )
+
+    xref_canonical_translations_df["gene.version"] = xref_canonical_translations_df[
+        "gene.version"
+    ].astype(str)
+    xref_canonical_translations_df["transcript.version"] = xref_canonical_translations_df[
+        "transcript.version"
+    ].astype(str)
+    xref_canonical_translations_df[
+        "translation.version"
+    ] = xref_canonical_translations_df["translation.version"].astype(str)
 
     return xref_canonical_translations_df
 
@@ -713,6 +772,16 @@ def get_canonical_translations(
         "translation.version",
     ]
     canonical_transcripts_df = pd.DataFrame(canonical_transcripts_list, columns=columns)
+
+    canonical_transcripts_df["gene.version"] = canonical_transcripts_df[
+        "gene.version"
+    ].astype(str)
+    canonical_transcripts_df["transcript.version"] = canonical_transcripts_df[
+        "transcript.version"
+    ].astype(str)
+    canonical_transcripts_df["translation.version"] = canonical_transcripts_df[
+        "translation.version"
+    ].astype(str)
 
     return canonical_transcripts_df
 
