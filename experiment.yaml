@@ -20,10 +20,10 @@ num_symbols: 3
 #num_symbols: 30241
 
 # training, validation, test split
-#test_ratio: 0.1
-#validation_ratio: 0.1
-test_ratio: 0.05
-validation_ratio: 0.05
+test_ratio: 0.1
+validation_ratio: 0.1
+#test_ratio: 0.05
+#validation_ratio: 0.05
 ################################################################################
 
 # features

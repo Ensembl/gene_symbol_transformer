@@ -332,7 +332,13 @@ class SequenceDataset(Dataset):
     Custom Dataset for raw sequences.
     """
 
-    def __init__(self, num_symbols=None, min_frequency=None, sequence_length=500):
+    def __init__(
+        self,
+        num_symbols=None,
+        min_frequency=None,
+        sequence_length=None,
+        padding_side=None,
+    ):
         data = load_dataset(num_symbols, min_frequency)
 
         # select the features and labels columns
@@ -341,7 +347,7 @@ class SequenceDataset(Dataset):
         # pad or truncate all sequences to size `sequence_length`
         with SuppressSettingWithCopyWarning():
             self.data["sequence"] = self.data["sequence"].str.pad(
-                width=sequence_length, side="right", fillchar=" "
+                width=sequence_length, side=padding_side, fillchar=" "
             )
             self.data["sequence"] = self.data["sequence"].str.slice(stop=sequence_length)
 
