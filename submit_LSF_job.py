@@ -81,6 +81,11 @@ def main():
     argument_parser.add_argument(
         "--evaluate", action="store_true", help="evaluate a classifier"
     )
+    argument_parser.add_argument(
+        "--complete",
+        action="store_true",
+        help="run the evaluation for all genome assemblies in the Ensembl release",
+    )
 
     args = argument_parser.parse_args()
 
@@ -131,6 +136,9 @@ def main():
         if args.evaluate:
             pipeline_command_elements.append("--evaluate")
 
+        if args.complete:
+            pipeline_command_elements.append("--complete")
+
     # no task specified
     else:
         print(__doc__)
@@ -143,6 +151,8 @@ def main():
     num_symbols_mem_limit = {3: 1024, 100: 2048, 1000: 2048}
     if num_symbols in num_symbols_mem_limit.keys():
         mem_limit = num_symbols_mem_limit[num_symbols]
+    elif args.evaluate:
+        mem_limit = 2048
     else:
         mem_limit = args.mem_limit
 
