@@ -42,7 +42,7 @@ from utils import (
     PrettySimpleNamespace,
     data_directory,
     dev_datasets_num_symbols,
-    download_protein_sequences_fasta,
+    generate_canonical_protein_sequences_fasta,
     fasta_to_dict,
     get_assemblies_metadata,
     get_xref_canonical_translations,
@@ -68,7 +68,9 @@ def generate_dataset():
 
     logger.info(f"downloading protein sequences FASTA files")
     for assembly in assemblies:
-        _fasta_path = download_protein_sequences_fasta(assembly, ensembl_release)
+        _canonical_fasta_path = generate_canonical_protein_sequences_fasta(
+            assembly, ensembl_release
+        )
     logger.info("protein sequences FASTA files in place")
 
     logger.info(
@@ -83,14 +85,17 @@ def generate_dataset():
         num_assembly_translations = len(assembly_translations)
 
         logger.info(
-            f"retrieved {num_assembly_translations} canonical translations for {assembly.common_name}, {assembly.scientific_name}, {assembly.assembly_accession}"
+            f"retrieved {num_assembly_translations} Xref canonical translations for {assembly.common_name}, {assembly.scientific_name}, {assembly.assembly_accession}"
         )
 
         if num_assembly_translations == 0:
             continue
 
-        sequences_fasta_path = sequences_directory / assembly.fasta_filename
-        assembly_fasta_dict = fasta_to_dict(sequences_fasta_path)
+        canonical_fasta_filename = assembly.fasta_filename.replace(
+            "pep.all.fa", "pep.all_canonical.fa"
+        )
+        canonical_sequences_fasta_path = sequences_directory / canonical_fasta_filename
+        assembly_fasta_dict = fasta_to_dict(canonical_sequences_fasta_path)
 
         assembly_translations["sequence"] = assembly_translations.apply(
             lambda x: get_sequence_from_assembly_fasta_dict(x, assembly_fasta_dict),
@@ -206,12 +211,13 @@ def get_sequence_from_assembly_fasta_dict(df_row, assembly_fasta_dict):
     Retrieve the sequence in the assembly FASTA dictionary that the translations
     dataframe row corresponds to.
     """
-    if df_row["translation.version"] is None:
+    if df_row["translation.version"] == "None":
         translation_stable_id_version = df_row["translation.stable_id"]
     else:
         translation_stable_id_version = "{}.{}".format(
             df_row["translation.stable_id"], df_row["translation.version"]
         )
+
     sequence = assembly_fasta_dict[translation_stable_id_version]["sequence"]
 
     return sequence

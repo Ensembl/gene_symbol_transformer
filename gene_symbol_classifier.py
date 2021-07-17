@@ -61,7 +61,7 @@ from torch.utils.tensorboard import SummaryWriter
 # project imports
 from utils import (
     SequenceDataset,
-    download_protein_sequences_fasta,
+    generate_canonical_protein_sequences_fasta,
     experiments_directory,
     get_assemblies_metadata,
     get_xref_canonical_translations,
@@ -785,16 +785,21 @@ def evaluate_network(checkpoint_path, complete=False):
         if not complete and assembly.scientific_name not in selected_species_genomes:
             continue
 
-        fasta_path = download_protein_sequences_fasta(assembly, ensembl_release)
+        canonical_fasta_path = generate_canonical_protein_sequences_fasta(
+            assembly, ensembl_release
+        )
 
         # assign symbols
         assignments_csv_path = pathlib.Path(
-            f"{checkpoint_path.parent}/{fasta_path.stem}_symbols.csv"
+            f"{checkpoint_path.parent}/{canonical_fasta_path.stem}_symbols.csv"
         )
         if not assignments_csv_path.exists():
-            logger.info(f"assigning gene symbols to {fasta_path}")
+            logger.info(f"assigning gene symbols to {canonical_fasta_path}")
             assign_symbols(
-                network, fasta_path, assembly.scientific_name, checkpoint_path.parent
+                network,
+                canonical_fasta_path,
+                assembly.scientific_name,
+                checkpoint_path.parent,
             )
 
         comparisons_csv_path = pathlib.Path(
