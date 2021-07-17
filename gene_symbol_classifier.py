@@ -388,6 +388,7 @@ def generate_dataloaders(experiment):
         num_symbols=experiment.num_symbols,
         sequence_length=experiment.sequence_length,
         padding_side=experiment.padding_side,
+        excluded_genera=experiment.excluded_genera,
     )
 
     experiment.gene_symbols_mapper = dataset.gene_symbols_mapper

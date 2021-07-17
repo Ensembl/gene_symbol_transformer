@@ -338,11 +338,26 @@ class SequenceDataset(Dataset):
         min_frequency=None,
         sequence_length=None,
         padding_side=None,
+        excluded_genera=None,
     ):
         data = load_dataset(num_symbols, min_frequency)
 
         # select the features and labels columns
-        self.data = data[["sequence", "clade", "symbol"]]
+        self.data = data[["sequence", "clade", "symbol", "scientific_name"]]
+
+        if excluded_genera is not None:
+            num_total_samples = len(self.data)
+
+            for genus in excluded_genera:
+                scientific_name_prefix = f"{genus} "
+                self.data = self.data[
+                    ~self.data["scientific_name"].str.startswith(scientific_name_prefix)
+                ]
+            num_used_samples = len(self.data)
+
+            logger.info(
+                f"excluded genera {excluded_genera}, using {num_used_samples} out of {num_total_samples} total samples"
+            )
 
         # pad or truncate all sequences to size `sequence_length`
         with SuppressSettingWithCopyWarning():

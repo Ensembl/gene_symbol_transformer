@@ -19,6 +19,22 @@ num_symbols: 3
 #num_symbols: 25228
 #num_symbols: 30241
 
+# exclude one or more genera
+excluded_genera:
+  # Cow (genus Bos)
+  #- Bos
+  # Horse, Donkey (genus Equus)
+  #- Equus
+  # salmon and trout (both in genera Salmo and Oncorhynchus)
+  #- Salmo
+  #- Oncorhynchus
+  # Zebra finch (genus Taeniopygia)
+  #- Taeniopygia
+  # Chinese hamster (genus Cricetulus)
+  #- Cricetulus
+  # Macaque	(genus Macaca) (Rhesus macaque)
+  #- Macaca
+
 # training, validation, test split
 test_ratio: 0.1
 validation_ratio: 0.1
