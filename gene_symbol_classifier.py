@@ -110,6 +110,7 @@ class GeneSymbolClassifier(nn.Module):
     def __init__(
         self,
         sequence_length,
+        padding_side,
         num_protein_letters,
         num_clades,
         num_symbols,
@@ -125,6 +126,7 @@ class GeneSymbolClassifier(nn.Module):
         super().__init__()
 
         self.sequence_length = sequence_length
+        self.padding_side = padding_side
         self.dropout_probability = dropout_probability
         self.gene_symbols_mapper = gene_symbols_mapper
         self.protein_sequences_mapper = protein_sequences_mapper
@@ -234,12 +236,23 @@ class GeneSymbolClassifier(nn.Module):
         Convert lists of protein sequences and species clades to an one-hot
         encoded features tensor.
         """
+        # temporary fix until previous classifiers are not used
+        if not hasattr(self, "padding_side"):
+            self.padding_side = "left"
+
         one_hot_features_list = []
         for sequence, clade in zip(sequences, clades):
             # pad or truncate sequence to be exactly `self.sequence_length` letters long
             string_length = len(sequence)
             if string_length <= self.sequence_length:
-                sequence = sequence + " " * (self.sequence_length - string_length)
+                if self.padding_side == "right":
+                    sequence = sequence + " " * (self.sequence_length - string_length)
+                elif self.padding_side == "left":
+                    sequence = " " * (self.sequence_length - string_length) + sequence
+                else:
+                    raise ValueError(
+                        f'{self.padding_side} is an invalid value for padding_side, choose one of ["left", "right"]'
+                    )
             else:
                 sequence = sequence[: self.sequence_length]
 
@@ -355,6 +368,9 @@ class Experiment:
 
         self.filename = f"{self.filename_prefix}_ns{self.num_symbols}_{self.datetime}"
 
+        # self.padding_side = "left"
+        self.padding_side = "right"
+
     def __str__(self):
         return pprint.pformat(self.__dict__, sort_dicts=False)
 
@@ -369,7 +385,9 @@ def generate_dataloaders(experiment):
         tuple containing the training, validation, and test dataloaders
     """
     dataset = SequenceDataset(
-        num_symbols=experiment.num_symbols, sequence_length=experiment.sequence_length
+        num_symbols=experiment.num_symbols,
+        sequence_length=experiment.sequence_length,
+        padding_side=experiment.padding_side,
     )
 
     experiment.gene_symbols_mapper = dataset.gene_symbols_mapper
@@ -1196,6 +1214,7 @@ def main():
         # instantiate neural network
         network = GeneSymbolClassifier(
             experiment.sequence_length,
+            experiment.padding_side,
             experiment.num_protein_letters,
             experiment.num_clades,
             experiment.num_symbols,
