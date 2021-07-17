@@ -61,40 +61,40 @@ from torch.utils.tensorboard import SummaryWriter
 # project imports
 from utils import (
     SequenceDataset,
-    generate_canonical_protein_sequences_fasta,
     experiments_directory,
     get_assemblies_metadata,
-    get_xref_canonical_translations,
     get_ensembl_release,
     get_species_taxonomy_id,
     get_taxonomy_id_clade,
+    get_xref_canonical_translations,
     load_checkpoint,
     logging_format,
     read_fasta_in_chunks,
+    sequences_directory,
     specify_device,
 )
 
 
-selected_species_genomes = {
-    "Ailuropoda melanoleuca": "giant panda",
-    "Aquila chrysaetos chrysaetos": "golden eagle",
-    "Balaenoptera musculus": "blue whale",
-    "Bos taurus": "cow",
-    "Canis lupus familiaris": "dog",
-    "Cyprinus carpio": "common carp",
-    "Danio rerio": "zebrafish",
-    "Drosophila melanogaster": "drosophila melanogaster",
-    "Felis catus": "cat",
-    "Gallus gallus": "chicken",
-    "Homo sapiens": "human",
-    "Loxodonta africana": "elephant",
-    "Mus musculus": "mouse",
-    "Oryctolagus cuniculus": "rabbit",
-    "Ovis aries": "sheep",
-    "Pan troglodytes": "chimpanzee",
-    "Panthera leo": "lion",
-    "Saccharomyces cerevisiae": "saccharomyces cerevisiae",
-    "Sus scrofa": "pig",
+selected_genome_assemblies = {
+    "GCA_002007445.2": ("Ailuropoda melanoleuca", "Giant panda"),
+    "GCA_900496995.2": ("Aquila chrysaetos chrysaetos", "Golden eagle"),
+    "GCA_009873245.2": ("Balaenoptera musculus", "Blue whale"),
+    "GCA_002263795.2": ("Bos taurus", "Cow"),
+    "GCA_000002285.2": ("Canis lupus familiaris", "Dog"),
+    "GCA_000951615.2": ("Cyprinus carpio", "Common carp"),
+    "GCA_000002035.4": ("Danio rerio", "Zebrafish"),
+    "GCA_000001215.4": ("Drosophila melanogaster", "Drosophila melanogaster"),
+    "GCA_000181335.4": ("Felis catus", "Cat"),
+    "GCA_000002315.5": ("Gallus gallus", "Chicken"),
+    "GCA_000001405.28": ("Homo sapiens", "Human"),
+    "GCA_000001905.1": ("Loxodonta africana", "Elephant"),
+    "GCA_000001635.9": ("Mus musculus", "Mouse"),
+    "GCA_000003625.1": ("Oryctolagus cuniculus", "Rabbit"),
+    "GCA_002742125.1": ("Ovis aries", "Sheep"),
+    "GCA_000001515.5": ("Pan troglodytes", "Chimpanzee"),
+    "GCA_008795835.1": ("Panthera leo", "Lion"),
+    "GCA_000146045.2": ("Saccharomyces cerevisiae", "Saccharomyces cerevisiae"),
+    "GCA_000003025.6": ("Sus scrofa", "Pig"),
 }
 
 
@@ -695,7 +695,7 @@ def assign_symbols(network, sequences_fasta, scientific_name, output_directory=N
 
     taxonomy_id = get_species_taxonomy_id(scientific_name)
     clade = get_taxonomy_id_clade(taxonomy_id)
-    logger.info(f"got clade {clade} for {scientific_name}")
+    # logger.info(f"got clade {clade} for {scientific_name}")
 
     if output_directory is None:
         output_directory = sequences_fasta_path.parent
@@ -776,18 +776,16 @@ def evaluate_network(checkpoint_path, complete=False):
     experiment, network = load_checkpoint(checkpoint_path)
     symbols_set = set(symbol.lower() for symbol in experiment.gene_symbols_mapper.symbols)
 
-    ensembl_release = get_ensembl_release()
-    logger.info(f"Ensembl release {ensembl_release}")
-
     assemblies = get_assemblies_metadata()
     comparison_statistics_list = []
     for assembly in assemblies:
-        if not complete and assembly.scientific_name not in selected_species_genomes:
+        if not complete and assembly.assembly_accession not in selected_genome_assemblies:
             continue
 
-        canonical_fasta_path = generate_canonical_protein_sequences_fasta(
-            assembly, ensembl_release
+        canonical_fasta_filename = assembly.fasta_filename.replace(
+            "pep.all.fa", "pep.all_canonical.fa"
         )
+        canonical_fasta_path = sequences_directory / canonical_fasta_filename
 
         # assign symbols
         assignments_csv_path = pathlib.Path(
