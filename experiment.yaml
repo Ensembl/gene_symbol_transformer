@@ -19,7 +19,14 @@ num_symbols: 3
 #num_symbols: 25228
 #num_symbols: 30241
 
-# exclude one or more genera
+# include only specified genera to pipeline datasets
+included_genera:
+  # Human (genus Homo)
+  #- Homo
+  # Mouse (genus Mus)
+  #- Mus
+
+# exclude genera from all pipeline datasets
 excluded_genera:
   # Cow (genus Bos)
   #- Bos
