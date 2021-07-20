@@ -25,6 +25,7 @@ Generate gene symbol assignments for genome assemblies on the Rapid Release.
 
 # standard library imports
 import argparse
+import json
 import pathlib
 import sys
 
@@ -33,7 +34,14 @@ from loguru import logger
 
 # project imports
 from gene_symbol_classifier import EarlyStopping, Experiment, GeneSymbolClassifier
-from utils import load_checkpoint, logging_format, sequences_directory
+from utils import (
+    PrettySimpleNamespace,
+    data_directory,
+    download_file,
+    load_checkpoint,
+    logging_format,
+    sequences_directory,
+)
 
 
 def generate_assignments(checkpoint_path):
@@ -47,6 +55,36 @@ def generate_assignments(checkpoint_path):
     symbols_set = set(symbol.lower() for symbol in experiment.gene_symbols_mapper.symbols)
     logger.info(experiment)
     logger.info(network)
+
+    assemblies = get_rapid_release_assemblies_metadata()
+
+
+def get_rapid_release_assemblies_metadata():
+    """
+    Get metadata for genome assemblies on Ensembl Rapid Release.
+
+    The metadata are loaded from the `species_metadata.json` file in the Rapid Release
+    FTP root directory.
+    """
+    # download the species metadata file
+    assemblies_metadata_filename = "species_metadata.json"
+    assemblies_metadata_url = (
+        f"http://ftp.ensembl.org/pub/rapid-release/{assemblies_metadata_filename}"
+    )
+    data_directory.mkdir(exist_ok=True)
+    assemblies_metadata_path = data_directory / assemblies_metadata_filename
+    if not assemblies_metadata_path.exists():
+        download_file(assemblies_metadata_url, assemblies_metadata_path)
+        logger.info(f"downloaded {assemblies_metadata_path}")
+
+    with open(assemblies_metadata_path) as f:
+        assemblies_metadata = json.load(f)
+
+    assemblies_metadata = [
+        PrettySimpleNamespace(**assembly) for assembly in assemblies_metadata
+    ]
+
+    return assemblies_metadata
 
 
 def main():
@@ -69,7 +107,7 @@ def main():
     if args.checkpoint:
         checkpoint_path = pathlib.Path(args.checkpoint)
         log_file_path = pathlib.Path(
-            f"{checkpoint_path.parent}/{checkpoint_path.stem}_evaluate.log"
+            f"{checkpoint_path.parent}/{checkpoint_path.stem}_rapid_release.log"
         )
         logger.add(log_file_path, format=logging_format)
 
