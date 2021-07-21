@@ -525,17 +525,35 @@ def generate_canonical_protein_sequences_fasta(assembly, ensembl_release):
     Download and extract the archived protein sequences FASTA file for the species
     described in the assembly object.
     """
-    base_url = f"http://ftp.ensembl.org/pub/release-{ensembl_release}/fasta/"
+    if ensembl_release == "rapid_release":
+        base_url = f"http://ftp.ensembl.org/pub/rapid-release/species/"
+    else:
+        base_url = f"http://ftp.ensembl.org/pub/release-{ensembl_release}/fasta/"
 
     # download and extract archived protein sequences FASTA file
     archived_fasta_filename = f"{assembly.fasta_filename}.gz"
-    archived_fasta_url = f"{base_url}{assembly.species}/pep/{archived_fasta_filename}"
+    if ensembl_release == "rapid_release":
+        archived_fasta_url = "{}{}/{}/geneset/{}/{}".format(
+            base_url,
+            assembly.species.replace(" ", "_"),
+            assembly.assembly_accession,
+            assembly.geneset,
+            archived_fasta_filename,
+        )
+    else:
+        archived_fasta_url = f"{base_url}{assembly.species}/pep/{archived_fasta_filename}"
+
     sequences_directory.mkdir(parents=True, exist_ok=True)
     archived_fasta_path = sequences_directory / archived_fasta_filename
     fasta_path = archived_fasta_path.with_suffix("")
-    canonical_fasta_filename = assembly.fasta_filename.replace(
-        "pep.all.fa", "pep.all_canonical.fa"
-    )
+    if ensembl_release == "rapid_release":
+        canonical_fasta_filename = assembly.fasta_filename.replace(
+            "pep.fa", "pep_canonical.fa"
+        )
+    else:
+        canonical_fasta_filename = assembly.fasta_filename.replace(
+            "pep.all.fa", "pep.all_canonical.fa"
+        )
     canonical_fasta_path = sequences_directory / canonical_fasta_filename
     if (
         not archived_fasta_path.exists()
@@ -557,7 +575,19 @@ def generate_canonical_protein_sequences_fasta(assembly, ensembl_release):
         translations_dict = fasta_to_dict(fasta_path)
         num_translations = len(translations_dict)
 
-        canonical_translations = get_canonical_translations(assembly.core_db)
+        if ensembl_release == "rapid_release":
+            canonical_translations = get_canonical_translations(
+                ensembl_core_database=assembly.core_db,
+                host="mysql-ens-mirror-5",
+                port=4692,
+                user="ensro",
+            )
+        else:
+            canonical_translations = get_canonical_translations(
+                ensembl_core_database=assembly.core_db,
+                host="ensembldb.ensembl.org",
+                user="anonymous",
+            )
         canonical_translations[
             "translation_stable_id_version"
         ] = canonical_translations.apply(
@@ -782,17 +812,14 @@ def get_xref_canonical_translations(
     return xref_canonical_translations_df
 
 
-def get_canonical_translations(
-    ensembl_core_database,
-    host="ensembldb.ensembl.org",
-    user="anonymous",
-):
+def get_canonical_translations(ensembl_core_database, host, user, port=3306):
     """
     Get canonical transcripts of protein coding genes from the genome assembly with
     the ensembl_core_database database at the public Ensembl MySQL server.
     """
     connection = pymysql.connect(
         host=host,
+        port=port,
         user=user,
         database=ensembl_core_database,
         cursorclass=pymysql.cursors.DictCursor,
