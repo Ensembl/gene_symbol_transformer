@@ -42,6 +42,7 @@ from utils import (
     PrettySimpleNamespace,
     data_directory,
     download_file,
+    generate_canonical_protein_sequences_fasta,
     get_ensembl_release,
     load_checkpoint,
     logging_format,
@@ -62,6 +63,11 @@ def generate_assignments(checkpoint_path):
     logger.info(network)
 
     assemblies = get_rapid_release_assemblies_metadata()
+
+    for assembly in assemblies:
+        _canonical_fasta_path = generate_canonical_protein_sequences_fasta(
+            assembly, "rapid_release"
+        )
 
 
 def get_rapid_release_assemblies_metadata():
@@ -96,12 +102,26 @@ def get_rapid_release_assemblies_metadata():
     with open(assemblies_metadata_json_path) as f:
         assemblies_metadata = json.load(f)
 
+    assemblies_metadata = [
+        PrettySimpleNamespace(**assembly) for assembly in assemblies_metadata
+    ]
+
     gca_to_core_dbs = get_rapid_release_core_dbs()
 
     for assembly in assemblies_metadata:
-        assembly["core_db"] = gca_to_core_dbs[assembly["assembly_accession"]]
+        assembly.core_db = gca_to_core_dbs[assembly.assembly_accession]
 
-    assemblies_metadata_df = pd.DataFrame(assemblies_metadata)
+        fix_assembly_geneset(assembly)
+
+        assembly.fasta_filename = "{}-{}-{}-pep.fa".format(
+            assembly.species.replace(" ", "_"),
+            assembly.assembly_accession,
+            assembly.geneset,
+        )
+
+    assemblies_metadata_df = pd.DataFrame(
+        assembly_metadata.__dict__ for assembly_metadata in assemblies_metadata
+    )
     assemblies_metadata_df.to_pickle(assemblies_metadata_path)
     logger.info(f"dataset metadata saved at {assemblies_metadata_path}")
 
@@ -111,6 +131,18 @@ def get_rapid_release_assemblies_metadata():
     ]
 
     return assemblies_metadata
+
+
+def fix_assembly_geneset(assembly):
+    geneset_mappings = {
+        "GCA_902859565.1": "2021_02",
+        "GCA_000001215.4": "2020_08",
+        "GCA_004118075.1": "2021_03",
+    }
+
+    if assembly.assembly_accession in geneset_mappings:
+        geneset = geneset_mappings[assembly.assembly_accession]
+        assembly.geneset = geneset
 
 
 def get_rapid_release_core_dbs(
