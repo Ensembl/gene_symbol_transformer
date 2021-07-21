@@ -712,13 +712,20 @@ def test_network(checkpoint_path, print_sample_assignments=False):
                 logger.info(f"{assignment:>10} | {label:>10}  !!!")
 
 
-def assign_symbols(network, sequences_fasta, scientific_name, output_directory=None):
+def assign_symbols(
+    network,
+    sequences_fasta,
+    scientific_name=None,
+    taxonomy_id=None,
+    output_directory=None,
+):
     """
     Use the trained network to assign symbols to the sequences in the FASTA file.
     """
     sequences_fasta_path = pathlib.Path(sequences_fasta)
 
-    taxonomy_id = get_species_taxonomy_id(scientific_name)
+    if scientific_name is not None:
+        taxonomy_id = get_species_taxonomy_id(scientific_name)
     clade = get_taxonomy_id_clade(taxonomy_id)
     # logger.info(f"got clade {clade} for {scientific_name}")
 
@@ -821,8 +828,8 @@ def evaluate_network(checkpoint_path, complete=False):
             assign_symbols(
                 network,
                 canonical_fasta_path,
-                assembly.scientific_name,
-                checkpoint_path.parent,
+                scientific_name=assembly.scientific_name,
+                output_directory=checkpoint_path.parent,
             )
 
         comparisons_csv_path = pathlib.Path(
@@ -1298,7 +1305,9 @@ def main():
         _experiment, network = load_checkpoint(checkpoint_path)
 
         logger.info("assigning symbols...")
-        assign_symbols(network, args.sequences_fasta, args.scientific_name)
+        assign_symbols(
+            network, args.sequences_fasta, scientific_name=assembly.scientific_name
+        )
 
     # compare assignments with the ones on the latest Ensembl release
     elif args.assignments_csv and args.ensembl_database and args.scientific_name:

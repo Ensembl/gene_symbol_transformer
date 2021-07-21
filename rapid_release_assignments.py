@@ -20,6 +20,8 @@
 
 """
 Generate gene symbol assignments for genome assemblies on the Rapid Release.
+
+https://rapid.ensembl.org/info/about/species.html
 """
 
 
@@ -83,8 +85,8 @@ def generate_assignments(checkpoint_path):
             assign_symbols(
                 network,
                 canonical_fasta_path,
-                assembly.species,
-                checkpoint_path.parent,
+                taxonomy_id=assembly.taxonomy_id,
+                output_directory=checkpoint_path.parent,
             )
 
 
