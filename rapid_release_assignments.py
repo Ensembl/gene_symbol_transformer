@@ -37,7 +37,12 @@ import pymysql
 from loguru import logger
 
 # project imports
-from gene_symbol_classifier import EarlyStopping, Experiment, GeneSymbolClassifier
+from gene_symbol_classifier import (
+    EarlyStopping,
+    Experiment,
+    GeneSymbolClassifier,
+    assign_symbols,
+)
 from utils import (
     PrettySimpleNamespace,
     data_directory,
@@ -65,9 +70,22 @@ def generate_assignments(checkpoint_path):
     assemblies = get_rapid_release_assemblies_metadata()
 
     for assembly in assemblies:
-        _canonical_fasta_path = generate_canonical_protein_sequences_fasta(
+        canonical_fasta_path = generate_canonical_protein_sequences_fasta(
             assembly, "rapid_release"
         )
+
+        # assign symbols
+        assignments_csv_path = pathlib.Path(
+            f"{checkpoint_path.parent}/{canonical_fasta_path.stem}_symbols.csv"
+        )
+        if not assignments_csv_path.exists():
+            logger.info(f"assigning gene symbols to {canonical_fasta_path}")
+            assign_symbols(
+                network,
+                canonical_fasta_path,
+                assembly.species,
+                checkpoint_path.parent,
+            )
 
 
 def get_rapid_release_assemblies_metadata():
