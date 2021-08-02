@@ -1306,7 +1306,7 @@ def main():
 
         logger.info("assigning symbols...")
         assign_symbols(
-            network, args.sequences_fasta, scientific_name=assembly.scientific_name
+            network, args.sequences_fasta, scientific_name=args.scientific_name
         )
 
     # compare assignments with the ones on the latest Ensembl release
