@@ -344,16 +344,16 @@ class SequenceDataset(Dataset):
         data = load_dataset(num_symbols, min_frequency)
 
         # select the features and labels columns
-        data = data[["sequence", "clade", "symbol", "scientific_name"]]
+        self.data = data[["sequence", "clade", "symbol", "scientific_name"]]
 
         if included_genera is not None:
-            num_total_samples = len(data)
+            num_total_samples = len(self.data)
 
             included_genera_dataframes = []
             for genus in included_genera:
                 scientific_name_prefix = f"{genus} "
-                included_genus_df = data[
-                    data["scientific_name"].str.startswith(scientific_name_prefix)
+                included_genus_df = self.data[
+                    self.data["scientific_name"].str.startswith(scientific_name_prefix)
                 ]
                 included_genera_dataframes.append(included_genus_df)
 
