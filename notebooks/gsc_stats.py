@@ -1,6 +1,9 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import plotly.graph_objects as go
+
+from plotly.subplots import make_subplots
 
 
 def plot_threshold_statistics(comparison_csv_path, text_title=False):
@@ -110,3 +113,67 @@ def plot_threshold_statistics_no_ground_truth(comparison_csv_path, text_title=Fa
     axis_2.set_ylabel("number of assignments", color="b")
 
     plt.show()
+
+
+def plot_threshold_statistics_plotly_no_ground_truth(comparison_csv_path, text_title=False):
+    complete_df = pd.read_csv(comparison_csv_path, sep="\t")
+
+    thresholds_list = []
+    num_assignments_list = []
+
+    # step: 0.01
+    start_a = 0
+    end_a = 0.9
+    num_values_a = 90 + 1
+
+    # step: 0.001
+    start_b = 0.9
+    end_b = 1
+    num_values_b = 100 + 1
+
+    for threshold in np.concatenate(
+        [
+            np.linspace(start_a, end_a, num_values_a),
+            np.linspace(start_b, end_b, num_values_b),
+        ]
+    ):
+        threshold = round(threshold, ndigits=3)
+
+        df = complete_df.loc[complete_df["probability"] >= threshold]
+
+        num_assignments = len(df)
+        if num_assignments == 0:
+            continue
+
+        thresholds_list.append(threshold)
+        num_assignments_list.append(num_assignments)
+
+    figure = make_subplots(specs=[[{"secondary_y": True}]])
+
+    figure.add_trace(
+        go.Scatter(
+            x=thresholds_list,
+            y=num_assignments_list,
+            name="number of assignments",
+            mode="lines",
+        ),
+        secondary_y=True,
+    )
+
+    if text_title:
+        title = comparison_csv_path.stem.split(".")[0]
+    else:
+        title = comparison_csv_path.stem
+
+    figure.update_layout(
+        title_text=title,
+        autosize=False,
+        width=1200,
+        height=600,
+    )
+
+    figure.update_xaxes(title_text="threshold probability")
+
+    figure.update_yaxes(title_text="number of assignments", secondary_y=True)
+
+    figure.show()
