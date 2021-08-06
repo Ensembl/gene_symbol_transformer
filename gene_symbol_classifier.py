@@ -238,7 +238,7 @@ class GeneSymbolClassifier(nn.Module):
         """
         # temporary fix until previous classifiers are not used
         if not hasattr(self, "padding_side"):
-            self.padding_side = "left"
+            self.padding_side = "right"
 
         one_hot_features_list = []
         for sequence, clade in zip(sequences, clades):
