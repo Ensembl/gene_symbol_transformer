@@ -736,10 +736,10 @@ def assign_symbols(
     )
 
     # read the FASTA file in chunks and assign symbols
-    with open(assignments_csv_path, "w+") as csv_file:
+    with open(assignments_csv_path, "w+", newline="") as csv_file:
         # generate a csv writer, create the CSV file with a header
         field_names = ["stable_id", "symbol", "probability"]
-        csv_writer = csv.writer(csv_file, delimiter="\t")
+        csv_writer = csv.writer(csv_file, delimiter="\t", lineterminator="\n")
         csv_writer.writerow(field_names)
 
         for fasta_entries in read_fasta_in_chunks(sequences_fasta_path):
@@ -979,7 +979,7 @@ def compare_with_database(
         return False
 
     comparisons = []
-    with open(assignments_csv_path, "r") as assignments_file:
+    with open(assignments_csv_path, "r", newline="") as assignments_file:
         csv_reader = csv.reader(assignments_file, delimiter="\t")
         _csv_field_names = next(csv_reader)
 
