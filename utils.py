@@ -253,29 +253,35 @@ AND external_db.db_name = 'Uniprot_gn';
 """
 
 
-class GeneSymbolsMapper:
+class CategoryMapper:
     """
-    Class to hold the categorical data type for gene symbols and methods to translate
-    between text labels and one-hot encoding.
+    Categorical data mapping class, with methods to translate from the category
+    text labels to one-hot encoding and vice versa.
     """
 
-    def __init__(self, symbols):
-        # generate a categorical data type for symbols
-        self.symbols = sorted(symbols)
-        self.symbol_categorical_datatype = pd.CategoricalDtype(
-            categories=symbols, ordered=True
+    def __init__(self, category_name, categories):
+        self.category_name = category_name
+        self.categories = sorted(categories)
+
+        # generate a pandas categorical data type for the categories
+        self.categorical_datatype = pd.api.types.CategoricalDtype(
+            categories=self.categories, ordered=True
         )
 
-    def symbol_to_one_hot(self, symbol):
-        symbol_categorical = pd.Series(symbol, dtype=self.symbol_categorical_datatype)
-        one_hot_symbol = pd.get_dummies(symbol_categorical, prefix="symbol")
+    def label_to_one_hot(self, label):
+        """
+        Generate a dataframe with the one-hot representation of label.
+        """
+        label_categorical = pd.Series(label, dtype=self.categorical_datatype)
+        one_hot_label = pd.get_dummies(label_categorical, prefix=self.category_name)
+        return one_hot_label
 
-        return one_hot_symbol
-
-    def one_hot_to_symbol(self, one_hot_symbol):
-        symbol = self.symbol_categorical_datatype.categories[one_hot_symbol]
-
-        return symbol
+    def one_hot_to_label(self, one_hot_label):
+        """
+        Get the label string from its one-hot representation.
+        """
+        label = self.categorical_datatype.categories[one_hot_label]
+        return label
 
 
 class ProteinSequencesMapper:
@@ -386,8 +392,8 @@ class SequenceDataset(Dataset):
             self.data["sequence"] = self.data["sequence"].str.slice(stop=sequence_length)
 
         # create categorical data mappers
-        labels = self.data["symbol"].unique().tolist()
-        self.gene_symbols_mapper = GeneSymbolsMapper(labels)
+        symbols = self.data["symbol"].unique().tolist()
+        self.symbols_mapper = CategoryMapper(category_name="symbol", categories=symbols)
         self.protein_sequences_mapper = ProteinSequencesMapper()
         clades = {value for _, value in genebuild_clades.items()}
         self.clades_mapper = CladesMapper(clades)
@@ -406,7 +412,7 @@ class SequenceDataset(Dataset):
             sequence
         )
         one_hot_clade = self.clades_mapper.clade_to_one_hot(clade)
-        one_hot_symbol = self.gene_symbols_mapper.symbol_to_one_hot(symbol)
+        one_hot_symbol = self.symbols_mapper.label_to_one_hot(symbol)
         # one_hot_sequence.shape: (sequence_length, num_protein_letters)
         # one_hot_clade.shape: (num_clades,)
         # one_hot_symbol.shape: (num_symbols,)
