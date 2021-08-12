@@ -284,7 +284,7 @@ class CategoryMapper:
         return label
 
 
-class ProteinSequencesMapper:
+class ProteinSequenceMapper:
     """
     Class to hold the categorical data type for protein letters and a method
     to translate from protein letters to one-hot encoding.
@@ -295,10 +295,11 @@ class ProteinSequencesMapper:
         stop_codon = ["*"]
         extended_IUPAC_protein_letters = Bio.Data.IUPACData.extended_protein_letters
         protein_letters = list(extended_IUPAC_protein_letters) + stop_codon
+
         self.protein_letters = sorted(protein_letters)
 
         # generate a categorical data type for protein letters
-        self.protein_letters_categorical_datatype = pd.CategoricalDtype(
+        self.protein_letters_categorical_datatype = pd.api.types.CategoricalDtype(
             categories=self.protein_letters, ordered=True
         )
 
@@ -311,26 +312,6 @@ class ProteinSequencesMapper:
         )
 
         return one_hot_sequence
-
-
-class CladesMapper:
-    """
-    Class to hold the categorical data type for species clade and a method
-    to translate from text labels to one-hot encoding.
-    """
-
-    def __init__(self, clades):
-        # generate a categorical data type for clades
-        self.clades = sorted(clades)
-        self.clade_categorical_datatype = pd.CategoricalDtype(
-            categories=self.clades, ordered=True
-        )
-
-    def clade_to_one_hot(self, clade):
-        clade_categorical = pd.Series(clade, dtype=self.clade_categorical_datatype)
-        one_hot_clade = pd.get_dummies(clade_categorical, prefix="clade")
-
-        return one_hot_clade
 
 
 class SequenceDataset(Dataset):
@@ -391,12 +372,16 @@ class SequenceDataset(Dataset):
             )
             self.data["sequence"] = self.data["sequence"].str.slice(stop=sequence_length)
 
-        # create categorical data mappers
+        # generate gene symbols CategoryMapper
         symbols = self.data["symbol"].unique().tolist()
-        self.symbols_mapper = CategoryMapper(category_name="symbol", categories=symbols)
-        self.protein_sequences_mapper = ProteinSequencesMapper()
+        self.symbol_mapper = CategoryMapper(category_name="symbol", categories=symbols)
+
+        # generate protein sequences mapper
+        self.protein_sequence_mapper = ProteinSequenceMapper()
+
+        # generate clades CategoryMapper
         clades = {value for _, value in genebuild_clades.items()}
-        self.clades_mapper = CladesMapper(clades)
+        self.clade_mapper = CategoryMapper(category_name="clade", categories=clades)
 
     def __len__(self):
         return len(self.data)
@@ -408,11 +393,11 @@ class SequenceDataset(Dataset):
         clade = data_row["clade"]
         symbol = data_row["symbol"]
 
-        one_hot_sequence = self.protein_sequences_mapper.protein_letters_to_one_hot(
+        one_hot_sequence = self.protein_sequence_mapper.protein_letters_to_one_hot(
             sequence
         )
-        one_hot_clade = self.clades_mapper.clade_to_one_hot(clade)
-        one_hot_symbol = self.symbols_mapper.label_to_one_hot(symbol)
+        one_hot_clade = self.clade_mapper.label_to_one_hot(clade)
+        one_hot_symbol = self.symbol_mapper.label_to_one_hot(symbol)
         # one_hot_sequence.shape: (sequence_length, num_protein_letters)
         # one_hot_clade.shape: (num_clades,)
         # one_hot_symbol.shape: (num_symbols,)
