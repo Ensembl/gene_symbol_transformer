@@ -116,9 +116,9 @@ class GeneSymbolClassifier(nn.Module):
         num_symbols,
         num_connections,
         dropout_probability,
-        symbols_mapper,
-        protein_sequences_mapper,
-        clades_mapper,
+        symbol_mapper,
+        protein_sequence_mapper,
+        clade_mapper,
     ):
         """
         Initialize the neural network.
@@ -128,9 +128,9 @@ class GeneSymbolClassifier(nn.Module):
         self.sequence_length = sequence_length
         self.padding_side = padding_side
         self.dropout_probability = dropout_probability
-        self.symbols_mapper = symbols_mapper
-        self.protein_sequences_mapper = protein_sequences_mapper
-        self.clades_mapper = clades_mapper
+        self.symbol_mapper = symbol_mapper
+        self.protein_sequence_mapper = protein_sequence_mapper
+        self.clade_mapper = clade_mapper
 
         input_size = (self.sequence_length * num_protein_letters) + num_clades
         output_size = num_symbols
@@ -178,7 +178,7 @@ class GeneSymbolClassifier(nn.Module):
         # get predicted labels from output
         predictions = self.get_predictions(output)
 
-        assignments = self.symbols_mapper.one_hot_to_label(predictions)
+        assignments = self.symbol_mapper.one_hot_to_label(predictions)
         assignments = assignments.tolist()
 
         return assignments
@@ -199,7 +199,7 @@ class GeneSymbolClassifier(nn.Module):
         # get predicted labels from output
         predictions, probabilities = self.get_predictions_probabilities(output)
 
-        assignments = self.symbols_mapper.one_hot_to_label(predictions)
+        assignments = self.symbol_mapper.one_hot_to_label(predictions)
 
         assignments_probabilities = [
             (prediction, probability.item())
@@ -256,10 +256,10 @@ class GeneSymbolClassifier(nn.Module):
             else:
                 sequence = sequence[: self.sequence_length]
 
-            one_hot_sequence = self.protein_sequences_mapper.protein_letters_to_one_hot(
+            one_hot_sequence = self.protein_sequence_mapper.protein_letters_to_one_hot(
                 sequence
             )
-            one_hot_clade = self.clades_mapper.clade_to_one_hot(clade)
+            one_hot_clade = self.clade_mapper.label_to_one_hot(clade)
 
             # convert the dataframes to NumPy arrays
             one_hot_sequence = one_hot_sequence.to_numpy(dtype=np.float32)
@@ -397,18 +397,16 @@ def generate_dataloaders(experiment):
         excluded_genera=experiment.excluded_genera,
     )
 
-    experiment.symbols_mapper = dataset.symbols_mapper
-    experiment.protein_sequences_mapper = dataset.protein_sequences_mapper
-    experiment.clades_mapper = dataset.clades_mapper
+    experiment.symbol_mapper = dataset.symbol_mapper
+    experiment.protein_sequence_mapper = dataset.protein_sequence_mapper
+    experiment.clade_mapper = dataset.clade_mapper
 
     experiment.num_protein_letters = len(
-        experiment.protein_sequences_mapper.protein_letters
+        experiment.protein_sequence_mapper.protein_letters
     )
-    experiment.num_clades = len(experiment.clades_mapper.clades)
+    experiment.num_clades = len(experiment.clade_mapper.categories)
 
-    pandas_symbols_categories = (
-        experiment.symbols_mapper.categorical_datatype.categories
-    )
+    pandas_symbols_categories = experiment.symbol_mapper.categorical_datatype.categories
     logger.info(
         "gene symbols:\n{}".format(
             pandas_symbols_categories.to_series(
@@ -699,8 +697,8 @@ def test_network(checkpoint_path, print_sample_assignments=False):
         log_file_path = pathlib.Path(checkpoint_path).with_suffix(".log")
         logger.add(log_file_path, format="{message}")
 
-        assignments = network.symbols_mapper.one_hot_to_label(predictions)
-        labels = network.symbols_mapper.one_hot_to_label(labels)
+        assignments = network.symbol_mapper.one_hot_to_label(predictions)
+        labels = network.symbol_mapper.one_hot_to_label(labels)
 
         logger.info("\nsample assignments")
         logger.info("assignment | true label")
@@ -806,7 +804,7 @@ def evaluate_network(checkpoint_path, complete=False):
             the most important species genome assemblies.
     """
     experiment, network = load_checkpoint(checkpoint_path)
-    symbols_set = set(symbol.lower() for symbol in experiment.symbols_mapper.categories)
+    symbols_set = set(symbol.lower() for symbol in experiment.symbol_mapper.categories)
 
     assemblies = get_assemblies_metadata()
     comparison_statistics_list = []
@@ -1090,7 +1088,7 @@ def compare_assignments(
     else:
         experiment, _network = load_checkpoint(checkpoint)
         symbols_set = set(
-            symbol.lower() for symbol in experiment.symbols_mapper.categories
+            symbol.lower() for symbol in experiment.symbol_mapper.categories
         )
 
     comparisons_csv_path = pathlib.Path(
@@ -1234,9 +1232,9 @@ def main():
             experiment.num_symbols,
             experiment.num_connections,
             experiment.dropout_probability,
-            experiment.symbols_mapper,
-            experiment.protein_sequences_mapper,
-            experiment.clades_mapper,
+            experiment.symbol_mapper,
+            experiment.protein_sequence_mapper,
+            experiment.clade_mapper,
         )
         network.to(DEVICE)
 

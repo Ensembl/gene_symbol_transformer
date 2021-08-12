@@ -65,7 +65,7 @@ def generate_assignments(checkpoint_path):
         checkpoint_path (Path): path to the experiment checkpoint
     """
     experiment, network = load_checkpoint(checkpoint_path)
-    symbols_set = set(symbol.lower() for symbol in experiment.symbols_mapper.categories)
+    symbols_set = set(symbol.lower() for symbol in experiment.symbol_mapper.categories)
     logger.info(experiment)
     logger.info(network)
 
