@@ -33,14 +33,17 @@ MEM_LIMIT=8192
 # stardard compute node shell
 ################################################################################
 if [[ "$JOB_TYPE" = "standard" ]]; then
-    bsub -Is -tty -M $MEM_LIMIT -R"select[mem>$MEM_LIMIT] rusage[mem=$MEM_LIMIT] span[hosts=1]" $SHELL
+    echo "starting standard shell"
 
     # specify compute node
-    #COMPUTE_NODE=hx-noah-30-03
-    #bsub -m ${COMPUTE_NODE}.ebi.ac.uk -Is -tty -M $MEM_LIMIT -R"select[mem>$MEM_LIMIT] rusage[mem=$MEM_LIMIT] span[hosts=1]" $SHELL
+    COMPUTE_NODE="any"
+    #COMPUTE_NODE="hx-noah-13-01"
 
-    # specify CPU model
-    #bsub -Is -tty -M $MEM_LIMIT -R"select[model=XeonE52650, mem>$MEM_LIMIT] rusage[mem=$MEM_LIMIT] span[hosts=1]" $SHELL
+    if [[ "$COMPUTE_NODE" = "any" ]]; then
+        bsub -Is -tty -M $MEM_LIMIT -R"select[mem>$MEM_LIMIT] rusage[mem=$MEM_LIMIT]" $SHELL
+    else
+        bsub -m ${COMPUTE_NODE}.ebi.ac.uk -Is -tty -M $MEM_LIMIT -R"select[mem>$MEM_LIMIT] rusage[mem=$MEM_LIMIT]" $SHELL
+    fi
 fi
 ################################################################################
 
@@ -48,7 +51,7 @@ fi
 # GPU node shell
 ################################################################################
 # https://sysinf.ebi.ac.uk/doku.php?id=ebi_cluster_good_computing_guide#gpu_hosts
-# https://www.ibm.com/support/knowledgecenter/SSWRJV_10.1.0/lsf_command_ref/bsub.gpu.1.html
+# https://www.ibm.com/docs/en/spectrum-lsf/10.1.0?topic=o-gpu
 
 COMPUTE_NODE=gpu-009
 #COMPUTE_NODE=gpu-011
@@ -58,6 +61,7 @@ NUM_GPUS=1
 #NUM_GPUS=4
 
 if [[ "$JOB_TYPE" = "gpu" ]]; then
+    echo "starting gpu shell"
     bsub -P gpu -gpu "num=$NUM_GPUS:j_exclusive=yes" -m ${COMPUTE_NODE}.ebi.ac.uk -Is -tty -M $MEM_LIMIT -R"select[mem>$MEM_LIMIT] rusage[mem=$MEM_LIMIT] span[hosts=1]" $SHELL
 fi
 ################################################################################
@@ -65,10 +69,11 @@ fi
 
 # parallel jobs shell
 ################################################################################
-#MIN_TASKS=8
-MIN_TASKS=16
+MIN_TASKS=8
+#MIN_TASKS=16
 
 if [[ "$JOB_TYPE" = "parallel" ]]; then
+    echo "starting parallel shell"
     bsub -Is -tty -n $MIN_TASKS -M $MEM_LIMIT -R"select[mem>$MEM_LIMIT] rusage[mem=$MEM_LIMIT] span[hosts=1]" $SHELL
     #bsub -Is -tty -n $MIN_TASKS -M $MEM_LIMIT -R"select[model=XeonE52650, mem>$MEM_LIMIT] rusage[mem=$MEM_LIMIT] span[hosts=1]" $SHELL
 fi
