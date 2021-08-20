@@ -59,6 +59,8 @@ COMPUTE_NODE=gpu-009
 NUM_GPUS=1
 #NUM_GPUS=2
 #NUM_GPUS=4
+#NUM_GPUS=6
+#NUM_GPUS=8
 
 if [[ "$JOB_TYPE" = "gpu" ]]; then
     echo "starting gpu shell"
