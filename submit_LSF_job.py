@@ -49,22 +49,6 @@ def main():
         help="path to the experiment settings configuration YAML file",
     )
     argument_parser.add_argument(
-        "--job_type",
-        default="standard",
-        help='submitted job type, one of "standard", "gpu", or "parallel"',
-    )
-    argument_parser.add_argument(
-        "--compute_node",
-        default="gpu-009",
-        help='name of compute node to submit the job, for GPU one of "gpu-009" or "gpu-011"',
-    )
-    argument_parser.add_argument(
-        "--num_tasks",
-        default=1,
-        type=int,
-        help="number of tasks for a parallel job",
-    )
-    argument_parser.add_argument(
         "--mem_limit",
         default=8192,
         type=int,
@@ -159,33 +143,12 @@ def main():
     # common arguments for any job type
     bsub_command_elements = [
         "bsub",
+        f"-q production",
         f"-M {mem_limit}",
         f'-R"select[mem>{mem_limit}] rusage[mem={mem_limit}]"',
         f"-o {root_directory}/{job_name}-stdout.log",
         f"-e {root_directory}/{job_name}-stderr.log",
     ]
-
-    # GPU node job
-    if args.job_type == "gpu":
-        bsub_command_elements.extend(
-            [
-                "-P gpu",
-                f'-gpu "num={args.num_tasks}:j_exclusive=yes"',
-                f"-m {args.compute_node}.ebi.ac.uk",
-            ]
-        )
-
-    # parallel job
-    if args.job_type == "parallel":
-        if args.num_tasks == 1:
-            raise ValueError("parallel job specified but the number of tasks is set to 1")
-
-        bsub_command_elements.extend(
-            [
-                f"-n {args.num_tasks}",
-                f'-R"span[hosts=1]"',
-            ]
-        )
 
     bsub_command_elements.append(pipeline_command)
 
