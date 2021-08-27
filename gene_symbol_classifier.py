@@ -502,7 +502,8 @@ def train_network(
         # training
         ########################################################################
         training_losses = []
-        train_accuracy = torchmetrics.Accuracy()
+        # https://torchmetrics.readthedocs.io/en/latest/pages/overview.html#metrics-and-devices
+        train_accuracy = torchmetrics.Accuracy().to(DEVICE)
 
         # set the network in training mode
         network.train()
@@ -555,7 +556,7 @@ def train_network(
         num_batches_length = len(str(num_validation_batches))
 
         validation_losses = []
-        validation_accuracy = torchmetrics.Accuracy()
+        validation_accuracy = torchmetrics.Accuracy().to(DEVICE)
 
         # disable gradient calculation
         with torch.no_grad():
@@ -621,11 +622,11 @@ def test_network(checkpoint_path, print_sample_assignments=False):
     num_batches_length = len(str(num_test_batches))
 
     test_losses = []
-    test_accuracy = torchmetrics.Accuracy()
+    test_accuracy = torchmetrics.Accuracy().to(DEVICE)
     test_precision = torchmetrics.Precision(
         num_classes=experiment.num_symbols, average="macro"
-    )
-    test_recall = torchmetrics.Recall(num_classes=experiment.num_symbols, average="macro")
+    ).to(DEVICE)
+    test_recall = torchmetrics.Recall(num_classes=experiment.num_symbols, average="macro").to(DEVICE)
 
     with torch.no_grad():
         network.eval()
@@ -674,6 +675,7 @@ def test_network(checkpoint_path, print_sample_assignments=False):
 
             inputs, labels = next(iter(test_loader))
             # inputs, labels = inputs.to(DEVICE), labels.to(DEVICE)
+            inputs = inputs.to(DEVICE)
 
             with torch.random.fork_rng():
                 torch.manual_seed(time.time() * 1000)
@@ -697,7 +699,7 @@ def test_network(checkpoint_path, print_sample_assignments=False):
         log_file_path = pathlib.Path(checkpoint_path).with_suffix(".log")
         logger.add(log_file_path, format="{message}")
 
-        assignments = network.symbol_mapper.one_hot_to_label(predictions)
+        assignments = network.symbol_mapper.one_hot_to_label(predictions.cpu())
         labels = network.symbol_mapper.one_hot_to_label(labels)
 
         logger.info("\nsample assignments")
