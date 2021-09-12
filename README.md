@@ -83,9 +83,9 @@ max_epochs: 100
 First, set up a Python virtual environment for the project and install its dependencies:
 
 ```
-pyenv install 3.8.6
+pyenv install 3.9.6
 
-pyenv virtualenv 3.8.6 gene_symbol_classifier
+pyenv virtualenv 3.9.6 gene_symbol_classifier
 
 poetry install
 ```
