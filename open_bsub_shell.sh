@@ -25,9 +25,9 @@ JOB_TYPE=standard
 #JOB_TYPE=gpu
 #JOB_TYPE=parallel
 
-MEMORY=8192
-#MEMORY=16384
-#MEMORY=32768
+MEM_LIMIT=8192
+#MEM_LIMIT=16384
+#MEM_LIMIT=32768
 
 
 # stardard compute node shell
@@ -40,9 +40,9 @@ if [[ "$JOB_TYPE" = "standard" ]]; then
     #COMPUTE_NODE="hl-codon-02-04"
 
     if [[ "$COMPUTE_NODE" = "any" ]]; then
-        bsub -q production -Is -tty -M $MEMORY -R"select[mem>$MEMORY] rusage[mem=$MEMORY]" $SHELL
+        bsub -q production -Is -tty -M $MEM_LIMIT -R"select[mem>$MEM_LIMIT] rusage[mem=$MEM_LIMIT]" $SHELL
     else
-        bsub -q production -m "$COMPUTE_NODE.ebi.ac.uk" -Is -tty -M $MEMORY -R"select[mem>$MEMORY] rusage[mem=$MEMORY]" $SHELL
+        bsub -q production -m "$COMPUTE_NODE.ebi.ac.uk" -Is -tty -M $MEM_LIMIT -R"select[mem>$MEM_LIMIT] rusage[mem=$MEM_LIMIT]" $SHELL
     fi
 fi
 ################################################################################
@@ -53,8 +53,8 @@ fi
 # https://sysinf.ebi.ac.uk/doku.php?id=ebi_cluster_good_computing_guide#gpu_hosts
 # https://www.ibm.com/docs/en/spectrum-lsf/10.1.0?topic=o-gpu
 
-NUM_GPUS=1
-#NUM_GPUS=2
+#NUM_GPUS=1
+NUM_GPUS=2
 #NUM_GPUS=4
 #NUM_GPUS=6
 #NUM_GPUS=8
@@ -68,12 +68,12 @@ if [[ "$JOB_TYPE" = "gpu" ]]; then
 
     # specify gpu node
     GPU_NODE="any"
-    #GPU_NODE=
+    #GPU_NODE=codon-gpu-001
 
     if [[ "$GPU_NODE" = "any" ]]; then
-        bsub -q gpu -gpu "num=$NUM_GPUS:gmem=$GPU_MEMORY:j_exclusive=yes" -Is -tty -M $MEMORY -R"select[mem>$MEMORY] rusage[mem=$MEMORY] span[hosts=1]" $SHELL
+        bsub -q gpu -gpu "num=$NUM_GPUS:gmem=$GPU_MEMORY:j_exclusive=yes" -Is -tty -M $MEM_LIMIT -R"select[mem>$MEM_LIMIT] rusage[mem=$MEM_LIMIT] span[hosts=1]" $SHELL
     else
-        bsub -q gpu -m $GPU_NODE.ebi.ac.uk -gpu "num=$NUM_GPUS:gmem=$GPU_MEMORY:j_exclusive=yes" -Is -tty -M $MEMORY -R"select[mem>$MEMORY] rusage[mem=$MEMORY] span[hosts=1]" $SHELL
+        bsub -q gpu -m $GPU_NODE.ebi.ac.uk -gpu "num=$NUM_GPUS:gmem=$GPU_MEMORY:j_exclusive=yes" -Is -tty -M $MEM_LIMIT -R"select[mem>$MEM_LIMIT] rusage[mem=$MEM_LIMIT] span[hosts=1]" $SHELL
     fi
 fi
 ################################################################################
@@ -81,12 +81,13 @@ fi
 
 # parallel jobs shell
 ################################################################################
-MIN_TASKS=8
+MIN_TASKS=4
+#MIN_TASKS=8
 #MIN_TASKS=16
 
 if [[ "$JOB_TYPE" = "parallel" ]]; then
-    echo "starting parallel shell"
-    bsub -q production -Is -tty -n $MIN_TASKS -M $MEMORY -R"select[mem>$MEMORY] rusage[mem=$MEMORY] span[hosts=1]" $SHELL
-    #bsub -q production -Is -tty -n $MIN_TASKS -M $MEMORY -R"select[model=XeonE52650, mem>$MEMORY] rusage[mem=$MEMORY] span[hosts=1]" $SHELL
+    echo "starting parallel shell with $MIN_TASKS tasks"
+    bsub -q production -Is -tty -n $MIN_TASKS -M $MEM_LIMIT -R"select[mem>$MEM_LIMIT] rusage[mem=$MEM_LIMIT] span[hosts=1]" $SHELL
+    #bsub -q production -Is -tty -n $MIN_TASKS -M $MEM_LIMIT -R"select[model=XeonE52650, mem>$MEM_LIMIT] rusage[mem=$MEM_LIMIT] span[hosts=1]" $SHELL
 fi
 ################################################################################
