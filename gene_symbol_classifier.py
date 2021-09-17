@@ -71,7 +71,6 @@ from utils import (
     logging_format,
     read_fasta_in_chunks,
     sequences_directory,
-    specify_device,
 )
 
 
@@ -98,7 +97,7 @@ selected_genome_assemblies = {
 }
 
 
-DEVICE = specify_device()
+DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 class GeneSymbolClassifier(nn.Module):

@@ -47,22 +47,7 @@ from loguru import logger
 from torch.utils.data import Dataset
 
 
-def specify_device():
-    """
-    Specify the device to run training and inference.
-    """
-    # use a context manager to suppress the warning:
-    # UserWarning: CUDA initialization: Found no NVIDIA driver on your system.
-    # NOTE
-    # This warning was removed in PyTorch 1.8.0, delete the context manager after
-    # upgrading to it.
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore")
-        DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    return DEVICE
-
-
-DEVICE = specify_device()
+DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 data_directory = pathlib.Path("data")
 experiments_directory = pathlib.Path("experiments")
