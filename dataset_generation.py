@@ -28,6 +28,7 @@ the full dataset for faster prototyping.
 
 # standard library imports
 import argparse
+import json
 import sys
 import time
 
@@ -115,6 +116,8 @@ def generate_dataset():
 
     dataset = dataset_cleanup(canonical_translations)
 
+    save_symbols_metadata(dataset)
+
     # save dataset as a pickle file
     dataset_path = data_directory / "dataset.pickle"
     dataset.to_pickle(dataset_path)
@@ -173,6 +176,48 @@ def dataset_cleanup(dataset):
     )
 
     return dataset
+
+
+def save_symbols_metadata(dataset):
+    """
+    Generate a dictionary with symbols to symbol source and description and store as
+    a JSON file.
+    """
+    logger.info("generating symbols metadata...")
+
+    symbol_sources_list = [
+        "HGNC Symbol",
+        "ZFIN",
+        "MGI Symbol",
+        "VGNC Symbol",
+        "RGD Symbol",
+        "Xenbase",
+        "FlyBase gene name",
+        "WormBase Locus",
+        "WormBase Gene Sequence-name",
+        "SGD gene name",
+        "Clone-based (Ensembl) gene",
+        "FlyBase annotation",
+        "UniProtKB Gene Name",
+        "NCBI gene (formerly Entrezgene)",
+    ]
+
+    symbol_groups = dataset.groupby(["symbol"])["external_db.db_display_name"]
+
+    symbols_metadata = {}
+    for symbol, group in symbol_groups:
+        symbol_sources = set(group)
+        for symbol_source in symbol_sources_list:
+            if symbol_source in symbol_sources:
+                symbols_metadata[symbol] = {"symbol_source": symbol_source}
+                break
+
+    symbols_metadata_json_filename = "symbols_metadata.json"
+    symbols_metadata_json_path = data_directory / symbols_metadata_json_filename
+
+    with open(symbols_metadata_json_path, "w") as f:
+        json.dump(symbols_metadata, f, sort_keys=True, indent=4)
+    logger.info(f"symbols metadata saved at {symbols_metadata_json_path}")
 
 
 def generate_statistics():
@@ -234,6 +279,11 @@ def main():
         help="generate dataset from genome assemblies in the latest Ensembl release",
     )
     argument_parser.add_argument(
+        "--save_symbols_metadata",
+        action="store_true",
+        help="save symbols source and description to a JSON file",
+    )
+    argument_parser.add_argument(
         "--generate_statistics",
         action="store_true",
         help="generate and log dataset statistics",
@@ -255,6 +305,9 @@ def main():
 
     if args.generate_dataset:
         generate_dataset()
+    elif args.save_symbols_metadata:
+        dataset = load_dataset()
+        save_symbols_metadata(dataset)
     elif args.generate_statistics:
         generate_statistics()
     elif args.save_dev_datasets:
