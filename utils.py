@@ -116,6 +116,7 @@ SELECT
   translation.stable_id AS 'translation.stable_id',
   translation.version AS 'translation.version',
   xref.display_label AS 'Xref_symbol',
+  xref.description AS 'xref.description',
   external_db.db_display_name AS 'external_db.db_display_name'
 FROM gene
 INNER JOIN transcript
@@ -139,6 +140,7 @@ SELECT
   translation.stable_id AS 'translation.stable_id',
   translation.version AS 'translation.version',
   xref.display_label AS 'EntrezGene_symbol',
+  xref.description AS 'xref.description',
   external_db.db_display_name AS 'external_db.db_display_name'
 FROM gene
 INNER JOIN object_xref
@@ -178,6 +180,7 @@ SELECT
   translation.stable_id AS 'translation.stable_id',
   translation.version AS 'translation.version',
   xref.display_label AS 'Uniprot_gn_symbol',
+  xref.description AS 'xref.description',
   external_db.db_display_name AS 'external_db.db_display_name'
 FROM gene
 INNER JOIN object_xref
@@ -758,6 +761,7 @@ def get_xref_canonical_translations(
         "translation.stable_id",
         "translation.version",
         "Xref_symbol",
+        "xref.description",
         "external_db.db_display_name",
     ]
     xref_canonical_translations_df = pd.DataFrame(columns=columns)

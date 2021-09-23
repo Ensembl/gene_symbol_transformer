@@ -157,6 +157,7 @@ def dataset_cleanup(dataset):
         "translation.stable_id",
         "translation.version",
         "Xref_symbol",
+        "xref.description",
         "external_db.db_display_name",
         "symbol",
         "sequence",
