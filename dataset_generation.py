@@ -186,6 +186,8 @@ def save_symbols_metadata(dataset):
     """
     logger.info("generating symbols metadata...")
 
+    symbol_groups = dataset.groupby(["symbol"])
+
     symbol_sources_list = [
         "HGNC Symbol",
         "ZFIN",
@@ -203,15 +205,44 @@ def save_symbols_metadata(dataset):
         "NCBI gene (formerly Entrezgene)",
     ]
 
-    symbol_groups = dataset.groupby(["symbol"])["external_db.db_display_name"]
-
     symbols_metadata = {}
     for symbol, group in symbol_groups:
-        symbol_sources = set(group)
+        symbol_sources = set(group["external_db.db_display_name"])
         for symbol_source in symbol_sources_list:
             if symbol_source in symbol_sources:
                 symbols_metadata[symbol] = {"symbol_source": symbol_source}
                 break
+
+    scientific_names_priority_list = [
+        "Homo sapiens",
+        "Mus musculus",
+        "Danio rerio",
+    ]
+
+    for symbol, group in symbol_groups:
+        symbol_scientific_names = set(group["scientific_name"])
+
+        scientific_name = None
+        for priority_scientific_name in scientific_names_priority_list:
+            for symbol_scientific_name in symbol_scientific_names:
+                if priority_scientific_name in symbol_scientific_name:
+                    scientific_name = priority_scientific_name
+                    break
+            if scientific_name:
+                break
+
+        if scientific_name:
+            description = group.loc[group["scientific_name"].str.contains(scientific_name)]["xref.description"].iloc[0]
+        else:
+            descriptions = set(group["xref.description"])
+            for description_item in descriptions:
+                if description_item not in {"", "None"}:
+                    description = description_item
+                    break
+            else:
+                description = None
+
+        symbols_metadata[symbol]["description"] = description
 
     symbols_metadata_json_filename = "symbols_metadata.json"
     symbols_metadata_json_path = data_directory / symbols_metadata_json_filename
