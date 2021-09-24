@@ -39,6 +39,7 @@ with `--assignments_csv` and the Ensembl database name with `--ensembl_database`
 import argparse
 import csv
 import datetime as dt
+import json
 import math
 import pathlib
 import pprint
@@ -61,6 +62,7 @@ from torch.utils.tensorboard import SummaryWriter
 # project imports
 from utils import (
     SequenceDataset,
+    data_directory,
     experiments_directory,
     get_assemblies_metadata,
     get_ensembl_release,
@@ -301,13 +303,16 @@ class EarlyStopping:
         self.no_progress = 0
         self.min_validation_loss = np.Inf
 
-    def __call__(self, network, experiment, validation_loss, checkpoint_path):
+    def __call__(
+        self, network, experiment, symbols_metadata, validation_loss, checkpoint_path
+    ):
         if self.min_validation_loss == np.Inf:
             self.min_validation_loss = validation_loss
             logger.info("saving initial network checkpoint...")
             checkpoint = {
                 "network": network,
                 "experiment": experiment,
+                "symbols_metadata": symbols_metadata,
             }
             torch.save(checkpoint, checkpoint_path)
             return False
@@ -326,6 +331,7 @@ class EarlyStopping:
             checkpoint = {
                 "network": network,
                 "experiment": experiment,
+                "symbols_metadata": symbols_metadata,
             }
             torch.save(checkpoint, checkpoint_path)
             return False
@@ -466,6 +472,7 @@ def generate_dataloaders(experiment):
 def train_network(
     network,
     experiment,
+    symbols_metadata,
     training_loader,
     validation_loader,
 ):
@@ -593,7 +600,11 @@ def train_network(
         logger.info(train_progress)
 
         if experiment.stop_early(
-            network, experiment, average_validation_loss, checkpoint_path
+            network,
+            experiment,
+            symbols_metadata,
+            average_validation_loss,
+            checkpoint_path,
         ):
             summary_writer.flush()
             summary_writer.close()
@@ -606,7 +617,7 @@ def test_network(checkpoint_path, print_sample_assignments=False):
     """
     Calculate test loss and generate metrics.
     """
-    experiment, network = load_checkpoint(checkpoint_path)
+    experiment, network, symbols_metadata = load_checkpoint(checkpoint_path)
 
     logger.info("start testing classifier")
     logger.info(f"experiment:\n{experiment}")
@@ -625,7 +636,9 @@ def test_network(checkpoint_path, print_sample_assignments=False):
     test_precision = torchmetrics.Precision(
         num_classes=experiment.num_symbols, average="macro"
     ).to(DEVICE)
-    test_recall = torchmetrics.Recall(num_classes=experiment.num_symbols, average="macro").to(DEVICE)
+    test_recall = torchmetrics.Recall(
+        num_classes=experiment.num_symbols, average="macro"
+    ).to(DEVICE)
 
     with torch.no_grad():
         network.eval()
@@ -713,6 +726,7 @@ def test_network(checkpoint_path, print_sample_assignments=False):
 
 def assign_symbols(
     network,
+    symbols_metadata,
     sequences_fasta,
     scientific_name=None,
     taxonomy_id=None,
@@ -737,7 +751,7 @@ def assign_symbols(
     # read the FASTA file in chunks and assign symbols
     with open(assignments_csv_path, "w+", newline="") as csv_file:
         # generate a csv writer, create the CSV file with a header
-        field_names = ["stable_id", "symbol", "probability"]
+        field_names = ["stable_id", "symbol", "probability", "description", "source"]
         csv_writer = csv.writer(csv_file, delimiter="\t", lineterminator="\n")
         csv_writer.writerow(field_names)
 
@@ -758,7 +772,17 @@ def assign_symbols(
             for identifier, (assignment, probability) in zip(
                 identifiers, assignments_probabilities
             ):
-                csv_writer.writerow([identifier, assignment, probability])
+                symbol_description = symbols_metadata[assignment]["description"]
+                symbol_source = symbols_metadata[assignment]["symbol_source"]
+                csv_writer.writerow(
+                    [
+                        identifier,
+                        assignment,
+                        probability,
+                        symbol_description,
+                        symbol_source,
+                    ]
+                )
 
     logger.info(f"symbol assignments saved at {assignments_csv_path}")
 
@@ -767,7 +791,7 @@ def save_network_from_checkpoint(checkpoint_path):
     """
     Save the network in a checkpoint file as a separate file.
     """
-    _experiment, network = load_checkpoint(checkpoint_path)
+    _experiment, network, _symbols_metadata = load_checkpoint(checkpoint_path)
 
     path = checkpoint_path
     network_path = pathlib.Path(f"{path.parent}/{path.stem}_network.pth")
@@ -804,7 +828,7 @@ def evaluate_network(checkpoint_path, complete=False):
             Defaults to False, which runs the evaluation only for a selection of
             the most important species genome assemblies.
     """
-    experiment, network = load_checkpoint(checkpoint_path)
+    experiment, network, symbols_metadata = load_checkpoint(checkpoint_path)
     symbols_set = set(symbol.lower() for symbol in experiment.symbol_mapper.categories)
 
     assemblies = get_assemblies_metadata()
@@ -826,6 +850,7 @@ def evaluate_network(checkpoint_path, complete=False):
             logger.info(f"assigning gene symbols to {canonical_fasta_path}")
             assign_symbols(
                 network,
+                symbols_metadata,
                 canonical_fasta_path,
                 scientific_name=assembly.scientific_name,
                 output_directory=checkpoint_path.parent,
@@ -1087,7 +1112,7 @@ def compare_assignments(
     if checkpoint is None:
         symbols_set = None
     else:
-        experiment, _network = load_checkpoint(checkpoint)
+        experiment, _network, _symbols_metadata = load_checkpoint(checkpoint_path)
         symbols_set = set(
             symbol.lower() for symbol in experiment.symbol_mapper.categories
         )
@@ -1224,6 +1249,12 @@ def main():
         # get training, validation, and test dataloaders
         training_loader, validation_loader, test_loader = generate_dataloaders(experiment)
 
+        # load the symbols metadata
+        symbols_metadata_filename = "symbols_metadata.json"
+        symbols_metadata_path = data_directory / symbols_metadata_filename
+        with open(symbols_metadata_path) as f:
+            symbols_metadata = json.load(f)
+
         # instantiate neural network
         network = GeneSymbolClassifier(
             experiment.sequence_length,
@@ -1246,6 +1277,7 @@ def main():
         checkpoint_path = train_network(
             network,
             experiment,
+            symbols_metadata,
             training_loader,
             validation_loader,
         )
@@ -1263,7 +1295,7 @@ def main():
         # resume training classifier
         if args.train:
             logger.info("resume training classifier")
-            experiment, network = load_checkpoint(checkpoint_path)
+            experiment, network, symbols_metadata = load_checkpoint(checkpoint_path)
 
             logger.info(f"experiment:\n{experiment}")
             logger.info(f"network:\n{network}")
@@ -1276,6 +1308,7 @@ def main():
             train_network(
                 network,
                 experiment,
+                symbols_metadata,
                 training_loader,
                 validation_loader,
             )
@@ -1301,11 +1334,14 @@ def main():
         log_file_path = checkpoint_path.with_suffix(".log")
         logger.add(log_file_path, format=logging_format)
 
-        _experiment, network = load_checkpoint(checkpoint_path)
+        _experiment, network, symbols_metadata = load_checkpoint(checkpoint_path)
 
         logger.info("assigning symbols...")
         assign_symbols(
-            network, args.sequences_fasta, scientific_name=args.scientific_name
+            network,
+            symbols_metadata,
+            args.sequences_fasta,
+            scientific_name=args.scientific_name,
         )
 
     # compare assignments with the ones on the latest Ensembl release

@@ -232,24 +232,26 @@ def save_symbols_metadata(dataset):
                 break
 
         if scientific_name:
-            description = group.loc[group["scientific_name"].str.contains(scientific_name)]["xref.description"].iloc[0]
+            symbol_description = group.loc[
+                group["scientific_name"].str.contains(scientific_name)
+            ]["xref.description"].iloc[0]
         else:
             descriptions = set(group["xref.description"])
             for description_item in descriptions:
                 if description_item not in {"", "None"}:
-                    description = description_item
+                    symbol_description = description_item
                     break
             else:
-                description = None
+                symbol_description = None
 
-        symbols_metadata[symbol]["description"] = description
+        symbols_metadata[symbol]["description"] = symbol_description
 
-    symbols_metadata_json_filename = "symbols_metadata.json"
-    symbols_metadata_json_path = data_directory / symbols_metadata_json_filename
+    symbols_metadata_filename = "symbols_metadata.json"
+    symbols_metadata_path = data_directory / symbols_metadata_filename
 
-    with open(symbols_metadata_json_path, "w") as f:
+    with open(symbols_metadata_path, "w") as f:
         json.dump(symbols_metadata, f, sort_keys=True, indent=4)
-    logger.info(f"symbols metadata saved at {symbols_metadata_json_path}")
+    logger.info(f"symbols metadata saved at {symbols_metadata_path}")
 
 
 def generate_statistics():

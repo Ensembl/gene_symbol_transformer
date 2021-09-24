@@ -1011,7 +1011,8 @@ def load_checkpoint(checkpoint_path):
     Args:
         checkpoint_path (path-like object): path to the saved experiment checkpoint
     Returns:
-        tuple[Experiment, torch.nn.Module] with the experiment state and the classifier
+        tuple[Experiment, torch.nn.Module, dict] with the experiment state, the classifier,
+        and the symbols metadata dictionary
     """
     logger.info(f'loading experiment checkpoint "{checkpoint_path}" ...')
     checkpoint = torch.load(checkpoint_path, map_location=DEVICE)
@@ -1022,7 +1023,9 @@ def load_checkpoint(checkpoint_path):
     network = checkpoint["network"]
     network.to(DEVICE)
 
-    return (experiment, network)
+    symbols_metadata = checkpoint["symbols_metadata"]
+
+    return (experiment, network, symbols_metadata)
 
 
 def sizeof_fmt(num, suffix="B"):

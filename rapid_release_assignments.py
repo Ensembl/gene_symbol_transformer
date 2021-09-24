@@ -64,7 +64,7 @@ def generate_assignments(checkpoint_path):
     Args:
         checkpoint_path (Path): path to the experiment checkpoint
     """
-    experiment, network = load_checkpoint(checkpoint_path)
+    experiment, network, symbols_metadata = load_checkpoint(checkpoint_path)
     symbols_set = set(symbol.lower() for symbol in experiment.symbol_mapper.categories)
     logger.info(experiment)
     logger.info(network)
@@ -84,6 +84,7 @@ def generate_assignments(checkpoint_path):
             logger.info(f"assigning gene symbols to {canonical_fasta_path}")
             assign_symbols(
                 network,
+                symbols_metadata,
                 canonical_fasta_path,
                 taxonomy_id=assembly.taxonomy_id,
                 output_directory=checkpoint_path.parent,
