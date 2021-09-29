@@ -214,11 +214,11 @@ def save_symbols_metadata(dataset):
         )
         group = group.sort_values("external_db.db_display_name")
 
-        symbol_source = group["external_db.db_display_name"].iloc[0]
         description = group["xref.description"].iloc[0]
+        symbol_source = group["external_db.db_display_name"].iloc[0]
         symbols_metadata[symbol] = {
-            "symbol_source": symbol_source,
             "description": description,
+            "source": symbol_source,
         }
 
     symbols_metadata_filename = "symbols_metadata.json"

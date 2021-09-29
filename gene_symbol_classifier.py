@@ -773,7 +773,7 @@ def assign_symbols(
                 identifiers, assignments_probabilities
             ):
                 symbol_description = symbols_metadata[assignment]["description"]
-                symbol_source = symbols_metadata[assignment]["symbol_source"]
+                symbol_source = symbols_metadata[assignment]["source"]
                 csv_writer.writerow(
                     [
                         identifier,
