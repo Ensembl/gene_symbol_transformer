@@ -39,6 +39,7 @@ with `--assignments_csv` and the Ensembl database name with `--ensembl_database`
 import argparse
 import csv
 import datetime as dt
+import json
 import math
 import pathlib
 import pprint
@@ -606,7 +607,7 @@ def test_network(checkpoint_path, print_sample_assignments=False):
     """
     Calculate test loss and generate metrics.
     """
-    experiment, network = load_checkpoint(checkpoint_path)
+    experiment, network, _symbols_metadata = load_checkpoint(checkpoint_path)
 
     logger.info("start testing classifier")
     logger.info(f"experiment:\n{experiment}")
@@ -710,7 +711,9 @@ def test_network(checkpoint_path, print_sample_assignments=False):
                 logger.info(f"{assignment:>10} | {label:>10}  !!!")
 
 
-def assign_symbols(network, sequences_fasta, clade, output_directory=None):
+def assign_symbols(
+    network, symbols_metadata, sequences_fasta, clade, output_directory=None
+):
     """
     Use the trained network to assign symbols to the sequences in the FASTA file.
     """
@@ -723,10 +726,10 @@ def assign_symbols(network, sequences_fasta, clade, output_directory=None):
     )
 
     # read the FASTA file in chunks and assign symbols
-    with open(assignments_csv_path, "w+") as csv_file:
+    with open(assignments_csv_path, "w+", newline="") as csv_file:
         # generate a csv writer, create the CSV file with a header
-        field_names = ["stable_id", "symbol", "probability"]
-        csv_writer = csv.writer(csv_file, delimiter="\t")
+        field_names = ["stable_id", "symbol", "probability", "description", "source"]
+        csv_writer = csv.writer(csv_file, delimiter="\t", lineterminator="\n")
         csv_writer.writerow(field_names)
 
         for fasta_entries in read_fasta_in_chunks(sequences_fasta_path):
@@ -746,7 +749,17 @@ def assign_symbols(network, sequences_fasta, clade, output_directory=None):
             for stable_id, (assignment, probability) in zip(
                 stable_ids, assignments_probabilities
             ):
-                csv_writer.writerow([stable_id, assignment, probability])
+                symbol_description = symbols_metadata[assignment]["description"]
+                symbol_source = symbols_metadata[assignment]["source"]
+                csv_writer.writerow(
+                    [
+                        stable_id,
+                        assignment,
+                        probability,
+                        symbol_description,
+                        symbol_source,
+                    ]
+                )
 
     logger.info(f"symbol assignments saved at {assignments_csv_path}")
 
@@ -755,7 +768,7 @@ def save_network_from_checkpoint(checkpoint_path):
     """
     Save the network in a checkpoint file as a separate file.
     """
-    _experiment, network = load_checkpoint(checkpoint_path)
+    _experiment, network, _symbols_metadata = load_checkpoint(checkpoint_path)
 
     path = checkpoint_path
     network_path = pathlib.Path(f"{path.parent}/{path.stem}_network.pth")
@@ -763,6 +776,31 @@ def save_network_from_checkpoint(checkpoint_path):
     torch.save(network, network_path)
 
     return network_path
+
+
+def add_symbols_metadata_to_checkpoint(checkpoint_path, symbols_metadata_path):
+    """
+    Add symbols metadata to the checkpoint file.
+    """
+    logger.info(f'loading experiment checkpoint "{checkpoint_path}" ...')
+    checkpoint = torch.load(checkpoint_path, map_location=DEVICE)
+    logger.info(f'"{checkpoint_path}" experiment checkpoint loaded')
+
+    experiment = checkpoint["experiment"]
+    network = checkpoint["network"]
+
+    # load symbols metadata
+    with open(symbols_metadata_path) as f:
+        symbols_metadata = json.load(f)
+
+    checkpoint = {
+        "network": network,
+        "experiment": experiment,
+        "symbols_metadata": symbols_metadata,
+    }
+    torch.save(checkpoint, checkpoint_path)
+
+    logger.info(f"checkpoint with added symbols metadata saved successfully")
 
 
 def log_pytorch_cuda_info():
@@ -792,7 +830,7 @@ def evaluate_network(checkpoint_path, complete=False):
             Defaults to False, which runs the evaluation only for a selection of
             the most important species genome assemblies.
     """
-    experiment, network = load_checkpoint(checkpoint_path)
+    experiment, network, symbols_metadata = load_checkpoint(checkpoint_path)
     symbols_set = set(symbol.lower() for symbol in experiment.gene_symbols_mapper.symbols)
 
     ensembl_release = get_ensembl_release()
@@ -815,7 +853,9 @@ def evaluate_network(checkpoint_path, complete=False):
         )
         if not assignments_csv_path.exists():
             logger.info(f"assigning gene symbols to {fasta_path}")
-            assign_symbols(network, fasta_path, clade, checkpoint_path.parent)
+            assign_symbols(
+                network, symbols_metadata, fasta_path, clade, checkpoint_path.parent
+            )
 
         scientific_name = assembly.species.replace("_", " ").capitalize()
 
@@ -1075,7 +1115,7 @@ def compare_assignments(
     if checkpoint is None:
         symbols_set = None
     else:
-        experiment, _network = load_checkpoint(checkpoint)
+        experiment, _network, _symbols_metadata = load_checkpoint(checkpoint)
         symbols_set = set(
             symbol.lower() for symbol in experiment.gene_symbols_mapper.symbols
         )
@@ -1165,6 +1205,10 @@ def main():
         help="save the network in a checkpoint file as a separate file",
     )
     argument_parser.add_argument(
+        "--symbols_metadata",
+        help="path of the symbols metadata file to be added to a checkpoint",
+    )
+    argument_parser.add_argument(
         "--evaluate", action="store_true", help="evaluate a classifier"
     )
     argument_parser.add_argument(
@@ -1251,7 +1295,7 @@ def main():
         # resume training classifier
         if args.train:
             logger.info("resume training classifier")
-            experiment, network = load_checkpoint(checkpoint_path)
+            experiment, network, symbols_metadata = load_checkpoint(checkpoint_path)
 
             logger.info(f"experiment:\n{experiment}")
             logger.info(f"network:\n{network}")
@@ -1289,7 +1333,7 @@ def main():
         log_file_path = checkpoint_path.with_suffix(".log")
         logger.add(log_file_path, format=logging_format)
 
-        _experiment, network = load_checkpoint(checkpoint_path)
+        _experiment, network, symbols_metadata = load_checkpoint(checkpoint_path)
 
         taxonomy_id = get_species_taxonomy_id(args.scientific_name)
         clade = get_taxonomy_id_clade(taxonomy_id)
@@ -1297,7 +1341,7 @@ def main():
         logger.info(f"got clade {clade} for {args.scientific_name}")
 
         logger.info("assigning symbols...")
-        assign_symbols(network, args.sequences_fasta, clade)
+        assign_symbols(network, symbols_metadata, args.sequences_fasta, clade)
 
     # compare assignments with the ones on the latest Ensembl release
     elif args.assignments_csv and args.ensembl_database and args.scientific_name:
@@ -1314,6 +1358,13 @@ def main():
 
         network_path = save_network_from_checkpoint(checkpoint_path)
         logger.info(f'saved network at "{network_path}"')
+
+    # add symbols metadata to the checkpoint file
+    elif args.symbols_metadata and args.checkpoint:
+        checkpoint_path = pathlib.Path(args.checkpoint)
+        symbols_metadata_path = pathlib.Path(args.symbols_metadata)
+
+        add_symbols_metadata_to_checkpoint(checkpoint_path, symbols_metadata_path)
 
     else:
         argument_parser.print_help()
