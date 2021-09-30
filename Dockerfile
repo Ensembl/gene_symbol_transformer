@@ -5,6 +5,10 @@ FROM python:3.8
 
 LABEL maintainer="William Stark <william@ebi.ac.uk>"
 
+ENV \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1
+
 # Poetry installation environment variables
 ENV \
     POETRY_HOME="/opt/poetry" \
