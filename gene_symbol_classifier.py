@@ -617,7 +617,7 @@ def test_network(checkpoint_path, print_sample_assignments=False):
     """
     Calculate test loss and generate metrics.
     """
-    experiment, network, symbols_metadata = load_checkpoint(checkpoint_path)
+    experiment, network, _symbols_metadata = load_checkpoint(checkpoint_path)
 
     logger.info("start testing classifier")
     logger.info(f"experiment:\n{experiment}")
@@ -1249,7 +1249,7 @@ def main():
         # get training, validation, and test dataloaders
         training_loader, validation_loader, test_loader = generate_dataloaders(experiment)
 
-        # load the symbols metadata
+        # load symbols metadata
         symbols_metadata_filename = "symbols_metadata.json"
         symbols_metadata_path = data_directory / symbols_metadata_filename
         with open(symbols_metadata_path) as f:
