@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "gene_symbol_classifier"
-version = "0.8.1"
+version = "0.8.2"
 description = ""
 authors = ["William Stark <william@ebi.ac.uk>"]
 
