@@ -296,6 +296,7 @@ def generate_dataloaders(experiment):
 
 def train_network(
     network,
+    optimizer,
     experiment,
     symbols_metadata,
     training_loader,
@@ -306,9 +307,6 @@ def train_network(
 
     max_epochs = experiment.max_epochs
     criterion = experiment.criterion
-
-    # optimization function
-    optimizer = torch.optim.Adam(network.parameters(), lr=experiment.learning_rate)
 
     checkpoint_path = experiments_directory / f"{experiment.filename}.pth"
     logger.info(f"start training, experiment checkpoints saved at {checkpoint_path}")
@@ -1096,12 +1094,16 @@ def main():
         )
         network.to(DEVICE)
 
+        # optimization function
+        optimizer = torch.optim.Adam(network.parameters(), lr=experiment.learning_rate)
+
         logger.info("start training new classifier")
         logger.info(f"experiment:\n{experiment}")
         logger.info(f"network:\n{network}")
 
         checkpoint_path = train_network(
             network,
+            optimizer,
             experiment,
             symbols_metadata,
             training_loader,
@@ -1121,7 +1123,7 @@ def main():
         # resume training classifier
         if args.train:
             logger.info("resume training classifier")
-            experiment, network, _optimizer, symbols_metadata = load_checkpoint(
+            experiment, network, optimizer, symbols_metadata = load_checkpoint(
                 checkpoint_path
             )
 
@@ -1135,6 +1137,7 @@ def main():
 
             train_network(
                 network,
+                optimizer,
                 experiment,
                 symbols_metadata,
                 training_loader,
