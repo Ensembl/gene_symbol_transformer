@@ -99,7 +99,9 @@ def main():
     elif args.checkpoint:
         checkpoint_path = pathlib.Path(args.checkpoint)
 
-        experiment, _network, _symbols_metadata = load_checkpoint(checkpoint_path)
+        experiment, _network, _optimizer, _symbols_metadata = load_checkpoint(
+            checkpoint_path
+        )
 
         num_symbols = experiment.num_symbols
 
