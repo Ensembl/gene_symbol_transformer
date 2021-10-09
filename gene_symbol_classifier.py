@@ -61,11 +61,11 @@ from torch.utils.tensorboard import SummaryWriter
 
 # project imports
 from utils import (
+    GeneSymbolClassifier,
     SequenceDataset,
     data_directory,
     experiments_directory,
     get_assemblies_metadata,
-    get_ensembl_release,
     get_species_taxonomy_id,
     get_taxonomy_id_clade,
     get_xref_canonical_translations,
@@ -102,189 +102,6 @@ selected_genome_assemblies = {
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
-class GeneSymbolClassifier(nn.Module):
-    """
-    A fully connected neural network for gene name classification of protein sequences
-    using the protein letters as features.
-    """
-
-    def __init__(
-        self,
-        sequence_length,
-        padding_side,
-        num_protein_letters,
-        num_clades,
-        num_symbols,
-        num_connections,
-        dropout_probability,
-        symbol_mapper,
-        protein_sequence_mapper,
-        clade_mapper,
-    ):
-        """
-        Initialize the neural network.
-        """
-        super().__init__()
-
-        self.sequence_length = sequence_length
-        self.padding_side = padding_side
-        self.dropout_probability = dropout_probability
-        self.symbol_mapper = symbol_mapper
-        self.protein_sequence_mapper = protein_sequence_mapper
-        self.clade_mapper = clade_mapper
-
-        input_size = (self.sequence_length * num_protein_letters) + num_clades
-        output_size = num_symbols
-
-        self.input_layer = nn.Linear(in_features=input_size, out_features=num_connections)
-        if self.dropout_probability > 0:
-            self.dropout = nn.Dropout(self.dropout_probability)
-
-        self.relu = nn.ReLU()
-
-        self.output_layer = nn.Linear(
-            in_features=num_connections, out_features=output_size
-        )
-
-        self.final_activation = nn.LogSoftmax(dim=1)
-
-    def forward(self, x):
-        """
-        Perform a forward pass of the network.
-        """
-        x = self.input_layer(x)
-        if self.dropout_probability > 0:
-            x = self.dropout(x)
-        x = self.relu(x)
-
-        x = self.output_layer(x)
-        if self.dropout_probability > 0:
-            x = self.dropout(x)
-        x = self.final_activation(x)
-
-        return x
-
-    def predict(self, sequences, clades):
-        """
-        Get assignments of symbols for a list of protein sequences.
-        """
-        features_tensor = self.generate_features_tensor(sequences, clades)
-        features_tensor = features_tensor.to(DEVICE)
-
-        # run inference
-        with torch.no_grad():
-            self.eval()
-            output = self.forward(features_tensor)
-
-        # get predicted labels from output
-        predictions = self.get_predictions(output)
-
-        assignments = self.symbol_mapper.one_hot_to_label(predictions)
-        assignments = assignments.tolist()
-
-        return assignments
-
-    def predict_probabilities(self, sequences, clades):
-        """
-        Get assignments of symbols for a list of protein sequences, along with
-        the probabilities of predictions.
-        """
-        features_tensor = self.generate_features_tensor(sequences, clades)
-        features_tensor = features_tensor.to(DEVICE)
-
-        # run inference
-        with torch.no_grad():
-            self.eval()
-            output = self.forward(features_tensor)
-
-        # get predicted labels from output
-        predictions, probabilities = self.get_predictions_probabilities(output)
-
-        assignments = self.symbol_mapper.one_hot_to_label(predictions)
-
-        assignments_probabilities = [
-            (prediction, probability.item())
-            for prediction, probability in zip(assignments.tolist(), probabilities)
-        ]
-
-        return assignments_probabilities
-
-    @staticmethod
-    def get_predictions(output):
-        """
-        Get predicted labels from network's forward pass output.
-        """
-        predicted_probabilities = torch.exp(output)
-        # get class indexes from the one-hot encoded labels
-        predictions = torch.argmax(predicted_probabilities, dim=1)
-        return predictions
-
-    @staticmethod
-    def get_predictions_probabilities(output):
-        """
-        Get predicted labels from network's forward pass output, along with
-        the probabilities of predictions.
-        """
-        predicted_probabilities = torch.exp(output)
-        # get class indexes from the one-hot encoded labels
-        predictions = torch.argmax(predicted_probabilities, dim=1)
-        # get max probability
-        probabilities, _indices = torch.max(predicted_probabilities, dim=1)
-        return (predictions, probabilities)
-
-    def generate_features_tensor(self, sequences, clades):
-        """
-        Convert lists of protein sequences and species clades to an one-hot
-        encoded features tensor.
-        """
-        # temporary fix until previous classifiers are not used
-        if not hasattr(self, "padding_side"):
-            self.padding_side = "right"
-
-        one_hot_features_list = []
-        for sequence, clade in zip(sequences, clades):
-            # pad or truncate sequence to be exactly `self.sequence_length` letters long
-            string_length = len(sequence)
-            if string_length <= self.sequence_length:
-                if self.padding_side == "right":
-                    sequence = sequence + " " * (self.sequence_length - string_length)
-                elif self.padding_side == "left":
-                    sequence = " " * (self.sequence_length - string_length) + sequence
-                else:
-                    raise ValueError(
-                        f'{self.padding_side} is an invalid value for padding_side, choose one of ["left", "right"]'
-                    )
-            else:
-                sequence = sequence[: self.sequence_length]
-
-            one_hot_sequence = self.protein_sequence_mapper.protein_letters_to_one_hot(
-                sequence
-            )
-            one_hot_clade = self.clade_mapper.label_to_one_hot(clade)
-
-            # convert the dataframes to NumPy arrays
-            one_hot_sequence = one_hot_sequence.to_numpy(dtype=np.float32)
-            one_hot_clade = one_hot_clade.to_numpy(dtype=np.float32)
-
-            # flatten sequence matrix to a vector
-            flat_one_hot_sequence = one_hot_sequence.flatten()
-
-            # remove extra dimension
-            one_hot_clade = np.squeeze(one_hot_clade)
-
-            one_hot_features_vector = np.concatenate(
-                [flat_one_hot_sequence, one_hot_clade], axis=0
-            )
-
-            one_hot_features_list.append(one_hot_features_vector)
-
-        one_hot_features = np.stack(one_hot_features_list)
-
-        features_tensor = torch.from_numpy(one_hot_features)
-
-        return features_tensor
-
-
 class EarlyStopping:
     """
     Stop training if validation loss doesn't improve during a specified patience period.
@@ -316,9 +133,9 @@ class EarlyStopping:
             self.min_validation_loss = validation_loss
             logger.info("saving initial network checkpoint...")
             checkpoint = {
-                "network": network,
-                "optimizer": optimizer,
                 "experiment": experiment,
+                "network_state_dict": network.state_dict(),
+                "optimizer_state_dict": optimizer.state_dict(),
                 "symbols_metadata": symbols_metadata,
             }
             torch.save(checkpoint, checkpoint_path)
@@ -336,9 +153,9 @@ class EarlyStopping:
             self.min_validation_loss = validation_loss
             self.no_progress = 0
             checkpoint = {
-                "network": network,
-                "optimizer": optimizer,
                 "experiment": experiment,
+                "network_state_dict": network.state_dict(),
+                "optimizer_state_dict": optimizer.state_dict(),
                 "symbols_metadata": symbols_metadata,
             }
             torch.save(checkpoint, checkpoint_path)
