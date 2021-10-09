@@ -1006,13 +1006,16 @@ def dataframe_to_fasta(df, fasta_path):
 
 def load_checkpoint(checkpoint_path):
     """
-    Load a experiment checkpoint and return the network and experiment objects.
+    Load a experiment checkpoint and return the experiment, network, optimizer objects
+    and symbols metadata dictionary.
+
 
     Args:
         checkpoint_path (path-like object): path to the saved experiment checkpoint
     Returns:
-        tuple[Experiment, torch.nn.Module, dict] with the experiment state, the classifier,
-        and the symbols metadata dictionary
+        tuple[Experiment, torch.nn.Module, accelerate.optimizer.AcceleratedOptimizer, dict]
+        containing the experiment state, classifier network, optimizer and the
+        symbols metadata dictionary
     """
     logger.info(f'loading experiment checkpoint "{checkpoint_path}" ...')
     checkpoint = torch.load(checkpoint_path, map_location=DEVICE)
@@ -1023,9 +1026,10 @@ def load_checkpoint(checkpoint_path):
     network = checkpoint["network"]
     network.to(DEVICE)
 
+    optimizer = checkpoint["optimizer"]
     symbols_metadata = checkpoint["symbols_metadata"]
 
-    return (experiment, network, symbols_metadata)
+    return (experiment, network, optimizer, symbols_metadata)
 
 
 def sizeof_fmt(num, suffix="B"):

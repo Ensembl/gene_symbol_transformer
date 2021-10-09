@@ -64,7 +64,7 @@ def generate_assignments(checkpoint_path):
     Args:
         checkpoint_path (Path): path to the experiment checkpoint
     """
-    experiment, network, symbols_metadata = load_checkpoint(checkpoint_path)
+    experiment, network, _optimizer, symbols_metadata = load_checkpoint(checkpoint_path)
     symbols_set = set(symbol.lower() for symbol in experiment.symbol_mapper.categories)
     logger.info(experiment)
     logger.info(network)

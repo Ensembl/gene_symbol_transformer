@@ -304,13 +304,20 @@ class EarlyStopping:
         self.min_validation_loss = np.Inf
 
     def __call__(
-        self, network, experiment, symbols_metadata, validation_loss, checkpoint_path
+        self,
+        network,
+        optimizer,
+        experiment,
+        symbols_metadata,
+        validation_loss,
+        checkpoint_path,
     ):
         if self.min_validation_loss == np.Inf:
             self.min_validation_loss = validation_loss
             logger.info("saving initial network checkpoint...")
             checkpoint = {
                 "network": network,
+                "optimizer": optimizer,
                 "experiment": experiment,
                 "symbols_metadata": symbols_metadata,
             }
@@ -330,6 +337,7 @@ class EarlyStopping:
             self.no_progress = 0
             checkpoint = {
                 "network": network,
+                "optimizer": optimizer,
                 "experiment": experiment,
                 "symbols_metadata": symbols_metadata,
             }
@@ -483,9 +491,7 @@ def train_network(
     criterion = experiment.criterion
 
     # optimization function
-    experiment.optimizer = torch.optim.Adam(
-        network.parameters(), lr=experiment.learning_rate
-    )
+    optimizer = torch.optim.Adam(network.parameters(), lr=experiment.learning_rate)
 
     checkpoint_path = experiments_directory / f"{experiment.filename}.pth"
     logger.info(f"start training, experiment checkpoints saved at {checkpoint_path}")
@@ -541,7 +547,7 @@ def train_network(
             nn.utils.clip_grad_norm_(network.parameters(), experiment.clip_max_norm)
 
             # perform an optimization step
-            experiment.optimizer.step()
+            optimizer.step()
 
             batch_train_accuracy = train_accuracy(predictions, labels)
             average_training_loss = np.average(training_losses)
@@ -601,6 +607,7 @@ def train_network(
 
         if experiment.stop_early(
             network,
+            optimizer,
             experiment,
             symbols_metadata,
             average_validation_loss,
@@ -617,7 +624,7 @@ def test_network(checkpoint_path, print_sample_assignments=False):
     """
     Calculate test loss and generate metrics.
     """
-    experiment, network, _symbols_metadata = load_checkpoint(checkpoint_path)
+    experiment, network, _optimizer, _symbols_metadata = load_checkpoint(checkpoint_path)
 
     logger.info("start testing classifier")
     logger.info(f"experiment:\n{experiment}")
@@ -791,7 +798,7 @@ def save_network_from_checkpoint(checkpoint_path):
     """
     Save the network in a checkpoint file as a separate file.
     """
-    _experiment, network, _symbols_metadata = load_checkpoint(checkpoint_path)
+    _experiment, network, _optimizer, _symbols_metadata = load_checkpoint(checkpoint_path)
 
     path = checkpoint_path
     network_path = pathlib.Path(f"{path.parent}/{path.stem}_network.pth")
@@ -828,7 +835,7 @@ def evaluate_network(checkpoint_path, complete=False):
             Defaults to False, which runs the evaluation only for a selection of
             the most important species genome assemblies.
     """
-    experiment, network, symbols_metadata = load_checkpoint(checkpoint_path)
+    experiment, network, _optimizer, symbols_metadata = load_checkpoint(checkpoint_path)
     symbols_set = set(symbol.lower() for symbol in experiment.symbol_mapper.categories)
 
     assemblies = get_assemblies_metadata()
@@ -1112,7 +1119,9 @@ def compare_assignments(
     if checkpoint is None:
         symbols_set = None
     else:
-        experiment, _network, _symbols_metadata = load_checkpoint(checkpoint_path)
+        experiment, _network, _optimizer, _symbols_metadata = load_checkpoint(
+            checkpoint_path
+        )
         symbols_set = set(
             symbol.lower() for symbol in experiment.symbol_mapper.categories
         )
@@ -1295,7 +1304,9 @@ def main():
         # resume training classifier
         if args.train:
             logger.info("resume training classifier")
-            experiment, network, symbols_metadata = load_checkpoint(checkpoint_path)
+            experiment, network, _optimizer, symbols_metadata = load_checkpoint(
+                checkpoint_path
+            )
 
             logger.info(f"experiment:\n{experiment}")
             logger.info(f"network:\n{network}")
@@ -1334,7 +1345,9 @@ def main():
         log_file_path = checkpoint_path.with_suffix(".log")
         logger.add(log_file_path, format=logging_format)
 
-        _experiment, network, symbols_metadata = load_checkpoint(checkpoint_path)
+        _experiment, network, _optimizer, symbols_metadata = load_checkpoint(
+            checkpoint_path
+        )
 
         logger.info("assigning symbols...")
         assign_symbols(
