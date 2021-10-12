@@ -42,10 +42,10 @@ from loguru import logger
 from gene_symbol_classifier import (
     EarlyStopping,
     Experiment,
-    GeneSymbolClassifier,
     assign_symbols,
 )
 from utils import (
+    GeneSymbolClassifier,
     PrettySimpleNamespace,
     data_directory,
     download_file,
