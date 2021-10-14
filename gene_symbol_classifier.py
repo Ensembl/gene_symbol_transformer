@@ -279,17 +279,19 @@ def generate_dataloaders(experiment):
         training_dataset,
         batch_size=experiment.batch_size,
         shuffle=True,
-        num_workers=7,
+        num_workers=experiment.num_workers,
     )
     validation_loader = DataLoader(
         validation_dataset,
         batch_size=experiment.batch_size,
         shuffle=True,
+        num_workers=experiment.num_workers,
     )
     test_loader = DataLoader(
         test_dataset,
         batch_size=experiment.batch_size,
         shuffle=True,
+        num_workers=experiment.num_workers,
     )
 
     return (training_loader, validation_loader, test_loader)
@@ -445,7 +447,7 @@ def train_network(
 
         train_progress = f"epoch {epoch:{max_epochs_length}} complete | validation loss: {average_validation_loss:.4f} | validation accuracy: {total_validation_accuracy:.4f} | time: {epoch_time:.2f}s"
         logger.info(train_progress)
-        logger.info(f"training batch average execution time: {average_batch_execution_time:.2f}s | loading time: {average_batch_loading_time:.2f}s ({num_train_batches - 1} complete batches)")
+        logger.info(f"training batch average execution time: {average_batch_execution_time:.2f}s | average loading time: {average_batch_loading_time:.2f}s ({num_train_batches - 1} complete batches)")
 
         if experiment.stop_early(
             network,

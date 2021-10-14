@@ -50,7 +50,7 @@ def main():
     )
     argument_parser.add_argument(
         "--mem_limit",
-        default=8192,
+        default=16384,
         type=int,
         help="memory limit for all the processes that belong to the job",
     )
@@ -134,7 +134,7 @@ def main():
     pipeline_command = " ".join(pipeline_command_elements)
 
     # specify lower mem_limit for dev datasets jobs
-    num_symbols_mem_limit = {3: 1024, 100: 2048, 1000: 2048}
+    num_symbols_mem_limit = {3: 1024, 100: 4096, 1000: 12288}
     if num_symbols in num_symbols_mem_limit.keys():
         mem_limit = num_symbols_mem_limit[num_symbols]
     elif args.evaluate:

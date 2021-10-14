@@ -85,6 +85,12 @@ batch_size: 2048
 #batch_size: 4096
 #batch_size: 8192
 
+num_workers: 7
+#num_workers: 17
+#num_workers: 23
+#num_workers: 31
+#num_workers: 53
+
 #learning_rate: 0.01
 learning_rate: 0.005
 #learning_rate: 0.001
