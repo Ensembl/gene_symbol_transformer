@@ -338,9 +338,14 @@ def train_network(
         # set the network in training mode
         network.train()
 
-        batch_times = []
+        batch_execution_times = []
+        batch_loading_times = []
+        pre_batch_loading_time = time.time()
         for batch_number, (inputs, labels) in enumerate(training_loader, start=1):
             batch_start_time = time.time()
+            batch_loading_time = batch_start_time - pre_batch_loading_time
+            if batch_number < num_train_batches:
+                batch_loading_times.append(batch_loading_time)
 
             inputs, labels = inputs.to(DEVICE), labels.to(DEVICE)
 
@@ -375,11 +380,12 @@ def train_network(
             average_training_loss = np.average(training_losses)
 
             batch_finish_time = time.time()
-            batch_time = batch_finish_time - batch_start_time
+            pre_batch_loading_time = batch_finish_time
+            batch_execution_time = batch_finish_time - batch_start_time
             if batch_number < num_train_batches:
-                batch_times.append(batch_time)
+                batch_execution_times.append(batch_execution_time)
 
-            train_progress = f"epoch {epoch:{max_epochs_length}} batch {batch_number:{num_batches_length}} of {num_train_batches} | average loss: {average_training_loss:.4f} | accuracy: {batch_train_accuracy:.4f} | time: {batch_time:.2f}s"
+            train_progress = f"epoch {epoch:{max_epochs_length}} batch {batch_number:{num_batches_length}} of {num_train_batches} | average loss: {average_training_loss:.4f} | accuracy: {batch_train_accuracy:.4f} | execution: {batch_execution_time:.2f}s | loading: {batch_loading_time:.2f}s"
             logger.info(train_progress)
 
         experiment.num_complete_epochs += 1
@@ -429,7 +435,8 @@ def train_network(
 
         total_validation_accuracy = validation_accuracy.compute()
 
-        average_batch_time = sum(batch_times) / len(batch_times)
+        average_batch_execution_time = sum(batch_execution_times) / len(batch_execution_times)
+        average_batch_loading_time = sum(batch_loading_times) / len(batch_loading_times)
 
         epoch_finish_time = time.time()
         epoch_time = epoch_finish_time - epoch_start_time
@@ -437,8 +444,8 @@ def train_network(
 
         train_progress = f"epoch {epoch:{max_epochs_length}} complete | validation loss: {average_validation_loss:.4f} | validation accuracy: {total_validation_accuracy:.4f} | time: {epoch_time:.2f}s"
         logger.info(train_progress)
-        if average_batch_time > 1:
-            logger.info(f"average batch time: {average_batch_time:.2f}s ({num_train_batches - 1} complete batches)")
+        if average_batch_execution_time > 1 or average_batch_loading_time > 1:
+            logger.info(f"average batch execution time: {average_batch_execution_time:.2f}s | average batch loading time: {average_batch_loading_time:.2f}s ({num_train_batches - 1} complete batches)")
 
         if experiment.stop_early(
             network,
