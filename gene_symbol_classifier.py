@@ -279,6 +279,7 @@ def generate_dataloaders(experiment):
         training_dataset,
         batch_size=experiment.batch_size,
         shuffle=True,
+        num_workers=7,
     )
     validation_loader = DataLoader(
         validation_dataset,
@@ -444,8 +445,7 @@ def train_network(
 
         train_progress = f"epoch {epoch:{max_epochs_length}} complete | validation loss: {average_validation_loss:.4f} | validation accuracy: {total_validation_accuracy:.4f} | time: {epoch_time:.2f}s"
         logger.info(train_progress)
-        if average_batch_execution_time > 1 or average_batch_loading_time > 1:
-            logger.info(f"average batch execution time: {average_batch_execution_time:.2f}s | average batch loading time: {average_batch_loading_time:.2f}s ({num_train_batches - 1} complete batches)")
+        logger.info(f"training batch average execution time: {average_batch_execution_time:.2f}s | loading time: {average_batch_loading_time:.2f}s ({num_train_batches - 1} complete batches)")
 
         if experiment.stop_early(
             network,
