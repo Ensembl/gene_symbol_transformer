@@ -28,6 +28,7 @@ JOB_TYPE=standard
 #MEM_LIMIT=8192
 MEM_LIMIT=16384
 #MEM_LIMIT=32768
+#MEM_LIMIT=65536
 
 
 # stardard compute node shell
