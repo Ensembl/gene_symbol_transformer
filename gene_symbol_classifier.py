@@ -323,7 +323,10 @@ def train_network(
         experiment.average_validation_losses = []
 
     experiment.epoch = experiment.num_complete_epochs + 1
+    epoch_times = []
     for epoch in range(experiment.epoch, max_epochs + 1):
+        epoch_start_time = time.time()
+
         experiment.epoch = epoch
 
         # training
@@ -334,7 +337,11 @@ def train_network(
 
         # set the network in training mode
         network.train()
+
+        batch_times = []
         for batch_number, (inputs, labels) in enumerate(training_loader, start=1):
+            batch_start_time = time.time()
+
             inputs, labels = inputs.to(DEVICE), labels.to(DEVICE)
 
             # zero accumulated gradients
@@ -367,7 +374,12 @@ def train_network(
             batch_train_accuracy = train_accuracy(predictions, labels)
             average_training_loss = np.average(training_losses)
 
-            train_progress = f"epoch {epoch:{max_epochs_length}}, batch {batch_number:{num_batches_length}} of {num_train_batches} | average loss: {average_training_loss:.4f} | accuracy: {batch_train_accuracy:.4f}"
+            batch_finish_time = time.time()
+            batch_time = batch_finish_time - batch_start_time
+            if batch_number < num_train_batches:
+                batch_times.append(batch_time)
+
+            train_progress = f"epoch {epoch:{max_epochs_length}}, batch {batch_number:{num_batches_length}} of {num_train_batches} | average loss: {average_training_loss:.4f} | accuracy: {batch_train_accuracy:.4f} | time: {batch_time:.2f}s"
             logger.info(train_progress)
 
         experiment.num_complete_epochs += 1
@@ -417,8 +429,15 @@ def train_network(
 
         total_validation_accuracy = validation_accuracy.compute()
 
-        train_progress = f"epoch {epoch:{max_epochs_length}} complete | validation loss: {average_validation_loss:.4f} | validation accuracy: {total_validation_accuracy:.4f}"
+        average_batch_time = sum(batch_times) / len(batch_times)
+
+        epoch_finish_time = time.time()
+        epoch_time = epoch_finish_time - epoch_start_time
+        epoch_times.append(epoch_time)
+
+        train_progress = f"epoch {epoch:{max_epochs_length}} complete | validation loss: {average_validation_loss:.4f} | validation accuracy: {total_validation_accuracy:.4f} | time: {epoch_time:.2f}s"
         logger.info(train_progress)
+        logger.info(f"average batch time: {average_batch_time:.2f}s ({num_train_batches - 1} complete batches)")
 
         if experiment.stop_early(
             network,
@@ -431,6 +450,9 @@ def train_network(
             summary_writer.flush()
             summary_writer.close()
             break
+
+    average_epoch_time = sum(epoch_times) / len(epoch_times)
+    logger.info(f"average epoch training time: {average_epoch_time:.2f}s ({epoch} epochs)")
 
     return checkpoint_path
 
