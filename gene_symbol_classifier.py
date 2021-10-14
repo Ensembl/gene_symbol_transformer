@@ -379,7 +379,7 @@ def train_network(
             if batch_number < num_train_batches:
                 batch_times.append(batch_time)
 
-            train_progress = f"epoch {epoch:{max_epochs_length}}, batch {batch_number:{num_batches_length}} of {num_train_batches} | average loss: {average_training_loss:.4f} | accuracy: {batch_train_accuracy:.4f} | time: {batch_time:.2f}s"
+            train_progress = f"epoch {epoch:{max_epochs_length}} batch {batch_number:{num_batches_length}} of {num_train_batches} | average loss: {average_training_loss:.4f} | accuracy: {batch_train_accuracy:.4f} | time: {batch_time:.2f}s"
             logger.info(train_progress)
 
         experiment.num_complete_epochs += 1
@@ -421,7 +421,7 @@ def train_network(
                 batch_validation_accuracy = validation_accuracy(predictions, labels)
                 average_validation_loss = np.average(validation_losses)
 
-                validation_progress = f"epoch {epoch:{max_epochs_length}}, validation batch {batch_number:{num_batches_length}} of {num_validation_batches} | average loss: {average_validation_loss:.4f} | accuracy: {batch_validation_accuracy:.4f}"
+                validation_progress = f"epoch {epoch:{max_epochs_length}} validation batch {batch_number:{num_batches_length}} of {num_validation_batches} | average loss: {average_validation_loss:.4f} | accuracy: {batch_validation_accuracy:.4f}"
                 logger.info(validation_progress)
 
         average_validation_loss = np.average(validation_losses)
@@ -437,7 +437,8 @@ def train_network(
 
         train_progress = f"epoch {epoch:{max_epochs_length}} complete | validation loss: {average_validation_loss:.4f} | validation accuracy: {total_validation_accuracy:.4f} | time: {epoch_time:.2f}s"
         logger.info(train_progress)
-        logger.info(f"average batch time: {average_batch_time:.2f}s ({num_train_batches - 1} complete batches)")
+        if average_batch_time > 1:
+            logger.info(f"average batch time: {average_batch_time:.2f}s ({num_train_batches - 1} complete batches)")
 
         if experiment.stop_early(
             network,
@@ -451,8 +452,9 @@ def train_network(
             summary_writer.close()
             break
 
-    average_epoch_time = sum(epoch_times) / len(epoch_times)
-    logger.info(f"average epoch training time: {average_epoch_time:.2f}s ({epoch} epochs)")
+    training_time = sum(epoch_times)
+    average_epoch_time = training_time / len(epoch_times)
+    logger.info(f"total training time: {training_time:.2f}s | epoch average training time: {average_epoch_time:.2f}s ({epoch} epochs)")
 
     return checkpoint_path
 
