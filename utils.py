@@ -425,67 +425,6 @@ class GeneSymbolClassifier(nn.Module):
         return features_tensor
 
 
-class CategoryMapper:
-    """
-    Categorical data mapping class, with methods to translate from the category
-    text labels to one-hot encoding and vice versa.
-    """
-
-    def __init__(self, category_name, categories):
-        self.category_name = category_name
-        self.categories = sorted(categories)
-
-        # generate a pandas categorical data type for the categories
-        self.categorical_datatype = pd.api.types.CategoricalDtype(
-            categories=self.categories, ordered=True
-        )
-
-    def label_to_one_hot(self, label):
-        """
-        Generate a dataframe with the one-hot representation of label.
-        """
-        label_categorical = pd.Series(label, dtype=self.categorical_datatype)
-        one_hot_label = pd.get_dummies(label_categorical, prefix=self.category_name)
-        return one_hot_label
-
-    def one_hot_to_label(self, one_hot_label):
-        """
-        Get the label string from its one-hot representation.
-        """
-        label = self.categorical_datatype.categories[one_hot_label]
-        return label
-
-
-class ProteinSequenceMapper:
-    """
-    Class to hold the categorical data type for protein letters and a method
-    to translate from protein letters to one-hot encoding.
-    """
-
-    def __init__(self):
-        # get unique protein letters
-        stop_codon = ["*"]
-        extended_IUPAC_protein_letters = Bio.Data.IUPACData.extended_protein_letters
-        protein_letters = list(extended_IUPAC_protein_letters) + stop_codon
-
-        self.protein_letters = sorted(protein_letters)
-
-        # generate a categorical data type for protein letters
-        self.protein_letters_categorical_datatype = pd.api.types.CategoricalDtype(
-            categories=self.protein_letters, ordered=True
-        )
-
-    def protein_letters_to_one_hot(self, sequence):
-        protein_letters_categorical = pd.Series(
-            list(sequence), dtype=self.protein_letters_categorical_datatype
-        )
-        one_hot_sequence = pd.get_dummies(
-            protein_letters_categorical, prefix="protein_letter"
-        )
-
-        return one_hot_sequence
-
-
 class SequenceDataset(Dataset):
     """
     Custom Dataset for raw sequences.
@@ -593,6 +532,67 @@ class SequenceDataset(Dataset):
         item = one_hot_features, one_hot_symbol
 
         return item
+
+
+class CategoryMapper:
+    """
+    Categorical data mapping class, with methods to translate from the category
+    text labels to one-hot encoding and vice versa.
+    """
+
+    def __init__(self, category_name, categories):
+        self.category_name = category_name
+        self.categories = sorted(categories)
+
+        # generate a pandas categorical data type for the categories
+        self.categorical_datatype = pd.api.types.CategoricalDtype(
+            categories=self.categories, ordered=True
+        )
+
+    def label_to_one_hot(self, label):
+        """
+        Generate a dataframe with the one-hot representation of label.
+        """
+        label_categorical = pd.Series(label, dtype=self.categorical_datatype)
+        one_hot_label = pd.get_dummies(label_categorical, prefix=self.category_name)
+        return one_hot_label
+
+    def one_hot_to_label(self, one_hot_label):
+        """
+        Get the label string from its one-hot representation.
+        """
+        label = self.categorical_datatype.categories[one_hot_label]
+        return label
+
+
+class ProteinSequenceMapper:
+    """
+    Class to hold the categorical data type for protein letters and a method
+    to translate from protein letters to one-hot encoding.
+    """
+
+    def __init__(self):
+        # get unique protein letters
+        stop_codon = ["*"]
+        extended_IUPAC_protein_letters = Bio.Data.IUPACData.extended_protein_letters
+        protein_letters = list(extended_IUPAC_protein_letters) + stop_codon
+
+        self.protein_letters = sorted(protein_letters)
+
+        # generate a categorical data type for protein letters
+        self.protein_letters_categorical_datatype = pd.api.types.CategoricalDtype(
+            categories=self.protein_letters, ordered=True
+        )
+
+    def protein_letters_to_one_hot(self, sequence):
+        protein_letters_categorical = pd.Series(
+            list(sequence), dtype=self.protein_letters_categorical_datatype
+        )
+        one_hot_sequence = pd.get_dummies(
+            protein_letters_categorical, prefix="protein_letter"
+        )
+
+        return one_hot_sequence
 
 
 def read_fasta_in_chunks(fasta_file_path, num_chunk_entries=1024):
