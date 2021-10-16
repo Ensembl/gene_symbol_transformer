@@ -134,7 +134,7 @@ def main():
     pipeline_command = " ".join(pipeline_command_elements)
 
     # specify lower mem_limit for dev datasets jobs
-    num_symbols_mem_limit = {3: 1024, 100: 4096, 1000: 12288}
+    num_symbols_mem_limit = {3: 2048, 100: 4096, 1000: 12288}
     if num_symbols in num_symbols_mem_limit.keys():
         mem_limit = num_symbols_mem_limit[num_symbols]
     elif args.evaluate:
