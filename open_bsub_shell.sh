@@ -38,10 +38,9 @@ if [[ "$JOB_TYPE" = "standard" ]]; then
     echo "starting standard shell"
 
     # specify compute node
-    COMPUTE_NODE="any"
     #COMPUTE_NODE="hl-codon-02-04"
 
-    if [[ "$COMPUTE_NODE" = "any" ]]; then
+    if [[ -z "$COMPUTE_NODE" ]]; then
         bsub -q production -Is -tty -M $MEM_LIMIT -R"select[mem>$MEM_LIMIT] rusage[mem=$MEM_LIMIT]" $SHELL
     else
         bsub -q production -m "$COMPUTE_NODE.ebi.ac.uk" -Is -tty -M $MEM_LIMIT -R"select[mem>$MEM_LIMIT] rusage[mem=$MEM_LIMIT]" $SHELL
@@ -61,20 +60,21 @@ NUM_GPUS=2
 #NUM_GPUS=6
 #NUM_GPUS=8
 
-GPU_MEMORY=16384
+GPU_MEMORY=16384  # 16 GiBs
+#GPU_MEMORY=32510  # ~32 GiBs, total Tesla V100 memory
 
 
 # https://www.ibm.com/docs/en/spectrum-lsf/10.1.0?topic=jobs-submitting-that-require-gpu-resources
 if [[ "$JOB_TYPE" = "gpu" ]]; then
-    echo "starting gpu shell"
-
     # specify gpu node
-    GPU_NODE="any"
     #GPU_NODE=codon-gpu-001
+    #GPU_NODE=codon-gpu-002
 
-    if [[ "$GPU_NODE" = "any" ]]; then
+    if [[ -z "$GPU_NODE" ]]; then
+        echo "starting gpu shell"
         bsub -q gpu -gpu "num=$NUM_GPUS:gmem=$GPU_MEMORY:j_exclusive=yes" -Is -tty -M $MEM_LIMIT -R"select[mem>$MEM_LIMIT] rusage[mem=$MEM_LIMIT] span[hosts=1]" $SHELL
     else
+        echo "starting gpu shell on $GPU_NODE"
         bsub -q gpu -m $GPU_NODE.ebi.ac.uk -gpu "num=$NUM_GPUS:gmem=$GPU_MEMORY:j_exclusive=yes" -Is -tty -M $MEM_LIMIT -R"select[mem>$MEM_LIMIT] rusage[mem=$MEM_LIMIT] span[hosts=1]" $SHELL
     fi
 fi
@@ -90,6 +90,5 @@ MIN_TASKS=4
 if [[ "$JOB_TYPE" = "parallel" ]]; then
     echo "starting parallel shell with $MIN_TASKS tasks"
     bsub -q production -Is -tty -n $MIN_TASKS -M $MEM_LIMIT -R"select[mem>$MEM_LIMIT] rusage[mem=$MEM_LIMIT] span[hosts=1]" $SHELL
-    #bsub -q production -Is -tty -n $MIN_TASKS -M $MEM_LIMIT -R"select[model=XeonE52650, mem>$MEM_LIMIT] rusage[mem=$MEM_LIMIT] span[hosts=1]" $SHELL
 fi
 ################################################################################
