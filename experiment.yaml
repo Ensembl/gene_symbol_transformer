@@ -1,5 +1,8 @@
 # general
 ################################################################################
+# experiment files directory
+experiment_directory: experiments
+
 # experiment filenames prefix
 filename_prefix: experiment
 #filename_prefix: only_human

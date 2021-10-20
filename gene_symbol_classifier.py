@@ -64,7 +64,6 @@ from utils import (
     GeneSymbolClassifier,
     SequenceDataset,
     data_directory,
-    experiments_directory,
     get_assemblies_metadata,
     get_species_taxonomy_id,
     get_taxonomy_id_clade,
@@ -311,7 +310,7 @@ def train_network(
     max_epochs = experiment.max_epochs
     criterion = experiment.criterion
 
-    checkpoint_path = experiments_directory / f"{experiment.filename}.pth"
+    checkpoint_path = f"{experiment.experiment_directory}/{experiment.filename}.pth"
     logger.info(f"start training, experiment checkpoints saved at {checkpoint_path}")
 
     max_epochs_length = len(str(max_epochs))
@@ -1095,8 +1094,8 @@ def main():
         # generate new experiment
         experiment = Experiment(experiment_settings, datetime)
 
-        experiments_directory.mkdir(exist_ok=True)
-        log_file_path = experiments_directory / f"{experiment.filename}.log"
+        pathlib.Path(experiment.experiment_directory).mkdir(exist_ok=True)
+        log_file_path = f"{experiment.experiment_directory}/{experiment.filename}.log"
         logger.add(log_file_path, format=logging_format)
 
         log_pytorch_cuda_info()

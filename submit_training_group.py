@@ -26,6 +26,7 @@
 import argparse
 import copy
 import datetime as dt
+import pathlib
 import subprocess
 import sys
 import time
@@ -61,12 +62,16 @@ def main():
         argument_parser.print_help()
         sys.exit()
 
-    root_directory = "experiments"
-
     datetime = dt.datetime.now().isoformat(sep="_", timespec="seconds")
 
     with open(args.group_settings) as f:
         group_settings = yaml.safe_load(f)
+
+    root_directory = pathlib.Path("experiments")
+
+    filename_prefix = group_settings["filename_prefix"]
+    group_directory = root_directory / f"{filename_prefix}_{datetime}"
+    group_directory.mkdir()
 
     task_tuning = {
         25228: {"num_workers": 47},
@@ -85,36 +90,35 @@ def main():
     for num_symbols in task_tuning:
         experiment_settings = copy.deepcopy(group_settings)
 
+        experiment_settings["experiment_directory"] = str(group_directory)
         experiment_settings["num_symbols"] = num_symbols
         experiment_settings["num_workers"] = task_tuning[num_symbols]["num_workers"]
 
         experiment = Experiment(experiment_settings, datetime)
         job_name = experiment.filename
 
-        experiment_settings_file = f"{job_name}.yaml"
-        with open(experiment_settings_file, "w") as f:
+        experiment_settings_path = group_directory / f"{job_name}.yaml"
+        with open(experiment_settings_path, "w") as f:
             yaml.dump(experiment_settings, f, default_flow_style=False, sort_keys=False)
 
         pipeline_command_elements = [
             "python gene_symbol_classifier.py",
             f"--datetime {datetime}",
-            f"--experiment_settings {experiment_settings_file}",
+            f"--experiment_settings {experiment_settings_path}",
             "--train",
             "--test",
         ]
 
         pipeline_command = " ".join(pipeline_command_elements)
 
-        mem_limit = args.mem_limit
-
         # common arguments for any job type
         bsub_command_elements = [
             "bsub",
             f"-q production",
-            f"-M {mem_limit}",
-            f'-R"select[mem>{mem_limit}] rusage[mem={mem_limit}]"',
-            f"-o {root_directory}/{job_name}-stdout.log",
-            f"-e {root_directory}/{job_name}-stderr.log",
+            f"-M {args.mem_limit}",
+            f'-R"select[mem>{args.mem_limit}] rusage[mem={args.mem_limit}]"',
+            f"-o {group_directory}/{job_name}-stdout.log",
+            f"-e {group_directory}/{job_name}-stderr.log",
         ]
 
         bsub_command_elements.append(pipeline_command)

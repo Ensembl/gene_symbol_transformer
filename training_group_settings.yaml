@@ -1,5 +1,8 @@
 # general
 ################################################################################
+# experiment files directory
+#experiment_directory:
+
 # experiment filenames prefix
 filename_prefix: production_working_values
 

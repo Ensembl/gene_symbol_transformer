@@ -51,7 +51,6 @@ from torch.utils.data import Dataset
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 data_directory = pathlib.Path("data")
-experiments_directory = pathlib.Path("experiments")
 sequences_directory = data_directory / "protein_sequences"
 
 logging_format = "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{message}</level>"
