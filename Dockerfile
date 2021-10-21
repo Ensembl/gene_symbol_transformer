@@ -8,7 +8,7 @@ LABEL maintainer="William Stark <william@ebi.ac.uk>"
 # Poetry installation environment variables
 ENV \
     POETRY_HOME="/opt/poetry" \
-    POETRY_VERSION=1.1.10 \
+    POETRY_VERSION=1.1.11 \
     POETRY_VIRTUALENVS_CREATE=false
 
 # add Poetry bin directory to PATH
