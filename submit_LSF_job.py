@@ -33,9 +33,8 @@ import sys
 import yaml
 
 # project imports
-from utils import GeneSymbolClassifier, load_checkpoint
-
 from gene_symbol_classifier import EarlyStopping, Experiment
+from utils import GeneSymbolClassifier, load_checkpoint
 
 
 def main():
