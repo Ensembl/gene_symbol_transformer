@@ -51,11 +51,11 @@ import time
 import numpy as np
 import pandas as pd
 import torch
-import torch.nn as nn
 import torchmetrics
 import yaml
 
 from loguru import logger
+from torch import nn
 from torch.utils.data import DataLoader, random_split
 from torch.utils.tensorboard import SummaryWriter
 
@@ -138,7 +138,6 @@ class EarlyStopping:
                 "symbols_metadata": symbols_metadata,
             }
             torch.save(checkpoint, checkpoint_path)
-            return False
 
         elif validation_loss <= self.min_validation_loss - self.loss_delta:
             validation_loss_decrease = self.min_validation_loss - validation_loss
@@ -158,7 +157,6 @@ class EarlyStopping:
                 "symbols_metadata": symbols_metadata,
             }
             torch.save(checkpoint, checkpoint_path)
-            return False
 
         else:
             self.no_progress += 1
@@ -168,6 +166,8 @@ class EarlyStopping:
                     f"{self.no_progress} epochs with no validation loss improvement, stopping training"
                 )
                 return True
+
+        return False
 
 
 class Experiment:
@@ -188,7 +188,7 @@ class Experiment:
 
         if self.included_genera is not None and self.excluded_genera is not None:
             raise ValueError(
-                f'"included_genera" and "excluded_genera" are mutually exclusive experiment settings parameters, specify values to at most one of them'
+                '"included_genera" and "excluded_genera" are mutually exclusive experiment settings parameters, specify values to at most one of them'
             )
 
         # early stopping
@@ -966,9 +966,7 @@ def compare_assignments(
     if checkpoint is None:
         symbols_set = None
     else:
-        experiment, _network, _optimizer, _symbols_metadata = load_checkpoint(
-            checkpoint_path
-        )
+        experiment, _network, _optimizer, _symbols_metadata = load_checkpoint(checkpoint)
         symbols_set = set(
             symbol.lower() for symbol in experiment.symbol_mapper.categories
         )
@@ -1083,8 +1081,8 @@ def main():
     # train a new classifier
     if args.train and args.experiment_settings:
         # read the experiment settings YAML file to a dictionary
-        with open(args.experiment_settings) as f:
-            experiment_settings = yaml.safe_load(f)
+        with open(args.experiment_settings) as file:
+            experiment_settings = yaml.safe_load(file)
 
         if args.datetime is None:
             datetime = dt.datetime.now().isoformat(sep="_", timespec="seconds")
@@ -1103,13 +1101,13 @@ def main():
         torch.manual_seed(experiment.random_seed)
 
         # get training, validation, and test dataloaders
-        training_loader, validation_loader, test_loader = generate_dataloaders(experiment)
+        training_loader, validation_loader, _test_loader = generate_dataloaders(experiment)
 
         # load symbols metadata
         symbols_metadata_filename = "symbols_metadata.json"
         symbols_metadata_path = data_directory / symbols_metadata_filename
-        with open(symbols_metadata_path) as f:
-            symbols_metadata = json.load(f)
+        with open(symbols_metadata_path) as file:
+            symbols_metadata = json.load(file)
 
         # instantiate neural network
         network = GeneSymbolClassifier(

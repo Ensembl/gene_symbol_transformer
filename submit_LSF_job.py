@@ -76,8 +76,8 @@ def main():
     if args.experiment_settings:
         datetime = dt.datetime.now().isoformat(sep="_", timespec="seconds")
 
-        with open(args.experiment_settings) as f:
-            experiment_settings = yaml.safe_load(f)
+        with open(args.experiment_settings) as file:
+            experiment_settings = yaml.safe_load(file)
 
         num_symbols = experiment_settings["num_symbols"]
 
@@ -134,7 +134,7 @@ def main():
 
     # specify lower mem_limit for dev datasets jobs
     num_symbols_mem_limit = {3: 2048, 100: 4096, 1000: 12288}
-    if num_symbols in num_symbols_mem_limit.keys():
+    if num_symbols in num_symbols_mem_limit:
         mem_limit = num_symbols_mem_limit[num_symbols]
     elif args.evaluate:
         mem_limit = 2048
@@ -144,7 +144,7 @@ def main():
     # common arguments for any job type
     bsub_command_elements = [
         "bsub",
-        f"-q production",
+        "-q production",
         f"-M {mem_limit}",
         f'-R"select[mem>{mem_limit}] rusage[mem={mem_limit}]"',
         f"-o {root_directory}/{job_name}-stdout.log",
@@ -157,7 +157,7 @@ def main():
     print(f"running command:\n{bsub_command}")
 
     try:
-        command_output = subprocess.run(bsub_command, check=True, shell=True)
+        _command_output = subprocess.run(bsub_command, check=True, shell=True)
     except subprocess.CalledProcessError as ex:
         print(ex)
 
