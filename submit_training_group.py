@@ -64,8 +64,8 @@ def main():
 
     datetime = dt.datetime.now().isoformat(sep="_", timespec="seconds")
 
-    with open(args.group_settings) as f:
-        group_settings = yaml.safe_load(f)
+    with open(args.group_settings) as file:
+        group_settings = yaml.safe_load(file)
 
     root_directory = pathlib.Path("experiments")
 
@@ -87,19 +87,19 @@ def main():
         37440: {"num_workers": 19},
     }
 
-    for num_symbols in task_tuning:
+    for num_symbols, num_symbols_settings in task_tuning.items():
         experiment_settings = copy.deepcopy(group_settings)
 
         experiment_settings["experiment_directory"] = str(group_directory)
         experiment_settings["num_symbols"] = num_symbols
-        experiment_settings["num_workers"] = task_tuning[num_symbols]["num_workers"]
+        experiment_settings["num_workers"] = num_symbols_settings["num_workers"]
 
         experiment = Experiment(experiment_settings, datetime)
         job_name = experiment.filename
 
         experiment_settings_path = group_directory / f"{job_name}.yaml"
-        with open(experiment_settings_path, "w") as f:
-            yaml.dump(experiment_settings, f, default_flow_style=False, sort_keys=False)
+        with open(experiment_settings_path, "w") as file:
+            yaml.dump(experiment_settings, file, default_flow_style=False, sort_keys=False)
 
         pipeline_command_elements = [
             "python gene_symbol_classifier.py",
@@ -114,7 +114,7 @@ def main():
         # common arguments for any job type
         bsub_command_elements = [
             "bsub",
-            f"-q production",
+            "-q production",
             f"-M {args.mem_limit}",
             f'-R"select[mem>{args.mem_limit}] rusage[mem={args.mem_limit}]"',
             f"-o {group_directory}/{job_name}-stdout.log",
@@ -127,7 +127,7 @@ def main():
         print(f"submit {num_symbols} num_symbols training job:\n{bsub_command}")
 
         try:
-            command_output = subprocess.run(bsub_command, check=True, shell=True)
+            _command_output = subprocess.run(bsub_command, check=True, shell=True)
         except subprocess.CalledProcessError as ex:
             print(ex)
 

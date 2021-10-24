@@ -41,10 +41,10 @@ import pandas as pd
 import pymysql
 import requests
 import torch
-import torch.nn as nn
 
 from Bio import SeqIO
 from loguru import logger
+from torch import nn
 from torch.utils.data import Dataset
 
 
@@ -674,8 +674,8 @@ def download_file(file_url, file_path):
     while not file_path.exists():
         response = requests.get(file_url)
         if response.ok:
-            with open(file_path, "wb+") as f:
-                f.write(response.content)
+            with open(file_path, "wb+") as file:
+                file.write(response.content)
         else:
             logger.info(f"retrying downloading {file_url}")
             # delay retry
@@ -688,7 +688,7 @@ def generate_canonical_protein_sequences_fasta(assembly, ensembl_release):
     described in the assembly object.
     """
     if ensembl_release == "rapid_release":
-        base_url = f"http://ftp.ensembl.org/pub/rapid-release/species/"
+        base_url = "http://ftp.ensembl.org/pub/rapid-release/species/"
     else:
         base_url = f"http://ftp.ensembl.org/pub/release-{ensembl_release}/fasta/"
 
@@ -727,10 +727,10 @@ def generate_canonical_protein_sequences_fasta(assembly, ensembl_release):
         logger.info(f"downloaded {archived_fasta_filename}")
 
         # extract archived FASTA file
-        with gzip.open(archived_fasta_path, "rb") as f:
-            file_content = f.read()
-        with open(fasta_path, "wb+") as f:
-            f.write(file_content)
+        with gzip.open(archived_fasta_path, "rb") as file:
+            file_content = file.read()
+        with open(fasta_path, "wb+") as file:
+            file.write(file_content)
         logger.info(f"extracted {fasta_path}")
 
         # save FASTA file with just protein coding canonical translations
@@ -783,7 +783,7 @@ def merge_stable_id_version(stable_id, version):
     if version == "None":
         stable_id_version = stable_id
     else:
-        stable_id_version = "{}.{}".format(stable_id, version)
+        stable_id_version = f"{stable_id}.{version}"
 
     return stable_id_version
 
@@ -853,12 +853,12 @@ def get_assemblies_metadata():
         for genome_row in assemblies_df.itertuples()
     ]
 
-    logger.info(f"retrieving additional metadata from the Ensembl REST API")
+    logger.info("retrieving additional metadata from the Ensembl REST API")
     assemblies_metadata = []
     for assembly in assemblies:
         # skip assembly if assembly_accession is missing
         # (the value is converted to a `nan` float)
-        if type(assembly.assembly_accession) is float:
+        if isinstance(assembly.assembly_accession, float):
             continue
 
         # delay between REST API calls
@@ -1046,7 +1046,7 @@ class SuppressSettingWithCopyWarning:
     """
 
     def __init__(self):
-        pass
+        self.original_setting = None
 
     def __enter__(self):
         self.original_setting = pd.options.mode.chained_assignment
@@ -1087,7 +1087,7 @@ def load_dataset(num_symbols=None, min_frequency=None):
         if num_symbols in dev_datasets_num_symbols:
             dataset_pickle_path = data_directory / f"{num_symbols}_symbols.pickle"
             if not dataset_pickle_path.exists():
-                logger.info(f"generating dedicated files for the dev datasets...")
+                logger.info("generating dedicated files for the dev datasets...")
                 dataset = pd.read_pickle(full_dataset_pickle_path)
                 save_dev_datasets(dataset=dataset)
             dataset = pd.read_pickle(dataset_pickle_path)
@@ -1167,12 +1167,12 @@ def save_dev_datasets(dataset=None, num_samples=100):
         )
 
 
-def dataframe_to_fasta(df, fasta_path):
+def dataframe_to_fasta(dataframe, fasta_path):
     """
     Save a dataframe containing entries of sequences and metadata to a FASTA file.
     """
     with open(fasta_path, "w+") as fasta_file:
-        for index, values in df.iterrows():
+        for _index, values in dataframe.iterrows():
             row_dict = values.to_dict()
             description_text = "\t".join(
                 f"{key}:{value}"

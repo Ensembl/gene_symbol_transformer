@@ -61,7 +61,6 @@ def generate_assignments(checkpoint_path):
         checkpoint_path (Path): path to the experiment checkpoint
     """
     experiment, network, _optimizer, symbols_metadata = load_checkpoint(checkpoint_path)
-    symbols_set = set(symbol.lower() for symbol in experiment.symbol_mapper.categories)
     logger.info(experiment)
     logger.info(network)
 
@@ -116,8 +115,8 @@ def get_rapid_release_assemblies_metadata():
         download_file(assemblies_metadata_json_url, assemblies_metadata_json_path)
         logger.info(f"downloaded {assemblies_metadata_json_path}")
 
-    with open(assemblies_metadata_json_path) as f:
-        assemblies_metadata = json.load(f)
+    with open(assemblies_metadata_json_path) as file:
+        assemblies_metadata = json.load(file)
 
     assemblies_metadata = [
         PrettySimpleNamespace(**assembly) for assembly in assemblies_metadata

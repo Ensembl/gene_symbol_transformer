@@ -33,16 +33,13 @@ import sys
 import time
 
 # third party imports
-import ensembl_rest
 import pandas as pd
 
 from loguru import logger
 
 # project imports
 from utils import (
-    PrettySimpleNamespace,
     data_directory,
-    dev_datasets_num_symbols,
     fasta_to_dict,
     generate_canonical_protein_sequences_fasta,
     get_assemblies_metadata,
@@ -67,7 +64,7 @@ def generate_dataset():
 
     assemblies = get_assemblies_metadata()
 
-    logger.info(f"downloading protein sequences FASTA files")
+    logger.info("downloading protein sequences FASTA files")
     for assembly in assemblies:
         _canonical_fasta_path = generate_canonical_protein_sequences_fasta(
             assembly, ensembl_release
@@ -75,7 +72,7 @@ def generate_dataset():
     logger.info("protein sequences FASTA files in place")
 
     logger.info(
-        f"retrieving protein coding gene canonical translation IDs and metadata from the public Ensembl MySQL server"
+        "retrieving protein coding gene canonical translation IDs and metadata from the public Ensembl MySQL server"
     )
     canonical_translations_list = []
     for assembly in assemblies:
@@ -224,8 +221,8 @@ def save_symbols_metadata(dataset):
     symbols_metadata_filename = "symbols_metadata.json"
     symbols_metadata_path = data_directory / symbols_metadata_filename
 
-    with open(symbols_metadata_path, "w") as f:
-        json.dump(symbols_metadata, f, sort_keys=True, indent=4)
+    with open(symbols_metadata_path, "w") as file:
+        json.dump(symbols_metadata, file, sort_keys=True, indent=4)
     logger.info(f"symbols metadata saved at {symbols_metadata_path}")
 
 
