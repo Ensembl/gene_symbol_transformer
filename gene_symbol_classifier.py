@@ -437,7 +437,9 @@ def train_network(
 
         total_validation_accuracy = validation_accuracy.compute()
 
-        average_batch_execution_time = sum(batch_execution_times) / len(batch_execution_times)
+        average_batch_execution_time = sum(batch_execution_times) / len(
+            batch_execution_times
+        )
         average_batch_loading_time = sum(batch_loading_times) / len(batch_loading_times)
 
         epoch_finish_time = time.time()
@@ -446,7 +448,9 @@ def train_network(
 
         train_progress = f"epoch {epoch:{max_epochs_length}} complete | validation loss: {average_validation_loss:.4f} | validation accuracy: {total_validation_accuracy:.4f} | time: {epoch_time:.2f}s"
         logger.info(train_progress)
-        logger.info(f"training batch average execution time: {average_batch_execution_time:.2f}s | average loading time: {average_batch_loading_time:.2f}s ({num_train_batches - 1} complete batches)")
+        logger.info(
+            f"training batch average execution time: {average_batch_execution_time:.2f}s | average loading time: {average_batch_loading_time:.2f}s ({num_train_batches - 1} complete batches)"
+        )
 
         if experiment.stop_early(
             network,
@@ -462,7 +466,9 @@ def train_network(
 
     training_time = sum(epoch_times)
     average_epoch_time = training_time / len(epoch_times)
-    logger.info(f"total training time: {training_time:.2f}s | epoch average training time: {average_epoch_time:.2f}s ({epoch} epochs)")
+    logger.info(
+        f"total training time: {training_time:.2f}s | epoch average training time: {average_epoch_time:.2f}s ({epoch} epochs)"
+    )
 
     return checkpoint_path
 
@@ -1101,7 +1107,9 @@ def main():
         torch.manual_seed(experiment.random_seed)
 
         # get training, validation, and test dataloaders
-        training_loader, validation_loader, _test_loader = generate_dataloaders(experiment)
+        training_loader, validation_loader, _test_loader = generate_dataloaders(
+            experiment
+        )
 
         # load symbols metadata
         symbols_metadata_filename = "symbols_metadata.json"

@@ -99,7 +99,9 @@ def main():
 
         experiment_settings_path = group_directory / f"{job_name}.yaml"
         with open(experiment_settings_path, "w") as file:
-            yaml.dump(experiment_settings, file, default_flow_style=False, sort_keys=False)
+            yaml.dump(
+                experiment_settings, file, default_flow_style=False, sort_keys=False
+            )
 
         pipeline_command_elements = [
             "python gene_symbol_classifier.py",
