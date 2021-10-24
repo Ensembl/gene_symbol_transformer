@@ -38,9 +38,10 @@ if [[ "$JOB_TYPE" = "standard" ]]; then
     echo "starting standard shell"
 
     # specify compute node
+    COMPUTE_NODE="any"
     #COMPUTE_NODE="hl-codon-02-04"
 
-    if [[ -z "$COMPUTE_NODE" ]]; then
+    if [[ "$COMPUTE_NODE" = "any" ]]; then
         bsub -q production -Is -tty -M $MEM_LIMIT -R"select[mem>$MEM_LIMIT] rusage[mem=$MEM_LIMIT]" $SHELL
     else
         bsub -q production -m "$COMPUTE_NODE.ebi.ac.uk" -Is -tty -M $MEM_LIMIT -R"select[mem>$MEM_LIMIT] rusage[mem=$MEM_LIMIT]" $SHELL
@@ -67,10 +68,11 @@ GPU_MEMORY=16384  # 16 GiBs
 # https://www.ibm.com/docs/en/spectrum-lsf/10.1.0?topic=jobs-submitting-that-require-gpu-resources
 if [[ "$JOB_TYPE" = "gpu" ]]; then
     # specify gpu node
+    GPU_NODE="any"
     #GPU_NODE=codon-gpu-001
     #GPU_NODE=codon-gpu-002
 
-    if [[ -z "$GPU_NODE" ]]; then
+    if [[ "$GPU_NODE" = "any" ]]; then
         echo "starting gpu shell"
         bsub -q gpu -gpu "num=$NUM_GPUS:gmem=$GPU_MEMORY:j_exclusive=yes" -Is -tty -M $MEM_LIMIT -R"select[mem>$MEM_LIMIT] rusage[mem=$MEM_LIMIT] span[hosts=1]" $SHELL
     else
