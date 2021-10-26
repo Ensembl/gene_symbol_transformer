@@ -89,10 +89,16 @@ symbol_counts
 # %%
 figure = plt.figure()
 ax = symbol_counts.hist(figsize=figsize, bins=64)
-ax.set(xlabel="num sequences per symbol", ylabel="num symbols")
+ax.set(xlabel="sequences per symbol", ylabel="number of symbols")
 figure.add_axes(ax)
 
 # %%
+
+# %%
+figure = plt.figure()
+ax = symbol_counts.hist(figsize=figsize, bins=max(symbol_counts))
+ax.set(xlabel="sequences per symbol", ylabel="number of symbols")
+figure.add_axes(ax)
 
 # %%
 
