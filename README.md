@@ -24,19 +24,11 @@ The example protein sequences are of variable length with mean `580.63`, median 
 
 ## neural network architecture
 
-Currently, the classifier is implemented as a multilayer perceptron, or fully connected feedforward neural network, which contains two layers with a tunable number of connections between them. The ReLU activation function is applied after the first layer, while Softmax is applied as the final activation function. During training a validation set is being tested and early stopping is used for regularization, halting the training session when the validation loss stops decreasing between epochs.
+The classifier is implemented as a fully connected feedforward neural network with two layers of a tunable number of connections between them and optionally a dropout layer to avoid overfitting. The ReLU activation function is applied after the first layer, while Softmax is applied as the final activation function. Finally, the negative log likelihood loss is applied to the network output as the loss function.
 
-Example printout of a network:
-```
-FullyConnectedNetwork(
-  (input_layer): Linear(in_features=22724, out_features=512, bias=True)
-  (relu): ReLU()
-  (output_layer): Linear(in_features=512, out_features=30241, bias=True)
-  (final_activation): LogSoftmax(dim=1)
-)
-```
+![network architecture](images/network_architecture_ns30241_horizontal.png?raw=true "network printout for 30241 symbols")
 
-The negative log likelihood loss is applied to the network output as the loss function.
+During training a validation set is being tested and early stopping is used for regularization, halting the training session when the validation loss stops decreasing between epochs.
 
 
 ## experiment setup
