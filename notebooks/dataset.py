@@ -21,8 +21,13 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 # %%
-pd.set_option("display.max_rows", 500)
-pd.set_option("display.max_columns", 500)
+#figsize = (16, 9)
+figsize = (12, 9)
+#figsize = (10, 8)
+
+# %%
+pd.set_option("display.max_rows", 100)
+pd.set_option("display.max_columns", 100)
 pd.set_option("display.width", 1000)
 
 # %%
@@ -36,7 +41,7 @@ data = pd.read_pickle(dataset_path)
 data.head()
 
 # %%
-data.sample(10).sort_index()
+data.sample(10, random_state=5).sort_index()
 
 # %%
 data.info()
@@ -48,7 +53,7 @@ data.info()
 # %%
 
 # %% [markdown] tags=[]
-# ## gene symbol assignement sources
+# ## symbol assignement sources
 
 # %%
 data["external_db.db_display_name"].nunique()
@@ -59,6 +64,8 @@ data["external_db.db_display_name"].value_counts()
 # %%
 symbol_sources = sorted(data["external_db.db_display_name"].unique())
 symbol_sources
+
+# %%
 
 # %%
 
@@ -80,36 +87,23 @@ symbol_counts = data["symbol"].value_counts()
 symbol_counts
 
 # %%
-#figsize = (16, 9)
-figsize = (10, 8)
-
-# %%
 figure = plt.figure()
-
-ax = symbol_counts.hist(figsize=figsize, bins=32)
+ax = symbol_counts.hist(figsize=figsize, bins=64)
 ax.set(xlabel="num sequences per symbol", ylabel="num symbols")
-
 figure.add_axes(ax)
 
-#figure.show()
-
 # %%
 
 # %%
 
 # %%
-temp_counts = data[data["symbol"].isin(symbol_counts.loc[symbol_counts <= 10].index)]["symbol"].value_counts()
+temp_counts = data[data["symbol"].isin(symbol_counts.loc[symbol_counts <= 10+1].index)]["symbol"].value_counts()
 
 figure = plt.figure()
-ax = temp_counts.hist(figsize=(16, 9), bins=10, rwidth=0.6)
+ax = temp_counts.hist(figsize=figsize, bins=10, rwidth=0.7, align="left")
 ax.set(xlabel="number of sequences", ylabel="number of symbols")
-ax.set(xticks=range(1, 10+1), xlim=[0, 11])
+ax.set(xticks=range(1, 10+1), xlim=[1-1, 10+1])
 figure.add_axes(ax)
-#figure.show()
-
-# %%
-
-# %%
 
 # %%
 
@@ -126,142 +120,92 @@ symbol_counts
 # %%
 
 # %%
-symbol_counts[:3]
-
-# %%
-symbol_counts[:4]
-
-# %%
+num_symbols = 3
+symbol_counts[num_symbols-1:num_symbols+1]
 
 # %%
 
 # %%
-symbol_counts[:100]
-
-# %%
-symbol_counts[:101]
-
-# %%
-
-# %%
-symbol_counts[:1000]
-
-# %%
-symbol_counts[:1001]
+num_symbols = 100
+symbol_counts[num_symbols-1:num_symbols+1]
 
 # %%
 
 # %%
-symbol_counts[:1059]
-
-# %%
-symbol_counts[:1060]
-
-# %%
-
-# %%
-symbol_counts[:25228]
-
-# %%
-symbol_counts[:25229]
+num_symbols = 1000
+symbol_counts[num_symbols-1:num_symbols+1]
 
 # %%
 
 # %%
-symbol_counts[:30241]
-
-# %%
-symbol_counts[:30242]
-
-# %%
+num_symbols = 1059
+symbol_counts[num_symbols-1:num_symbols+1]
 
 # %%
 
 # %%
-symbol_counts[:30568]
-
-# %%
-symbol_counts[:30569]
-
-# %%
+num_symbols = 25228
+symbol_counts[num_symbols-1:num_symbols+1]
 
 # %%
 
 # %%
-symbol_counts[:30911]
-
-# %%
-symbol_counts[:30912]
-
-# %%
+num_symbols = 30241
+symbol_counts[num_symbols-1:num_symbols+1]
 
 # %%
 
 # %%
-symbol_counts[:31235]
-
-# %%
-symbol_counts[:31236]
-
-# %%
+num_symbols = 30568
+symbol_counts[num_symbols-1:num_symbols+1]
 
 # %%
 
 # %%
-symbol_counts[:31630]
-
-# %%
-symbol_counts[:31631]
-
-# %%
+num_symbols = 30911
+symbol_counts[num_symbols-1:num_symbols+1]
 
 # %%
 
 # %%
-symbol_counts[:32068]
-
-# %%
-symbol_counts[:32069]
-
-# %%
+num_symbols = 31235
+symbol_counts[num_symbols-1:num_symbols+1]
 
 # %%
 
 # %%
-symbol_counts[:32563]
-
-# %%
-symbol_counts[:32564]
-
-# %%
+num_symbols = 31630
+symbol_counts[num_symbols-1:num_symbols+1]
 
 # %%
 
 # %%
-symbol_counts[:33260]
-
-# %%
-symbol_counts[:33261]
-
-# %%
+num_symbols = 32068
+symbol_counts[num_symbols-1:num_symbols+1]
 
 # %%
 
 # %%
-symbol_counts[:34461]
-
-# %%
-symbol_counts[:34462]
-
-# %%
+num_symbols = 32563
+symbol_counts[num_symbols-1:num_symbols+1]
 
 # %%
 
 # %%
-symbol_counts[:37440]
+num_symbols = 33260
+symbol_counts[num_symbols-1:num_symbols+1]
 
 # %%
-symbol_counts[:37441]
+
+# %%
+num_symbols = 34461
+symbol_counts[num_symbols-1:num_symbols+1]
+
+# %%
+
+# %%
+num_symbols = 37440
+symbol_counts[num_symbols-1:num_symbols+1]
 
 # %%
 
@@ -299,6 +243,58 @@ clades = set(genebuild_clades.values())
 
 # %%
 clades
+
+# %%
+
+# %%
+
+# %%
+
+# %%
+
+# %%
+
+# %% [markdown] tags=[]
+# ## sequence length
+
+# %%
+data["sequence_length"] = data["sequence"].str.len()
+
+# %%
+data.head()
+
+# %%
+
+# %%
+data["sequence_length"].sort_values()
+
+# %%
+
+# %%
+data.iloc[data["sequence_length"].sort_values().index[-10:]]
+
+# %%
+
+# %%
+figure = plt.figure()
+ax = data["sequence_length"].hist(figsize=figsize, bins=1024)
+ax.axvline(x=round(data["sequence_length"].mean() + 0.5 * data["sequence_length"].std()), color="r", linewidth=1)
+ax.set(xlabel="sequence length", ylabel="number of sequences")
+figure.add_axes(ax)
+
+
+# %%
+
+# %%
+
+# %%
+figure = plt.figure()
+ax = data["sequence_length"].hist(figsize=figsize, bins=max(data["sequence_length"]))
+ax.axvline(x=round(data["sequence_length"].mean() + 0.5 * data["sequence_length"].std()), color="r", linewidth=1)
+ax.set(xlabel="sequence length", ylabel="number of sequences")
+ax.set_ylim([None, 6000])
+figure.add_axes(ax)
+
 
 # %%
 
