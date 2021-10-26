@@ -21,9 +21,8 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 # %%
-#figsize = (16, 9)
 figsize = (12, 9)
-#figsize = (10, 8)
+#figsize = (16, 9)
 
 # %%
 pd.set_option("display.max_rows", 100)
@@ -85,6 +84,8 @@ data["symbol"].nunique()
 # %%
 symbol_counts = data["symbol"].value_counts()
 symbol_counts
+
+# %%
 
 # %%
 figure = plt.figure()
