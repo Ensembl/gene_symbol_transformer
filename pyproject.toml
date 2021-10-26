@@ -26,6 +26,7 @@ matplotlib = "^3.4.3"
 plotly = "^5.2.2"
 ipywidgets = "^7.6.3"
 scipy = "^1.7.1"
+seaborn = "^0.11.2"
 
 [tool.isort]
 profile = "black"
