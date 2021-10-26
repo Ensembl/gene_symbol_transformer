@@ -128,10 +128,7 @@ def main():
         bsub_command = " ".join(bsub_command_elements)
         print(f"submit {num_symbols} num_symbols training job:\n{bsub_command}")
 
-        try:
-            _command_output = subprocess.run(bsub_command, check=True, shell=True)
-        except subprocess.CalledProcessError as ex:
-            print(ex)
+        subprocess.run(bsub_command, shell=True)
 
         time.sleep(1)
 

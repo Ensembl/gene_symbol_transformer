@@ -156,10 +156,7 @@ def main():
     bsub_command = " ".join(bsub_command_elements)
     print(f"running command:\n{bsub_command}")
 
-    try:
-        _command_output = subprocess.run(bsub_command, check=True, shell=True)
-    except subprocess.CalledProcessError as ex:
-        print(ex)
+    subprocess.run(bsub_command, shell=True)
 
 
 if __name__ == "__main__":
