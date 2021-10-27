@@ -54,6 +54,9 @@ def main():
         help="memory limit for all the processes that belong to the job",
     )
     argument_parser.add_argument(
+        "--gpu", action="store_true", help="submit training job to the gpu queue",
+    )
+    argument_parser.add_argument(
         "--checkpoint",
         help="path to the saved experiment checkpoint",
     )
@@ -141,15 +144,33 @@ def main():
     else:
         mem_limit = args.mem_limit
 
-    # common arguments for any job type
+    # common job arguments
     bsub_command_elements = [
         "bsub",
-        "-q production",
         f"-M {mem_limit}",
-        f'-R"select[mem>{mem_limit}] rusage[mem={mem_limit}]"',
         f"-o {root_directory}/{job_name}-stdout.log",
         f"-e {root_directory}/{job_name}-stderr.log",
     ]
+
+    if args.gpu:
+        num_gpus = 1
+        gpu_memory = 16384  # 16 GiBs
+
+        bsub_command_elements.extend(
+            [
+                "-q gpu",
+                f'-gpu "num={num_gpus}:gmem={gpu_memory}:j_exclusive=yes"',
+                f"-M {mem_limit}",
+                f'-R"select[mem>{mem_limit}] rusage[mem={mem_limit}] span[hosts=1]"',
+            ]
+        )
+    else:
+        bsub_command_elements.extend(
+            [
+                "-q production",
+                f'-R"select[mem>{mem_limit}] rusage[mem={mem_limit}]"',
+            ]
+        )
 
     bsub_command_elements.append(pipeline_command)
 
