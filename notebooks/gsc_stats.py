@@ -6,6 +6,10 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
 
+import matplotlib
+matplotlib.style.use("seaborn-poster")
+
+
 figsize = (12, 8)
 # figsize = (16, 9)
 
@@ -61,10 +65,10 @@ def plot_threshold_statistics(comparison_csv_path, text_title=False):
     if not text_title:
         axis_1.set(title=comparison_csv_path.stem)
 
-    axis_1.set(xlabel="threshold probability")
+    axis_1.set(xlabel="probability threshold")
 
-    axis_1.set_ylabel("exact matches percentage", color="g")
-    axis_2.set_ylabel("number of assignments", color="b")
+    axis_1.set_ylabel("exact matches %", color="g")
+    axis_2.set_ylabel("# assignments", color="b")
 
     plt.show()
 
@@ -110,7 +114,7 @@ def plot_threshold_statistics_no_ground_truth(comparison_csv_path, text_title=Fa
     if not text_title:
         axis_1.set(title=comparison_csv_path.stem)
 
-    axis_1.set(xlabel="threshold probability")
+    axis_1.set(xlabel="probability threshold")
 
     axis_2.set_ylabel("number of assignments", color="b")
 
@@ -174,7 +178,7 @@ def plot_threshold_statistics_plotly_no_ground_truth(comparison_csv_path, text_t
         height=600,
     )
 
-    figure.update_xaxes(title_text="threshold probability")
+    figure.update_xaxes(title_text="probability threshold")
 
     figure.update_yaxes(title_text="number of assignments", secondary_y=True)
 
