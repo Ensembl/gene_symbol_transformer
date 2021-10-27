@@ -6,6 +6,10 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
 
+figsize = (12, 8)
+# figsize = (16, 9)
+
+
 def plot_threshold_statistics(comparison_csv_path, text_title=False):
     complete_df = pd.read_csv(comparison_csv_path, sep="\t")
 
@@ -48,7 +52,6 @@ def plot_threshold_statistics(comparison_csv_path, text_title=False):
         num_assignments_list.append(num_assignments)
         matching_percentages_list.append(matching_percentage)
 
-    figsize = (16, 8)
     figure, axis_1 = plt.subplots(figsize=figsize)
 
     axis_2 = axis_1.twinx()
@@ -99,7 +102,6 @@ def plot_threshold_statistics_no_ground_truth(comparison_csv_path, text_title=Fa
         thresholds_list.append(threshold)
         num_assignments_list.append(num_assignments)
 
-    figsize = (16, 8)
     figure, axis_1 = plt.subplots(figsize=figsize)
 
     axis_2 = axis_1.twinx()
@@ -168,7 +170,7 @@ def plot_threshold_statistics_plotly_no_ground_truth(comparison_csv_path, text_t
     figure.update_layout(
         title_text=title,
         autosize=False,
-        width=1200,
+        width=1000,
         height=600,
     )
 
