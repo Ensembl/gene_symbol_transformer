@@ -1287,4 +1287,4 @@ def get_species_taxonomy_id(scientific_name):
 
 
 if __name__ == "__main__":
-    print("library file, import to use")
+    print("this is a module, import to use")
