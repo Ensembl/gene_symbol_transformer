@@ -19,7 +19,8 @@
 # %%
 import pathlib
 
-from gsc_stats import plot_threshold_statistics, plot_threshold_statistics_no_ground_truth
+from gsc_stats import plot_threshold_statistics, plot_threshold_statistics_no_ground_truth, plot_threshold_statistics_plotly_no_ground_truth
+
 
 # %%
 comparison_csv = ""
@@ -32,5 +33,9 @@ plot_threshold_statistics(comparison_csv_path, text_title=True)
 # %%
 print(comparison_csv_path.stem)
 plot_threshold_statistics_no_ground_truth(comparison_csv_path, text_title=True)
+
+# %%
+print(comparison_csv_path.stem)
+plot_threshold_statistics_plotly_no_ground_truth(comparison_csv_path, text_title=True)
 
 # %%
