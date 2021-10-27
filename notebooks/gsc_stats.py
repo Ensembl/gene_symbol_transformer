@@ -7,6 +7,7 @@ from plotly.subplots import make_subplots
 
 
 import matplotlib
+
 matplotlib.style.use("seaborn-poster")
 
 
@@ -121,7 +122,9 @@ def plot_threshold_statistics_no_ground_truth(comparison_csv_path, text_title=Fa
     plt.show()
 
 
-def plot_threshold_statistics_plotly_no_ground_truth(comparison_csv_path, text_title=False):
+def plot_threshold_statistics_plotly_no_ground_truth(
+    comparison_csv_path, text_title=False
+):
     complete_df = pd.read_csv(comparison_csv_path, sep="\t")
 
     thresholds_list = []

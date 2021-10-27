@@ -22,7 +22,7 @@ import pandas as pd
 
 # %%
 figsize = (12, 9)
-#figsize = (16, 9)
+# figsize = (16, 9)
 
 # %%
 pd.set_option("display.max_rows", 100)
@@ -104,12 +104,14 @@ figure.add_axes(ax)
 # %%
 
 # %%
-temp_counts = data[data["symbol"].isin(symbol_counts.loc[symbol_counts <= 10+1].index)]["symbol"].value_counts()
+temp_counts = data[data["symbol"].isin(symbol_counts.loc[symbol_counts <= 10 + 1].index)][
+    "symbol"
+].value_counts()
 
 figure = plt.figure()
 ax = temp_counts.hist(figsize=figsize, bins=10, rwidth=0.7, align="left")
 ax.set(xlabel="number of sequences", ylabel="number of symbols")
-ax.set(xticks=range(1, 10+1), xlim=[1-1, 10+1])
+ax.set(xticks=range(1, 10 + 1), xlim=[1 - 1, 10 + 1])
 figure.add_axes(ax)
 
 # %%
@@ -128,91 +130,91 @@ symbol_counts
 
 # %%
 num_symbols = 3
-symbol_counts[num_symbols-1:num_symbols+1]
+symbol_counts[num_symbols - 1 : num_symbols + 1]
 
 # %%
 
 # %%
 num_symbols = 100
-symbol_counts[num_symbols-1:num_symbols+1]
+symbol_counts[num_symbols - 1 : num_symbols + 1]
 
 # %%
 
 # %%
 num_symbols = 1000
-symbol_counts[num_symbols-1:num_symbols+1]
+symbol_counts[num_symbols - 1 : num_symbols + 1]
 
 # %%
 
 # %%
 num_symbols = 1059
-symbol_counts[num_symbols-1:num_symbols+1]
+symbol_counts[num_symbols - 1 : num_symbols + 1]
 
 # %%
 
 # %%
 num_symbols = 25228
-symbol_counts[num_symbols-1:num_symbols+1]
+symbol_counts[num_symbols - 1 : num_symbols + 1]
 
 # %%
 
 # %%
 num_symbols = 30241
-symbol_counts[num_symbols-1:num_symbols+1]
+symbol_counts[num_symbols - 1 : num_symbols + 1]
 
 # %%
 
 # %%
 num_symbols = 30568
-symbol_counts[num_symbols-1:num_symbols+1]
+symbol_counts[num_symbols - 1 : num_symbols + 1]
 
 # %%
 
 # %%
 num_symbols = 30911
-symbol_counts[num_symbols-1:num_symbols+1]
+symbol_counts[num_symbols - 1 : num_symbols + 1]
 
 # %%
 
 # %%
 num_symbols = 31235
-symbol_counts[num_symbols-1:num_symbols+1]
+symbol_counts[num_symbols - 1 : num_symbols + 1]
 
 # %%
 
 # %%
 num_symbols = 31630
-symbol_counts[num_symbols-1:num_symbols+1]
+symbol_counts[num_symbols - 1 : num_symbols + 1]
 
 # %%
 
 # %%
 num_symbols = 32068
-symbol_counts[num_symbols-1:num_symbols+1]
+symbol_counts[num_symbols - 1 : num_symbols + 1]
 
 # %%
 
 # %%
 num_symbols = 32563
-symbol_counts[num_symbols-1:num_symbols+1]
+symbol_counts[num_symbols - 1 : num_symbols + 1]
 
 # %%
 
 # %%
 num_symbols = 33260
-symbol_counts[num_symbols-1:num_symbols+1]
+symbol_counts[num_symbols - 1 : num_symbols + 1]
 
 # %%
 
 # %%
 num_symbols = 34461
-symbol_counts[num_symbols-1:num_symbols+1]
+symbol_counts[num_symbols - 1 : num_symbols + 1]
 
 # %%
 
 # %%
 num_symbols = 37440
-symbol_counts[num_symbols-1:num_symbols+1]
+symbol_counts[num_symbols - 1 : num_symbols + 1]
 
 # %%
 
@@ -238,6 +240,7 @@ data["clade"].value_counts()
 
 # %%
 import sys
+
 sys.path.append("..")
 
 from utils import genebuild_clades
@@ -285,7 +288,11 @@ data.iloc[data["sequence_length"].sort_values().index[-10:]]
 # %%
 figure = plt.figure()
 ax = data["sequence_length"].hist(figsize=figsize, bins=1024)
-ax.axvline(x=round(data["sequence_length"].mean() + 0.5 * data["sequence_length"].std()), color="r", linewidth=1)
+ax.axvline(
+    x=round(data["sequence_length"].mean() + 0.5 * data["sequence_length"].std()),
+    color="r",
+    linewidth=1,
+)
 ax.set(xlabel="sequence length", ylabel="number of sequences")
 figure.add_axes(ax)
 
@@ -297,7 +304,11 @@ figure.add_axes(ax)
 # %%
 figure = plt.figure()
 ax = data["sequence_length"].hist(figsize=figsize, bins=max(data["sequence_length"]))
-ax.axvline(x=round(data["sequence_length"].mean() + 0.5 * data["sequence_length"].std()), color="r", linewidth=1)
+ax.axvline(
+    x=round(data["sequence_length"].mean() + 0.5 * data["sequence_length"].std()),
+    color="r",
+    linewidth=1,
+)
 ax.set(xlabel="sequence length", ylabel="number of sequences")
 ax.set_ylim([None, 6000])
 figure.add_axes(ax)

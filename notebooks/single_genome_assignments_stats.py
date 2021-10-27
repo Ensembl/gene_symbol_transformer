@@ -19,7 +19,11 @@
 # %%
 import pathlib
 
-from gsc_stats import plot_threshold_statistics, plot_threshold_statistics_no_ground_truth, plot_threshold_statistics_plotly_no_ground_truth
+from gsc_stats import (
+    plot_threshold_statistics,
+    plot_threshold_statistics_no_ground_truth,
+    plot_threshold_statistics_plotly_no_ground_truth,
+)
 
 
 # %%
