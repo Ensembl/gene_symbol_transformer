@@ -67,7 +67,7 @@ def plot_threshold_statistics(comparison_csv_path, text_title=False):
         num_assignments_list.append(num_assignments)
         matching_percentages_list.append(matching_percentage)
 
-    figsize = (16, 8)
+    figsize = (16, 9)
     figure, axis_1 = plt.subplots(figsize=figsize)
 
     axis_2 = axis_1.twinx()

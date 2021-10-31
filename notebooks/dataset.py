@@ -21,7 +21,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 # %%
-figsize = (12, 9)
+figsize = (12, 8)
 # figsize = (16, 9)
 
 # %%
