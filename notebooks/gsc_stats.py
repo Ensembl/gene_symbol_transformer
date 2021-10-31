@@ -11,8 +11,8 @@ import matplotlib
 matplotlib.style.use("seaborn-poster")
 
 
-figsize = (12, 8)
-# figsize = (16, 9)
+# figsize = (12, 8)
+figsize = (16, 9)
 
 
 def plot_threshold_statistics(comparison_csv_path, text_title=False):

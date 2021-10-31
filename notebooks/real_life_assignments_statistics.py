@@ -58,7 +58,7 @@ def plot_threshold_statistics(comparison_csv_path, text_title=False):
         thresholds_list.append(threshold)
         num_assignments_list.append(num_assignments)
 
-    figsize = (16, 8)
+    figsize = (16, 9)
     figure, axis_1 = plt.subplots(figsize=figsize)
 
     axis_2 = axis_1.twinx()
