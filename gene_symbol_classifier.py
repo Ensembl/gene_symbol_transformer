@@ -130,7 +130,7 @@ class EarlyStopping:
     ):
         if self.min_validation_loss == np.Inf:
             self.min_validation_loss = validation_loss
-            logger.info("saving initial network checkpoint...")
+            logger.info("saving first network checkpoint...")
             checkpoint = {
                 "experiment": experiment,
                 "network_state_dict": network.state_dict(),
@@ -312,6 +312,11 @@ def train_network(
 
     checkpoint_path = f"{experiment.experiment_directory}/{experiment.filename}.pth"
     logger.info(f"start training, experiment checkpoints saved at {checkpoint_path}")
+
+    path = pathlib.Path(checkpoint_path)
+    network_path = pathlib.Path(f"{path.parent}/{path.stem}_network.pth")
+    torch.save(network, network_path)
+    logger.info("initial raw network saved at {network_path}")
 
     max_epochs_length = len(str(max_epochs))
 
