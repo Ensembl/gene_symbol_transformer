@@ -17,14 +17,14 @@ For classification problems, like the current one with symbol assignment, it is 
 
 ## feature engineering
 
-Two types of features are used for training the neural network, the protein letters of the canonical translation sequences and the canonical translation species clade. Both of them are converted to the one-hot encoding representation. The sequences are converted to one-hot encoding by protein letter, each of them can take as value any of the 26 IUPAC extended protein letters or the asterisk, representing a stop codon. The conversion then results to a 27-long one-hot vector for each protein letter in a sequence, and a matrix of size `27 x L` for each sequence, where `L` is the sequence length. This matrix is subsequently flattened to a vector of length `27 * L`. The clade one-hot vector is a simple translation of the clade categorical data type to the one-hot encoding. These two vectors are concatenated together resulting to a single features vector which is ultimately feed to the neural network during training.
+Two types of features are used for training the neural network, the protein letters of the canonical translation sequences and the canonical translation species clade. Both of them are converted to the one-hot encoding representation. The sequences are converted to one-hot encoding by protein letter, each of them can take as value any of the 26 IUPAC extended protein letters or the asterisk, representing a stop codon. The conversion then results to a 27-long one-hot vector for each protein letter in a sequence, and a matrix of size `27 x L` for each sequence, where `L` is the sequence length. This matrix is subsequently flattened to a vector of length `27 * L`. The clade one-hot vector is a direct translation of its categorical type value to one-hot encoding. These two vectors are concatenated together resulting to a single features vector which is ultimately feed to the neural network during training.
 
 The example protein sequences are of variable length with mean `580.63`, median `444`, and standard deviation `521.15`. In order to generate uniform sized batches all sequences were normalized to a length of `841`, equal to `mean + 0.5 * standard deviation`, with either truncating longer sequences or padding shorter ones. Therefore, the final feature tensor being fed to the neural network for each example is of size `27 x 841`.
 
 
 ## neural network architecture
 
-The classifier is implemented as a fully connected feedforward neural network with two layers of a tunable number of connections between them and optionally a dropout layer to avoid overfitting. The ReLU activation function is applied after the first layer, while Softmax is applied as the final activation function. Finally, the negative log likelihood loss is applied to the network output as the loss function.
+The classifier is implemented as a fully connected feedforward neural network with two layers of a tunable number of connections between them and optionally a dropout layer to avoid overfitting. The ReLU activation function is applied after the first layer, while Softmax is applied as the final activation function. The negative log likelihood loss is applied to the network output as the loss function.
 
 ![network architecture](images/network_architecture_ns30241_horizontal.png?raw=true "network printout for 30241 symbols")
 
