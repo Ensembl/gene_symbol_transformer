@@ -58,18 +58,23 @@ def plot_threshold_statistics(comparison_csv_path, text_title=False):
         matching_percentages_list.append(matching_percentage)
 
     figure, axis_1 = plt.subplots(figsize=figsize)
+    axis_1.tick_params(axis="both", which="major", labelsize=24)
 
     axis_2 = axis_1.twinx()
+    axis_2.tick_params(axis="both", which="major", labelsize=24)
+
     axis_1.plot(thresholds_list, matching_percentages_list, "g-")
     axis_2.plot(thresholds_list, num_assignments_list, "b-")
+
+    axis_1.set_ylim([60, 102])
+    axis_2.set_ylim([0, None])
 
     if not text_title:
         axis_1.set(title=comparison_csv_path.stem)
 
-    axis_1.set(xlabel="probability threshold")
-
-    axis_1.set_ylabel("exact matches %", color="g")
-    axis_2.set_ylabel("# assignments", color="b")
+    axis_1.set_xlabel("probability threshold", fontsize=32)
+    axis_1.set_ylabel("exact matches %", color="g", fontsize=32)
+    axis_2.set_ylabel("# assignments", color="b", fontsize=32)
 
     plt.show()
 
