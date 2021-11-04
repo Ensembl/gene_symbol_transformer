@@ -992,7 +992,7 @@ python-versions = "*"
 
 [[package]]
 name = "pudb"
-version = "2021.1"
+version = "2021.2.2"
 description = "A full-screen, console-based Python debugger"
 category = "dev"
 optional = false
@@ -1002,6 +1002,7 @@ python-versions = "~=3.6"
 jedi = ">=0.18,<1"
 pygments = ">=2.7.4"
 urwid = ">=1.1.1"
+urwid_readline = "*"
 
 [[package]]
 name = "py"
@@ -1417,6 +1418,20 @@ description = "A full-featured console (xterm et al.) user interface library"
 category = "dev"
 optional = false
 python-versions = "*"
+
+[[package]]
+name = "urwid-readline"
+version = "0.13"
+description = "A textbox edit widget for urwid that supports readline shortcuts"
+category = "dev"
+optional = false
+python-versions = "*"
+
+[package.dependencies]
+urwid = "*"
+
+[package.extras]
+dev = ["black", "pytest"]
 
 [[package]]
 name = "wcwidth"
@@ -2193,7 +2208,7 @@ ptyprocess = [
     {file = "ptyprocess-0.7.0.tar.gz", hash = "sha256:5c5d0a3b48ceee0b48485e0c26037c0acd7d29765ca3fbb5cb3831d347423220"},
 ]
 pudb = [
-    {file = "pudb-2021.1.tar.gz", hash = "sha256:309ee82b45a0ffca0bc4c7f521fd3e357589c764f339bdf9dcabb7ad40692d6e"},
+    {file = "pudb-2021.2.2.tar.gz", hash = "sha256:82a524ab4b89d2c701b089071ccc6afa9c8a838504e3d68eb33faa8a8abbe4cb"},
 ]
 py = [
     {file = "py-1.10.0-py2.py3-none-any.whl", hash = "sha256:3b80836aa6d1feeaa108e046da6423ab8f6ceda6468545ae8d02d9d58d18818a"},
@@ -2574,6 +2589,9 @@ urllib3 = [
 ]
 urwid = [
     {file = "urwid-2.1.2.tar.gz", hash = "sha256:588bee9c1cb208d0906a9f73c613d2bd32c3ed3702012f51efe318a3f2127eae"},
+]
+urwid-readline = [
+    {file = "urwid_readline-0.13.tar.gz", hash = "sha256:018020cbc864bb5ed87be17dc26b069eae2755cb29f3a9c569aac3bded1efaf4"},
 ]
 wcwidth = [
     {file = "wcwidth-0.2.5-py2.py3-none-any.whl", hash = "sha256:beb4802a9cebb9144e99086eff703a642a13d6a0052920003a230f3294bbe784"},
