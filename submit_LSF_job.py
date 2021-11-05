@@ -54,7 +54,9 @@ def main():
         help="memory limit for all the processes that belong to the job",
     )
     argument_parser.add_argument(
-        "--gpu", action="store_true", help="submit training job to the gpu queue",
+        "--gpu",
+        action="store_true",
+        help="submit training job to the gpu queue",
     )
     argument_parser.add_argument(
         "--checkpoint",
