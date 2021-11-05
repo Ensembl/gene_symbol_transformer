@@ -41,6 +41,7 @@ import pandas as pd
 import pymysql
 import requests
 import torch
+import torch.nn.functional as F
 
 from Bio import SeqIO
 from loguru import logger
@@ -409,6 +410,8 @@ class SequenceDataset(Dataset):
         included_genera=None,
         excluded_genera=None,
     ):
+        self.num_symbols = num_symbols
+
         data = load_dataset(num_symbols, min_frequency)
 
         # select the features and labels columns
@@ -454,15 +457,38 @@ class SequenceDataset(Dataset):
             self.data["sequence"] = self.data["sequence"].str.slice(stop=sequence_length)
 
         # generate gene symbols CategoryMapper
-        symbols = self.data["symbol"].unique().tolist()
+        symbols = sorted(self.data["symbol"].unique().tolist())
         self.symbol_mapper = CategoryMapper(category_name="symbol", categories=symbols)
+
+        self.symbol_to_index = {symbol: index for index, symbol in enumerate(symbols)}
+        # self.index_to_symbol = {index: symbol for index, symbol in enumerate(symbols)}
 
         # generate protein sequences mapper
         self.protein_sequence_mapper = ProteinSequenceMapper()
 
+        stop_codon = ["*"]
+        padding_character = [" "]
+        extended_IUPAC_protein_letters = Bio.Data.IUPACData.extended_protein_letters
+        protein_letters = (
+            list(extended_IUPAC_protein_letters) + stop_codon + padding_character
+        )
+        self.protein_letters = sorted(protein_letters)
+        self.protein_letter_to_index = {
+            protein_letter: index
+            for index, protein_letter in enumerate(self.protein_letters)
+        }
+        # self.index_to_protein_letter = {
+        #     index: protein_letter
+        #     for index, protein_letter in enumerate(self.protein_letters)
+        # }
+        self.num_protein_letters = len(self.protein_letters)
+
         # generate clades CategoryMapper
-        clades = {value for _, value in genebuild_clades.items()}
+        clades = sorted(set(genebuild_clades.values()))
         self.clade_mapper = CategoryMapper(category_name="clade", categories=clades)
+        self.clade_to_index = {clade: index for index, clade in enumerate(clades)}
+        # self.index_to_clade = {index: clade for index, clade in enumerate(clades)}
+        self.num_clades = len(clades)
 
     def __len__(self):
         return len(self.data)
@@ -474,29 +500,32 @@ class SequenceDataset(Dataset):
         clade = data_row["clade"]
         symbol = data_row["symbol"]
 
-        one_hot_sequence = self.protein_sequence_mapper.protein_letters_to_one_hot(
-            sequence
+        sequence_indexes = [
+            self.protein_letter_to_index[protein_letter] for protein_letter in sequence
+        ]
+        one_hot_sequence = F.one_hot(
+            torch.tensor(sequence_indexes), num_classes=self.num_protein_letters
         )
-        one_hot_clade = self.clade_mapper.label_to_one_hot(clade)
-        one_hot_symbol = self.symbol_mapper.label_to_one_hot(symbol)
+        one_hot_sequence = one_hot_sequence.type(torch.float32)
         # one_hot_sequence.shape: (sequence_length, num_protein_letters)
+
+        one_hot_clade = F.one_hot(
+            torch.tensor(self.clade_to_index[clade]), num_classes=self.num_clades
+        )
+        one_hot_clade = one_hot_clade.type(torch.float32)
         # one_hot_clade.shape: (num_clades,)
+
+        one_hot_symbol = F.one_hot(
+            torch.tensor(self.symbol_to_index[symbol]), num_classes=self.num_symbols
+        )
         # one_hot_symbol.shape: (num_symbols,)
 
-        # convert features and labels dataframes to NumPy arrays
-        one_hot_sequence = one_hot_sequence.to_numpy(dtype=np.float32)
-        one_hot_clade = one_hot_clade.to_numpy(dtype=np.float32)
-        one_hot_symbol = one_hot_symbol.to_numpy(dtype=np.float32)
-
         # flatten sequence matrix to a vector
-        flat_one_hot_sequence = one_hot_sequence.flatten()
+        flat_one_hot_sequence = torch.flatten(one_hot_sequence)
         # flat_one_hot_sequence.shape: (sequence_length * num_protein_letters,)
 
-        # remove extra dimension for a single example
-        one_hot_clade = np.squeeze(one_hot_clade)
-        one_hot_symbol = np.squeeze(one_hot_symbol)
-
-        one_hot_features = np.concatenate([flat_one_hot_sequence, one_hot_clade], axis=0)
+        # concatenate features to a single vector
+        one_hot_features = torch.cat([flat_one_hot_sequence, one_hot_clade])
         # one_hot_features.shape: ((sequence_length * num_protein_letters) + num_clades,)
 
         item = one_hot_features, one_hot_symbol
@@ -543,9 +572,12 @@ class ProteinSequenceMapper:
 
     def __init__(self):
         # get unique protein letters
-        stop_codon = ["*"]
         extended_IUPAC_protein_letters = Bio.Data.IUPACData.extended_protein_letters
-        protein_letters = list(extended_IUPAC_protein_letters) + stop_codon
+        stop_codon = ["*"]
+        padding_character = [" "]
+        protein_letters = (
+            list(extended_IUPAC_protein_letters) + stop_codon + padding_character
+        )
 
         self.protein_letters = sorted(protein_letters)
 
