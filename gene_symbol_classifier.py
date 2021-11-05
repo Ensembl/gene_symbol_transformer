@@ -316,7 +316,7 @@ def train_network(
     path = pathlib.Path(checkpoint_path)
     network_path = pathlib.Path(f"{path.parent}/{path.stem}_network.pth")
     torch.save(network, network_path)
-    logger.info("initial raw network saved at {network_path}")
+    logger.info(f"initial raw network saved at {network_path}")
 
     max_epochs_length = len(str(max_epochs))
 
