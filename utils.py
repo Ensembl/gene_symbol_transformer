@@ -61,6 +61,7 @@ genebuild_clades = {
     "Amphibia": "amphibians",
     "Arthropoda": "arthropods",
     "Aves": "aves",
+    "Homo": "humans",
     "Insecta": "insects",
     "Lepidoptera": "lepidoptera",
     "Mammalia": "mammalia",
