@@ -304,26 +304,6 @@ class GeneSymbolClassifier(nn.Module):
 
         return x
 
-    def predict(self, sequences, clades):
-        """
-        Get assignments of symbols for a list of protein sequences.
-        """
-        features_tensor = self.generate_features_tensor(sequences, clades)
-        features_tensor = features_tensor.to(DEVICE)
-
-        # run inference
-        with torch.no_grad():
-            self.eval()
-            output = self.forward(features_tensor)
-
-        # get predicted labels from output
-        predictions = self.get_predictions(output)
-
-        assignments = self.symbol_mapper.one_hot_to_label(predictions)
-        assignments = assignments.tolist()
-
-        return assignments
-
     def predict_probabilities(self, sequences, clades):
         """
         Get assignments of symbols for a list of protein sequences, along with
@@ -348,16 +328,6 @@ class GeneSymbolClassifier(nn.Module):
         ]
 
         return assignments_probabilities
-
-    @staticmethod
-    def get_predictions(output):
-        """
-        Get predicted labels from network's forward pass output.
-        """
-        predicted_probabilities = torch.exp(output)
-        # get class indexes from the one-hot encoded labels
-        predictions = torch.argmax(predicted_probabilities, dim=1)
-        return predictions
 
     @staticmethod
     def get_predictions_probabilities(output):

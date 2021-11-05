@@ -363,7 +363,7 @@ def train_network(
             output = network(inputs)
 
             # get predicted labels from output
-            predictions = network.get_predictions(output)
+            predictions, _ = network.get_predictions_probabilities(output)
 
             with torch.no_grad():
                 # get class indexes from the one-hot encoded labels
@@ -421,7 +421,7 @@ def train_network(
                 output = network(inputs)
 
                 # get predicted labels from output
-                predictions = network.get_predictions(output)
+                predictions, _ = network.get_predictions_probabilities(output)
 
                 # get class indexes from the one-hot encoded labels
                 labels = torch.argmax(labels, dim=1)
@@ -515,7 +515,7 @@ def test_network(checkpoint_path, print_sample_assignments=False):
             output = network(inputs)
 
             # get predicted labels from output
-            predictions = network.get_predictions(output)
+            predictions, _ = network.get_predictions_probabilities(output)
 
             # get class indexes from the one-hot encoded labels
             labels = torch.argmax(labels, dim=1)
@@ -565,7 +565,7 @@ def test_network(checkpoint_path, print_sample_assignments=False):
             output = network(inputs)
 
             # get predicted labels from output
-            predictions = network.get_predictions(output)
+            predictions, _ = network.get_predictions_probabilities(output)
 
             # get class indexes from the one-hot encoded labels
             labels = torch.argmax(labels, dim=1)
