@@ -229,7 +229,9 @@ def generate_dataloaders(experiment):
     )
     experiment.num_clades = experiment.clade_mapper.num_categories
 
-    logger.info(f"gene symbols:\n{experiment.symbol_mapper.categories}")
+    logger.info(
+        "gene symbols:\n{}".format(pd.Series(experiment.symbol_mapper.categories))
+    )
 
     # calculate the training, validation, and test set size
     dataset_size = len(dataset)
