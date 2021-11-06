@@ -224,19 +224,12 @@ def generate_dataloaders(experiment):
     experiment.protein_sequence_mapper = dataset.protein_sequence_mapper
     experiment.clade_mapper = dataset.clade_mapper
 
-    experiment.num_protein_letters = len(
-        experiment.protein_sequence_mapper.protein_letters
+    experiment.num_protein_letters = (
+        experiment.protein_sequence_mapper.num_protein_letters
     )
-    experiment.num_clades = len(experiment.clade_mapper.categories)
+    experiment.num_clades = experiment.clade_mapper.num_categories
 
-    pandas_symbols_categories = experiment.symbol_mapper.categorical_datatype.categories
-    logger.info(
-        "gene symbols:\n{}".format(
-            pandas_symbols_categories.to_series(
-                index=range(len(pandas_symbols_categories)), name="gene symbols"
-            )
-        )
-    )
+    logger.info(f"gene symbols:\n{experiment.symbol_mapper.categories}")
 
     # calculate the training, validation, and test set size
     dataset_size = len(dataset)
@@ -356,12 +349,8 @@ def train_network(
             # forward pass
             output = network(inputs)
 
-            # get predicted labels from output
-            predictions, _ = network.get_predictions_probabilities(output)
-
-            with torch.no_grad():
-                # get class indexes from the one-hot encoded labels
-                labels = torch.argmax(labels, dim=1)
+            # get predicted label indexes from output
+            predictions, _ = network.get_prediction_indexes_probabilities(output)
 
             # compute training loss
             training_loss = criterion(output, labels)
@@ -414,11 +403,8 @@ def train_network(
                 # forward pass
                 output = network(inputs)
 
-                # get predicted labels from output
-                predictions, _ = network.get_predictions_probabilities(output)
-
-                # get class indexes from the one-hot encoded labels
-                labels = torch.argmax(labels, dim=1)
+                # get predicted label indexes from output
+                predictions, _ = network.get_prediction_indexes_probabilities(output)
 
                 # compute validation loss
                 validation_loss = criterion(output, labels)
@@ -508,11 +494,8 @@ def test_network(checkpoint_path, print_sample_assignments=False):
             # forward pass
             output = network(inputs)
 
-            # get predicted labels from output
-            predictions, _ = network.get_predictions_probabilities(output)
-
-            # get class indexes from the one-hot encoded labels
-            labels = torch.argmax(labels, dim=1)
+            # get predicted label indexes from output
+            predictions, _ = network.get_prediction_indexes_probabilities(output)
 
             # calculate test loss
             test_loss = criterion(output, labels)
@@ -559,10 +542,7 @@ def test_network(checkpoint_path, print_sample_assignments=False):
             output = network(inputs)
 
             # get predicted labels from output
-            predictions, _ = network.get_predictions_probabilities(output)
-
-            # get class indexes from the one-hot encoded labels
-            labels = torch.argmax(labels, dim=1)
+            predictions, _ = network.get_prediction_indexes_probabilities(output)
 
         # reset logger, add raw messages format
         logger.remove()
@@ -570,8 +550,11 @@ def test_network(checkpoint_path, print_sample_assignments=False):
         log_file_path = pathlib.Path(checkpoint_path).with_suffix(".log")
         logger.add(log_file_path, format="{message}")
 
-        assignments = network.symbol_mapper.one_hot_to_label(predictions.cpu())
-        labels = network.symbol_mapper.one_hot_to_label(labels)
+        assignments = [
+            network.symbol_mapper.index_to_label(prediction.item())
+            for prediction in predictions.cpu()
+        ]
+        labels = [network.symbol_mapper.index_to_label(label.item()) for label in labels]
 
         logger.info("\nsample assignments")
         logger.info("assignment | true label")
