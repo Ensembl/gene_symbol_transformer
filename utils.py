@@ -307,7 +307,7 @@ class GeneSymbolClassifier(nn.Module):
 
     def predict_probabilities(self, sequences, clades):
         """
-        Get assignments of symbols for a list of protein sequences, along with
+        Get symbol predictions for a list of protein sequences, along with
         the probabilities of predictions.
         """
         features_tensor = self.generate_features_tensor(sequences, clades)
@@ -318,20 +318,24 @@ class GeneSymbolClassifier(nn.Module):
             self.eval()
             output = self.forward(features_tensor)
 
-        # get predicted labels from output
-        predictions, probabilities = self.get_predictions_probabilities(output)
+        prediction_indexes, probabilities = self.get_prediction_indexes_probabilities(
+            output
+        )
 
-        assignments = self.symbol_mapper.one_hot_to_label(predictions)
-
-        assignments_probabilities = [
-            (prediction, probability.item())
-            for prediction, probability in zip(assignments.tolist(), probabilities)
+        predictions = [
+            self.symbol_mapper.index_to_label(prediction.item())
+            for prediction in prediction_indexes
         ]
 
-        return assignments_probabilities
+        predictions_probabilities = [
+            (prediction, probability.item())
+            for prediction, probability in zip(predictions, probabilities)
+        ]
+
+        return predictions_probabilities
 
     @staticmethod
-    def get_predictions_probabilities(output):
+    def get_prediction_indexes_probabilities(output):
         """
         Get predicted labels from network's forward pass output, along with
         the probabilities of predictions.
@@ -369,19 +373,10 @@ class GeneSymbolClassifier(nn.Module):
             )
             one_hot_clade = self.clade_mapper.label_to_one_hot(clade)
 
-            # convert the dataframes to NumPy arrays
-            one_hot_sequence = one_hot_sequence.to_numpy(dtype=np.float32)
-            one_hot_clade = one_hot_clade.to_numpy(dtype=np.float32)
-
             # flatten sequence matrix to a vector
-            flat_one_hot_sequence = one_hot_sequence.flatten()
+            flat_one_hot_sequence = torch.flatten(one_hot_sequence)
 
-            # remove extra dimension
-            one_hot_clade = np.squeeze(one_hot_clade)
-
-            one_hot_features_vector = np.concatenate(
-                [flat_one_hot_sequence, one_hot_clade], axis=0
-            )
+            one_hot_features_vector = torch.cat([flat_one_hot_sequence, one_hot_clade])
 
             one_hot_features_list.append(one_hot_features_vector)
 
@@ -435,37 +430,14 @@ class SequenceDataset(Dataset):
 
         # generate gene symbols CategoryMapper
         symbols = sorted(self.data["symbol"].unique().tolist())
-        self.symbol_mapper = CategoryMapper(category_name="symbol", categories=symbols)
-
-        self.symbol_to_index = {symbol: index for index, symbol in enumerate(symbols)}
-        # self.index_to_symbol = {index: symbol for index, symbol in enumerate(symbols)}
+        self.symbol_mapper = CategoryMapper(symbols)
 
         # generate protein sequences mapper
         self.protein_sequence_mapper = ProteinSequenceMapper()
 
-        stop_codon = ["*"]
-        padding_character = [" "]
-        extended_IUPAC_protein_letters = Bio.Data.IUPACData.extended_protein_letters
-        protein_letters = (
-            list(extended_IUPAC_protein_letters) + stop_codon + padding_character
-        )
-        self.protein_letters = sorted(protein_letters)
-        self.protein_letter_to_index = {
-            protein_letter: index
-            for index, protein_letter in enumerate(self.protein_letters)
-        }
-        # self.index_to_protein_letter = {
-        #     index: protein_letter
-        #     for index, protein_letter in enumerate(self.protein_letters)
-        # }
-        self.num_protein_letters = len(self.protein_letters)
-
         # generate clades CategoryMapper
         clades = sorted(set(genebuild_clades.values()))
-        self.clade_mapper = CategoryMapper(category_name="clade", categories=clades)
-        self.clade_to_index = {clade: index for index, clade in enumerate(clades)}
-        # self.index_to_clade = {index: clade for index, clade in enumerate(clades)}
-        self.num_clades = len(clades)
+        self.clade_mapper = CategoryMapper(clades)
 
     def __len__(self):
         return len(self.data)
@@ -477,35 +449,25 @@ class SequenceDataset(Dataset):
         clade = data_row["clade"]
         symbol = data_row["symbol"]
 
-        sequence_indexes = [
-            self.protein_letter_to_index[protein_letter] for protein_letter in sequence
-        ]
-        one_hot_sequence = F.one_hot(
-            torch.tensor(sequence_indexes), num_classes=self.num_protein_letters
+        one_hot_sequence = self.protein_sequence_mapper.protein_letters_to_one_hot(
+            sequence
         )
-        one_hot_sequence = one_hot_sequence.type(torch.float32)
         # one_hot_sequence.shape: (sequence_length, num_protein_letters)
-
-        one_hot_clade = F.one_hot(
-            torch.tensor(self.clade_to_index[clade]), num_classes=self.num_clades
-        )
-        one_hot_clade = one_hot_clade.type(torch.float32)
-        # one_hot_clade.shape: (num_clades,)
-
-        one_hot_symbol = F.one_hot(
-            torch.tensor(self.symbol_to_index[symbol]), num_classes=self.num_symbols
-        )
-        # one_hot_symbol.shape: (num_symbols,)
 
         # flatten sequence matrix to a vector
         flat_one_hot_sequence = torch.flatten(one_hot_sequence)
         # flat_one_hot_sequence.shape: (sequence_length * num_protein_letters,)
 
+        one_hot_clade = self.clade_mapper.label_to_one_hot(clade)
+        # one_hot_clade.shape: (num_clades,)
+
         # concatenate features to a single vector
         one_hot_features = torch.cat([flat_one_hot_sequence, one_hot_clade])
         # one_hot_features.shape: ((sequence_length * num_protein_letters) + num_clades,)
 
-        item = one_hot_features, one_hot_symbol
+        symbol_index = self.symbol_mapper.label_to_index(symbol)
+
+        item = one_hot_features, symbol_index
 
         return item
 
@@ -516,28 +478,44 @@ class CategoryMapper:
     text labels to one-hot encoding and vice versa.
     """
 
-    def __init__(self, category_name, categories):
-        self.category_name = category_name
+    def __init__(self, categories):
         self.categories = sorted(categories)
+        self.num_categories = len(self.categories)
+        self.label_to_index_dict = {
+            label: index for index, label in enumerate(categories)
+        }
+        self.index_to_label_dict = {
+            index: label for index, label in enumerate(categories)
+        }
 
-        # generate a pandas categorical data type for the categories
-        self.categorical_datatype = pd.api.types.CategoricalDtype(
-            categories=self.categories, ordered=True
-        )
+    def label_to_index(self, label):
+        """
+        Get the class index of label.
+        """
+        return self.label_to_index_dict[label]
+
+    def index_to_label(self, index):
+        """
+        Get the label string from its class index.
+        """
+        return self.index_to_label_dict[index]
 
     def label_to_one_hot(self, label):
         """
-        Generate a dataframe with the one-hot representation of label.
+        Get the one-hot representation of label.
         """
-        label_categorical = pd.Series(label, dtype=self.categorical_datatype)
-        one_hot_label = pd.get_dummies(label_categorical, prefix=self.category_name)
+        one_hot_label = F.one_hot(
+            torch.tensor(self.label_to_index_dict[label]), num_classes=self.num_categories
+        )
+        one_hot_label = one_hot_label.type(torch.float32)
         return one_hot_label
 
     def one_hot_to_label(self, one_hot_label):
         """
         Get the label string from its one-hot representation.
         """
-        label = self.categorical_datatype.categories[one_hot_label]
+        index = torch.argmax(one_hot_label)
+        label = self.index_to_label_dict[index]
         return label
 
 
@@ -548,28 +526,34 @@ class ProteinSequenceMapper:
     """
 
     def __init__(self):
-        # get unique protein letters
         extended_IUPAC_protein_letters = Bio.Data.IUPACData.extended_protein_letters
         stop_codon = ["*"]
         padding_character = [" "]
-        protein_letters = (
+
+        self.protein_letters = (
             list(extended_IUPAC_protein_letters) + stop_codon + padding_character
         )
 
-        self.protein_letters = sorted(protein_letters)
+        self.protein_letter_to_index = {
+            protein_letter: index
+            for index, protein_letter in enumerate(self.protein_letters)
+        }
 
-        # generate a categorical data type for protein letters
-        self.protein_letters_categorical_datatype = pd.api.types.CategoricalDtype(
-            categories=self.protein_letters, ordered=True
-        )
+        self.index_to_protein_letter = {
+            index: protein_letter
+            for index, protein_letter in enumerate(self.protein_letters)
+        }
+
+        self.num_protein_letters = len(self.protein_letters)
 
     def protein_letters_to_one_hot(self, sequence):
-        protein_letters_categorical = pd.Series(
-            list(sequence), dtype=self.protein_letters_categorical_datatype
+        sequence_indexes = [
+            self.protein_letter_to_index[protein_letter] for protein_letter in sequence
+        ]
+        one_hot_sequence = F.one_hot(
+            torch.tensor(sequence_indexes), num_classes=self.num_protein_letters
         )
-        one_hot_sequence = pd.get_dummies(
-            protein_letters_categorical, prefix="protein_letter"
-        )
+        one_hot_sequence = one_hot_sequence.type(torch.float32)
 
         return one_hot_sequence
 
