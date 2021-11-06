@@ -186,11 +186,6 @@ class Experiment:
         if not hasattr(self, "random_seed"):
             self.random_seed = random.randint(1, 100)
 
-        if self.included_genera is not None and self.excluded_genera is not None:
-            raise ValueError(
-                '"included_genera" and "excluded_genera" are mutually exclusive experiment settings parameters, specify values to at most one of them'
-            )
-
         # early stopping
         loss_delta = 0.001
         self.stop_early = EarlyStopping(self.patience, loss_delta)
@@ -222,7 +217,6 @@ def generate_dataloaders(experiment):
         num_symbols=experiment.num_symbols,
         sequence_length=experiment.sequence_length,
         padding_side=experiment.padding_side,
-        included_genera=experiment.included_genera,
         excluded_genera=experiment.excluded_genera,
     )
 
