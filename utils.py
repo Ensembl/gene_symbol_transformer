@@ -407,7 +407,6 @@ class SequenceDataset(Dataset):
         min_frequency=None,
         sequence_length=None,
         padding_side=None,
-        included_genera=None,
         excluded_genera=None,
     ):
         self.num_symbols = num_symbols
@@ -416,24 +415,6 @@ class SequenceDataset(Dataset):
 
         # select the features and labels columns
         self.data = data[["sequence", "clade", "symbol", "scientific_name"]]
-
-        if included_genera is not None:
-            num_total_samples = len(self.data)
-
-            included_genera_dataframes = []
-            for genus in included_genera:
-                scientific_name_prefix = f"{genus} "
-                included_genus_df = self.data[
-                    self.data["scientific_name"].str.startswith(scientific_name_prefix)
-                ]
-                included_genera_dataframes.append(included_genus_df)
-
-            self.data = pd.concat(included_genera_dataframes, ignore_index=True)
-            num_used_samples = len(self.data)
-
-            logger.info(
-                f"included genera {included_genera}, using {num_used_samples} out of {num_total_samples} total samples"
-            )
 
         if excluded_genera is not None:
             num_total_samples = len(self.data)
