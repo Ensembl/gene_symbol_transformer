@@ -142,7 +142,7 @@ def main():
     if num_symbols in num_symbols_mem_limit:
         mem_limit = num_symbols_mem_limit[num_symbols]
     elif args.evaluate:
-        mem_limit = 2048
+        mem_limit = 4096
     else:
         mem_limit = args.mem_limit
 
