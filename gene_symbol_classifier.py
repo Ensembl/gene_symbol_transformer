@@ -672,6 +672,10 @@ def evaluate_network(checkpoint_path, complete=False):
             Defaults to False, which runs the evaluation only for a selection of
             the most important species genome assemblies.
     """
+    evaluation_directory_path = (
+        checkpoint_path.parent / f"{checkpoint_path.stem}_evaluation"
+    )
+
     experiment, network, _optimizer, symbols_metadata = load_checkpoint(checkpoint_path)
     symbols_set = set(symbol.lower() for symbol in experiment.symbol_mapper.categories)
 
@@ -687,8 +691,8 @@ def evaluate_network(checkpoint_path, complete=False):
         canonical_fasta_path = sequences_directory / canonical_fasta_filename
 
         # assign symbols
-        assignments_csv_path = pathlib.Path(
-            f"{checkpoint_path.parent}/{canonical_fasta_path.stem}_symbols.csv"
+        assignments_csv_path = (
+            evaluation_directory_path / f"{canonical_fasta_path.stem}_symbols.csv"
         )
         if not assignments_csv_path.exists():
             logger.info(f"assigning gene symbols to {canonical_fasta_path}")
@@ -697,11 +701,11 @@ def evaluate_network(checkpoint_path, complete=False):
                 symbols_metadata,
                 canonical_fasta_path,
                 scientific_name=assembly.scientific_name,
-                output_directory=checkpoint_path.parent,
+                output_directory=evaluation_directory_path,
             )
 
-        comparisons_csv_path = pathlib.Path(
-            f"{checkpoint_path.parent}/{assignments_csv_path.stem}_compare.csv"
+        comparisons_csv_path = (
+            evaluation_directory_path / f"{assignments_csv_path.stem}_compare.csv"
         )
         if not comparisons_csv_path.exists():
             comparison_successful = compare_with_database(
@@ -1173,9 +1177,11 @@ def main():
     # evaluate classifier
     elif args.evaluate and args.checkpoint:
         checkpoint_path = pathlib.Path(args.checkpoint)
-        log_file_path = pathlib.Path(
-            f"{checkpoint_path.parent}/{checkpoint_path.stem}_evaluate.log"
+        evaluation_directory_path = (
+            checkpoint_path.parent / f"{checkpoint_path.stem}_evaluation"
         )
+        evaluation_directory_path.mkdir()
+        log_file_path = evaluation_directory_path / f"{checkpoint_path.stem}_evaluate.log"
         logger.add(log_file_path, format=logging_format)
 
         evaluate_network(checkpoint_path, args.complete)
