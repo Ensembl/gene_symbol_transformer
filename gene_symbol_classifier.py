@@ -346,7 +346,7 @@ def train_network(
             inputs, labels = inputs.to(DEVICE), labels.to(DEVICE)
 
             # zero accumulated gradients
-            network.zero_grad()
+            optimizer.zero_grad()
 
             # forward pass
             output = network(inputs)
@@ -365,7 +365,7 @@ def train_network(
             # prevent the exploding gradient problem
             nn.utils.clip_grad_norm_(network.parameters(), experiment.clip_max_norm)
 
-            # perform an optimization step
+            # perform optimization step
             optimizer.step()
 
             batch_train_accuracy = train_accuracy(predictions, labels)
