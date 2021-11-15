@@ -56,8 +56,6 @@ sequences_directory = data_directory / "protein_sequences"
 
 logging_format = "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{message}</level>"
 
-dev_datasets_num_symbols = [3, 100, 1000]
-
 genebuild_clades = {
     "Amphibia": "amphibians",
     "Arthropoda": "arthropods",
@@ -1050,10 +1048,6 @@ def load_dataset(num_symbols=None, min_frequency=None):
     elif num_symbols is not None:
         if num_symbols in dev_datasets_num_symbols:
             dataset_pickle_path = data_directory / f"{num_symbols}_symbols.pickle"
-            if not dataset_pickle_path.exists():
-                logger.info("generating dedicated files for the dev datasets...")
-                dataset = pd.read_pickle(full_dataset_pickle_path)
-                save_dev_datasets(dataset=dataset)
             dataset = pd.read_pickle(dataset_pickle_path)
             logger.info(f"{num_symbols} most frequent symbols samples dataset loaded")
         # num_symbols not in dev_datasets_num_symbols
@@ -1084,71 +1078,6 @@ def load_dataset(num_symbols=None, min_frequency=None):
         logger.info(f"{num_symbols} most frequent symbols samples dataset loaded")
 
     return dataset
-
-
-def save_dev_datasets(dataset=None, num_samples=100):
-    """
-    Generate and save subsets of the full dataset for faster loading during development,
-    the datasets as FASTA files, and FASTA files with a small number of sample sequences
-    for quick reference.
-
-    Args:
-        dataset (pandas DataFrame): full dataset dataframe
-        num_samples (int): number of samples to include in the samples FASTA files
-    """
-    if dataset is None:
-        dataset = load_dataset()
-
-    symbol_counts = dataset["symbol"].value_counts()
-
-    for num_symbols in dev_datasets_num_symbols:
-        dev_dataset = dataset[dataset["symbol"].isin(symbol_counts[:num_symbols].index)]
-
-        # save dataframe to a pickle file
-        pickle_path = data_directory / f"{num_symbols}_symbols.pickle"
-        dev_dataset.to_pickle(pickle_path)
-        logger.info(
-            f"{num_symbols} most frequent symbols dev dataset saved at {pickle_path}"
-        )
-
-        # save sequences to a FASTA file
-        fasta_path = data_directory / f"{num_symbols}_symbols.fasta"
-
-        dataframe_to_fasta(dev_dataset, fasta_path)
-        logger.info(
-            f"{num_symbols} most frequent symbols dev dataset FASTA file saved at {fasta_path}"
-        )
-
-        # pick random sample sequences
-        samples = dev_dataset.sample(num_samples)
-        samples = samples.sort_index()
-
-        # save sample sequences to a FASTA file
-        fasta_path = data_directory / f"{num_symbols}_symbols-{num_samples}_samples.fasta"
-        dataframe_to_fasta(samples, fasta_path)
-        logger.info(
-            f"{num_symbols} most frequent symbols {num_samples} samples FASTA file saved at {fasta_path}"
-        )
-
-
-def dataframe_to_fasta(dataframe, fasta_path):
-    """
-    Save a dataframe containing entries of sequences and metadata to a FASTA file.
-    """
-    with open(fasta_path, "w+") as fasta_file:
-        for _index, values in dataframe.iterrows():
-            row_dict = values.to_dict()
-            description_text = "\t".join(
-                f"{key}:{value}"
-                for key, value in row_dict.items()
-                if key not in {"Index", "sequence"}
-            )
-
-            description = ">" + description_text
-
-            sequence = row_dict["sequence"]
-            fasta_entry = f"{description}\n{sequence}\n"
-            fasta_file.write(fasta_entry)
 
 
 def load_checkpoint(checkpoint_path):

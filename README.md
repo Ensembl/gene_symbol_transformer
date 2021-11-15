@@ -82,11 +82,11 @@ pyenv virtualenv 3.9.6 gene_symbol_classifier
 poetry install
 ```
 
-### generate dataset
+### generate datasets
 
-The dataset generation encompasses downloading canonical translation protein sequences and metadata from the genome assemblies in the latest Ensembl release. It can be recreated with the following command:
+The dataset generation encompasses downloading canonical translation protein sequences and metadata from the genome assemblies in the latest Ensembl release. It also generates small datasets for fast iteration during development. It can be recreated with the following command:
 ```
-python dataset_generation.py --generate_dataset
+python dataset_generation.py --generate_datasets
 ```
 
 ### training
