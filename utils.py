@@ -1160,7 +1160,7 @@ def load_checkpoint(checkpoint_path):
     Args:
         checkpoint_path (path-like object): path to the saved experiment checkpoint
     Returns:
-        tuple[Experiment, torch.nn.Module, accelerate.optimizer.AcceleratedOptimizer, dict]
+        tuple[Experiment, torch.nn.Module, torch.optim.Optimizer, dict]
         containing the experiment state, classifier network, optimizer and the
         symbols metadata dictionary
     """
