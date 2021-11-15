@@ -19,10 +19,9 @@
 
 
 """
-Generate training dataset of protein sequences for canonical translations from
-assemblies in the latest Ensembl release and useful metadata, generate statistics,
-and create auxiliary development dataset files containing a subset of samples from
-the full dataset for faster prototyping.
+Generate training dataset of protein sequences for canonical translations from assemblies
+in the latest Ensembl release and useful metadata, development datasets containing
+a subset of the full dataset for faster prototyping, and dataset statistics.
 """
 
 
@@ -48,16 +47,16 @@ from utils import (
     get_xref_canonical_translations,
     load_dataset,
     logging_format,
-    save_dev_datasets,
     sequences_directory,
     sizeof_fmt,
 )
 
 
-def generate_dataset():
+def generate_datasets():
     """
     Download canonical translations of protein coding genes from all genome assemblies
-    in the latest Ensembl release.
+    in the latest Ensembl release, generate pandas dataframes with the full and dev
+    transcripts dataset, and save them as pickle files.
     """
     ensembl_release = get_ensembl_release()
     logger.info(f"Ensembl release {ensembl_release}")
@@ -115,11 +114,50 @@ def generate_dataset():
 
     save_symbols_metadata(dataset)
 
+    generate_dataset_statistics(dataset)
+
     # save dataset as a pickle file
     dataset_path = data_directory / "dataset.pickle"
     dataset.to_pickle(dataset_path)
-    num_translations = len(dataset)
-    logger.info(f"{num_translations} canonical translations saved at {dataset_path}")
+    logger.info(f"dataset saved at {dataset_path}")
+
+    generate_dev_datasets(dataset)
+
+
+def generate_dev_datasets(dataset, num_samples=100):
+    """
+    Generate and save subsets of the full dataset for faster loading during development,
+    and the datasets as FASTA files.
+
+    Args:
+        dataset (pandas DataFrame): full dataset dataframe
+        num_samples (int): number of samples to include in the samples FASTA files
+    """
+    dev_datasets_num_symbols = [3, 100, 1000]
+
+    symbol_counts = dataset["symbol"].value_counts()
+
+    for num_symbols in dev_datasets_num_symbols:
+        logger.info(f"generating {num_symbols} most frequent symbols dev dataset ...")
+
+        dev_dataset = dataset[dataset["symbol"].isin(symbol_counts[:num_symbols].index)]
+
+        generate_dataset_statistics(dev_dataset)
+
+        # save dataframe to a pickle file
+        pickle_path = data_directory / f"{num_symbols}_symbols.pickle"
+        dev_dataset.to_pickle(pickle_path)
+        logger.info(
+            f"{num_symbols} most frequent symbols dev dataset saved at {pickle_path}"
+        )
+
+        # save sequences to a FASTA file
+        fasta_path = data_directory / f"{num_symbols}_symbols.fasta"
+
+        dataframe_to_fasta(dev_dataset, fasta_path)
+        logger.info(
+            f"{num_symbols} most frequent symbols dev dataset FASTA file saved at {fasta_path}"
+        )
 
 
 def dataset_cleanup(dataset):
@@ -226,14 +264,12 @@ def save_symbols_metadata(dataset):
     logger.info(f"symbols metadata saved at {symbols_metadata_path}")
 
 
-def generate_statistics():
+def generate_dataset_statistics(dataset):
     """
     Generate and log dataset statistics.
     """
-    dataset = load_dataset()
-
     dataset_object_size = sys.getsizeof(dataset)
-    logger.info("dataset object usage: {}".format(sizeof_fmt(dataset_object_size)))
+    logger.info("dataset object memory usage: {}".format(sizeof_fmt(dataset_object_size)))
 
     num_canonical_translations = len(dataset)
     logger.info(f"dataset contains {num_canonical_translations:,} canonical translations")
@@ -274,30 +310,40 @@ def get_sequence_from_assembly_fasta_dict(df_row, assembly_fasta_dict):
     return sequence
 
 
+def dataframe_to_fasta(dataframe, fasta_path):
+    """
+    Save a dataframe containing entries of sequences and metadata to a FASTA file.
+    """
+    with open(fasta_path, "w+") as fasta_file:
+        for _index, values in dataframe.iterrows():
+            row_dict = values.to_dict()
+            description_text = "\t".join(
+                f"{key}:{value}"
+                for key, value in row_dict.items()
+                if key not in {"Index", "sequence"}
+            )
+
+            description = ">" + description_text
+
+            sequence = row_dict["sequence"]
+            fasta_entry = f"{description}\n{sequence}\n"
+            fasta_file.write(fasta_entry)
+
+
 def main():
     """
     main function
     """
     argument_parser = argparse.ArgumentParser()
     argument_parser.add_argument(
-        "--generate_dataset",
+        "--generate_datasets",
         action="store_true",
-        help="generate dataset from genome assemblies in the latest Ensembl release",
+        help="generate full and dev datasets from genome assemblies in the latest Ensembl release",
     )
     argument_parser.add_argument(
         "--save_symbols_metadata",
         action="store_true",
         help="save symbols source and description to a JSON file",
-    )
-    argument_parser.add_argument(
-        "--generate_statistics",
-        action="store_true",
-        help="generate and log dataset statistics",
-    )
-    argument_parser.add_argument(
-        "--save_dev_datasets",
-        action="store_true",
-        help="save subsets of the full dataset for development",
     )
 
     args = argument_parser.parse_args()
@@ -309,15 +355,11 @@ def main():
     log_file_path = data_directory / "dataset_generation.log"
     logger.add(log_file_path, format=logging_format)
 
-    if args.generate_dataset:
-        generate_dataset()
+    if args.generate_datasets:
+        generate_datasets()
     elif args.save_symbols_metadata:
         dataset = load_dataset()
         save_symbols_metadata(dataset)
-    elif args.generate_statistics:
-        generate_statistics()
-    elif args.save_dev_datasets:
-        save_dev_datasets()
     else:
         print("Error: missing argument.")
         print(__doc__)
