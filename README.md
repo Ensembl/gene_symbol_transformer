@@ -89,11 +89,6 @@ The dataset generation encompasses downloading canonical translation protein seq
 python dataset_generation.py --generate_dataset
 ```
 
-Generate development dataset files if also needed:
-```
-python dataset_generation.py --save_dev_datasets
-```
-
 ### training
 
 Training can be either run directly on a compute node or submitted as an LSF job either manually or using a script that takes just the experiment settings YAML file as an argument.
