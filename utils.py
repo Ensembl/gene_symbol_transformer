@@ -54,6 +54,8 @@ DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 data_directory = pathlib.Path("data")
 sequences_directory = data_directory / "protein_sequences"
 
+dev_datasets_num_symbols = [3, 100, 1000]
+
 logging_format = "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{message}</level>"
 
 genebuild_clades = {

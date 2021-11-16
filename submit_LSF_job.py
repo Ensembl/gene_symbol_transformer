@@ -33,7 +33,7 @@ import sys
 import yaml
 
 # project imports
-from gene_symbol_classifier import EarlyStopping, Experiment
+from gene_symbol_classifier import Experiment
 from utils import GeneSymbolClassifier, load_checkpoint
 
 

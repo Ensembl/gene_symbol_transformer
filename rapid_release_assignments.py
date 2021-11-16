@@ -39,7 +39,7 @@ import pymysql
 from loguru import logger
 
 # project imports
-from gene_symbol_classifier import EarlyStopping, Experiment, assign_symbols
+from gene_symbol_classifier import Experiment, assign_symbols
 from utils import (
     GeneSymbolClassifier,
     PrettySimpleNamespace,

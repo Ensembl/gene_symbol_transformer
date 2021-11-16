@@ -39,6 +39,7 @@ from loguru import logger
 # project imports
 from utils import (
     data_directory,
+    dev_datasets_num_symbols,
     fasta_to_dict,
     generate_canonical_protein_sequences_fasta,
     get_assemblies_metadata,
@@ -133,8 +134,6 @@ def generate_dev_datasets(dataset, num_samples=100):
         dataset (pandas DataFrame): full dataset dataframe
         num_samples (int): number of samples to include in the samples FASTA files
     """
-    dev_datasets_num_symbols = [3, 100, 1000]
-
     symbol_counts = dataset["symbol"].value_counts()
 
     for num_symbols in dev_datasets_num_symbols:

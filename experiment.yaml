@@ -99,6 +99,9 @@ learning_rate: 0.005
 patience: 5
 #patience: 7
 
+# minimum validation loss change to consider as improvement
+loss_delta: 0.0001
+
 # maximum number of training epochs
 max_epochs: 1
 #max_epochs: 3
