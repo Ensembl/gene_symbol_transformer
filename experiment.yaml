@@ -47,8 +47,8 @@ validation_ratio: 0.1
 
 # features
 ################################################################################
-#sequence_length: 581
-sequence_length: 841
+#sequence_length: 581  # ~ 580.63 : mean
+sequence_length: 841  # ~ 580.63 + 0.5 * 521.15 : mean + 0.5 * standard_deviation
 #sequence_length: 1102
 ################################################################################
 
@@ -86,9 +86,8 @@ num_workers: 0
 #num_workers: 31
 #num_workers: 47
 
-#learning_rate: 0.01
-learning_rate: 0.005
-#learning_rate: 0.001
+#learning_rate: 0.005
+learning_rate: 0.001
 #learning_rate: 0.0005
 #learning_rate: 0.0001
 
