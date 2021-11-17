@@ -117,7 +117,8 @@ class Experiment:
         if not hasattr(self, "random_seed"):
             self.random_seed = random.randint(1, 100)
 
-        self.no_progress = 0
+        # early stopping
+        self.no_progress_epochs = 0
         self.min_validation_loss = np.Inf
 
         # loss function
@@ -369,6 +370,7 @@ def train_network(
             f"training batch average execution time: {average_batch_execution_time:.2f}s | average loading time: {average_batch_loading_time:.2f}s ({num_train_batches - 1} complete batches)"
         )
 
+        # early stopping
         if experiment.min_validation_loss == np.Inf:
             experiment.min_validation_loss = average_validation_loss
             logger.info("saving first network checkpoint...")
@@ -387,7 +389,7 @@ def train_network(
             )
 
             experiment.min_validation_loss = average_validation_loss
-            experiment.no_progress = 0
+            experiment.no_progress_epochs = 0
             checkpoint = {
                 "experiment": experiment,
                 "network_state_dict": network.state_dict(),
@@ -398,11 +400,11 @@ def train_network(
 
         # average_validation_loss > experiment.min_validation_loss - experiment.loss_delta
         else:
-            experiment.no_progress += 1
+            experiment.no_progress_epochs += 1
 
-        if experiment.no_progress == experiment.patience:
+        if experiment.no_progress_epochs == experiment.patience:
             logger.info(
-                f"{experiment.no_progress} epochs with no validation loss improvement, stopping training"
+                f"{experiment.no_progress_epochs} epochs with no validation loss improvement, stopping training"
             )
             summary_writer.flush()
             summary_writer.close()
