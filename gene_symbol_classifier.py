@@ -307,7 +307,7 @@ def train_network(
             if batch_number < num_train_batches:
                 batch_execution_times.append(batch_execution_time)
 
-            train_progress = f"epoch {epoch:{max_epochs_length}} batch {batch_number:{num_batches_length}} of {num_train_batches} | average loss: {average_training_loss:.4f} | accuracy: {batch_train_accuracy:.4f} | execution: {batch_execution_time:.2f}s | loading: {batch_loading_time:.2f}s"
+            train_progress = f"epoch {epoch:{max_epochs_length}} batch {batch_number:{num_batches_length}} of {num_train_batches} | average loss: {average_training_loss:.5f} | accuracy: {batch_train_accuracy:.4f} | execution: {batch_execution_time:.2f}s | loading: {batch_loading_time:.2f}s"
             logger.info(train_progress)
 
         experiment.num_complete_epochs += 1
@@ -346,7 +346,7 @@ def train_network(
                 batch_validation_accuracy = validation_accuracy(predictions, labels)
                 average_validation_loss = np.average(validation_losses)
 
-                validation_progress = f"epoch {epoch:{max_epochs_length}} validation batch {batch_number:{num_batches_length}} of {num_validation_batches} | average loss: {average_validation_loss:.4f} | accuracy: {batch_validation_accuracy:.4f}"
+                validation_progress = f"epoch {epoch:{max_epochs_length}} validation batch {batch_number:{num_batches_length}} of {num_validation_batches} | average loss: {average_validation_loss:.5f} | accuracy: {batch_validation_accuracy:.4f}"
                 logger.info(validation_progress)
 
         average_validation_loss = np.average(validation_losses)
@@ -363,7 +363,7 @@ def train_network(
         epoch_time = epoch_finish_time - epoch_start_time
         epoch_times.append(epoch_time)
 
-        train_progress = f"epoch {epoch:{max_epochs_length}} complete | validation loss: {average_validation_loss:.4f} | validation accuracy: {total_validation_accuracy:.4f} | time: {epoch_time:.2f}s"
+        train_progress = f"epoch {epoch:{max_epochs_length}} complete | validation loss: {average_validation_loss:.5f} | validation accuracy: {total_validation_accuracy:.4f} | time: {epoch_time:.2f}s"
         logger.info(train_progress)
         logger.info(
             f"training batch average execution time: {average_batch_execution_time:.2f}s | average loading time: {average_batch_loading_time:.2f}s ({num_train_batches - 1} complete batches)"
@@ -383,7 +383,7 @@ def train_network(
         elif average_validation_loss <= experiment.min_validation_loss - experiment.loss_delta:
             validation_loss_decrease = experiment.min_validation_loss - average_validation_loss
             logger.info(
-                f"validation loss decreased by {validation_loss_decrease:.4f}, saving network checkpoint..."
+                f"validation loss decreased by {validation_loss_decrease:.5f}, saving network checkpoint..."
             )
 
             experiment.min_validation_loss = average_validation_loss
@@ -474,7 +474,7 @@ def test_network(checkpoint_path, print_sample_assignments=False):
     precision = test_precision.compute()
     recall = test_recall.compute()
     logger.info(
-        f"testing complete | average loss: {average_test_loss:.4f} | accuracy: {total_test_accuracy:.4f}"
+        f"testing complete | average loss: {average_test_loss:.5f} | accuracy: {total_test_accuracy:.4f}"
     )
     logger.info(f"precision: {precision:.4f} | recall: {recall:.4f}")
 
