@@ -39,47 +39,51 @@ excluded_genera:
   #- Macaca
 
 # training, validation, test split
-test_ratio: 0.1
-validation_ratio: 0.1
+test_ratio: 0.2
+validation_ratio: 0.2
+#test_ratio: 0.15
+#validation_ratio: 0.15
+#test_ratio: 0.1
+#validation_ratio: 0.1
 #test_ratio: 0.05
 #validation_ratio: 0.05
 ################################################################################
 
 # features
 ################################################################################
-#sequence_length: 581  # ~ 580.63 : mean
+#sequence_length: 581  # ~ 580.63 : dataset sequences mean length
 sequence_length: 841  # ~ 580.63 + 0.5 * 521.15 : mean + 0.5 * standard_deviation
-#sequence_length: 1102
+#sequence_length: 1102  # ~ 580.63 + 1 * 521.15 : mean + 1 * standard_deviation
 ################################################################################
 
 # network architecture
 ################################################################################
 # number of connections between fully connected network layers
+#num_connections: 16
+#num_connections: 32
+num_connections: 64
+#num_connections: 128
 #num_connections: 256
-num_connections: 512
-#num_connections: 1024
-#num_connections: 2048
+#num_connections: 512
 
 # max norm for gradient clipping
+#clip_max_norm: 0
 clip_max_norm: 5
 
 dropout_probability: 0
-#dropout_probability: 0.05
 #dropout_probability: 0.1
 #dropout_probability: 0.2
 ################################################################################
 
 # training
 ################################################################################
-#batch_size: 128
+batch_size: 128
 #batch_size: 256
 #batch_size: 512
-batch_size: 1024
-#batch_size: 2048
-#batch_size: 4096
 
 num_workers: 0
 #num_workers: 1
+#num_workers: 3
 #num_workers: 7
 #num_workers: 17
 #num_workers: 23
@@ -92,16 +96,18 @@ learning_rate: 0.001
 #learning_rate: 0.0001
 
 # number of epochs without validation loss improvement before training stops
-patience: 5
+patience: 3
+#patience: 5
 #patience: 7
 
 # minimum validation loss change to consider as improvement
-loss_delta: 0.00001
+loss_delta: 0
+#loss_delta: 1.0e-6
 
 # maximum number of training epochs
 max_epochs: 1
 #max_epochs: 3
 #max_epochs: 10
-#max_epochs: 100
-#max_epochs: 1000
+#max_epochs: 90
+#max_epochs: 900
 ################################################################################
