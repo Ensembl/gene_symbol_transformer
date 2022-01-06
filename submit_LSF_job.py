@@ -150,8 +150,8 @@ def main():
     bsub_command_elements = [
         "bsub",
         f"-M {mem_limit}",
-        f"-o {root_directory}/{job_name}-stdout.log",
-        f"-e {root_directory}/{job_name}-stderr.log",
+        f"-o {root_directory}/{job_name}/stdout.log",
+        f"-e {root_directory}/{job_name}/stderr.log",
     ]
 
     if args.gpu:

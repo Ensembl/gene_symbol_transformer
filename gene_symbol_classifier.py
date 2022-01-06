@@ -224,17 +224,17 @@ def train_network(
     training_loader,
     validation_loader,
 ):
-    tensorboard_log_dir = f"runs/{experiment.num_symbols}/{experiment.datetime}"
+    tensorboard_log_dir = f"{experiment.experiment_directory}/{experiment.filename}"
     summary_writer = SummaryWriter(log_dir=tensorboard_log_dir)
 
     max_epochs = experiment.max_epochs
     criterion = experiment.criterion
 
-    checkpoint_path = f"{experiment.experiment_directory}/{experiment.filename}.pth"
+    checkpoint_path = f"{experiment.experiment_directory}/{experiment.filename}/checkpoint.pth"
     logger.info(f"start training, experiment checkpoints saved at {checkpoint_path}")
 
     path = pathlib.Path(checkpoint_path)
-    network_path = pathlib.Path(f"{path.parent}/{path.stem}_network.pth")
+    network_path = pathlib.Path(f"{path.parent}/network.pth")
     torch.save(network, network_path)
     logger.info(f"initial raw network saved at {network_path}")
 
@@ -508,7 +508,8 @@ def test_network(checkpoint_path, print_sample_assignments=False):
         # reset logger, add raw messages format
         logger.remove()
         logger.add(sys.stderr, format="{message}")
-        log_file_path = pathlib.Path(checkpoint_path).with_suffix(".log")
+        checkpoint_path = pathlib.Path(checkpoint_path)
+        log_file_path = f"{checkpoint_path.parent}/experiment.log"
         logger.add(log_file_path, format="{message}")
 
         assignments = [
@@ -1046,7 +1047,7 @@ def main():
         experiment = Experiment(experiment_settings, datetime)
 
         pathlib.Path(experiment.experiment_directory).mkdir(exist_ok=True)
-        log_file_path = f"{experiment.experiment_directory}/{experiment.filename}.log"
+        log_file_path = f"{experiment.experiment_directory}/{experiment.filename}/experiment.log"
         logger.add(log_file_path, format=logging_format)
 
         log_pytorch_cuda_info()
@@ -1102,7 +1103,7 @@ def main():
     elif (args.train or args.test) and args.checkpoint:
         checkpoint_path = pathlib.Path(args.checkpoint)
 
-        log_file_path = checkpoint_path.with_suffix(".log")
+        log_file_path = f"{checkpoint_path.parent}/experiment.log"
         logger.add(log_file_path, format=logging_format)
 
         # resume training classifier
@@ -1149,7 +1150,7 @@ def main():
     elif args.sequences_fasta and args.scientific_name and args.checkpoint:
         checkpoint_path = pathlib.Path(args.checkpoint)
 
-        log_file_path = checkpoint_path.with_suffix(".log")
+        log_file_path = f"{checkpoint_path.parent}/experiment.log"
         logger.add(log_file_path, format=logging_format)
 
         _experiment, network, _optimizer, symbols_metadata = load_checkpoint(
