@@ -203,13 +203,11 @@ def generate_dataloaders(experiment):
     validation_loader = DataLoader(
         validation_dataset,
         batch_size=experiment.batch_size,
-        shuffle=True,
         num_workers=experiment.num_workers,
     )
     test_loader = DataLoader(
         test_dataset,
         batch_size=experiment.batch_size,
-        shuffle=True,
         num_workers=experiment.num_workers,
     )
 
