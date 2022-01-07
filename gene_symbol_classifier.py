@@ -115,7 +115,7 @@ class Experiment:
 
         # set a seed for the PyTorch random number generator if not present
         if not hasattr(self, "random_seed"):
-            self.random_seed = random.randint(1, 100)
+            self.random_seed = random.randint(1_000_000, 1_001_000)
 
         # early stopping
         self.no_progress_epochs = 0
@@ -180,6 +180,7 @@ def generate_dataloaders(experiment):
             experiment.validation_size,
             experiment.test_size,
         ),
+        generator=torch.Generator().manual_seed(experiment.random_seed),
     )
 
     logger.info(
@@ -1049,8 +1050,6 @@ def main():
         logger.add(log_file_path, format=logging_format)
 
         log_pytorch_cuda_info()
-
-        torch.manual_seed(experiment.random_seed)
 
         # get training, validation, and test dataloaders
         training_loader, validation_loader, _test_loader = generate_dataloaders(
