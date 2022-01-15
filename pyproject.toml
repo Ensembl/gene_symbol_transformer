@@ -16,6 +16,7 @@ tensorboard = "^2.6.0"
 ensembl-rest = "^0.3.3"
 torchmetrics = "^0.5.0"
 PyMySQL = "^1.0.2"
+pytorch-lightning = "^1.5.8"
 
 [tool.poetry.dev-dependencies]
 pudb = "^2021.1"
