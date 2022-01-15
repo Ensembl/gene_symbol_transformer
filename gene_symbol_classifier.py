@@ -229,7 +229,9 @@ def train_network(
     max_epochs = experiment.max_epochs
     criterion = experiment.criterion
 
-    checkpoint_path = f"{experiment.experiment_directory}/{experiment.filename}/checkpoint.pth"
+    checkpoint_path = (
+        f"{experiment.experiment_directory}/{experiment.filename}/checkpoint.pth"
+    )
     logger.info(f"start training, experiment checkpoints saved at {checkpoint_path}")
 
     path = pathlib.Path(checkpoint_path)
@@ -381,8 +383,13 @@ def train_network(
             }
             torch.save(checkpoint, checkpoint_path)
 
-        elif average_validation_loss <= experiment.min_validation_loss - experiment.loss_delta:
-            validation_loss_decrease = experiment.min_validation_loss - average_validation_loss
+        elif (
+            average_validation_loss
+            <= experiment.min_validation_loss - experiment.loss_delta
+        ):
+            validation_loss_decrease = (
+                experiment.min_validation_loss - average_validation_loss
+            )
             logger.info(
                 f"validation loss decreased by {validation_loss_decrease:.5f}, saving network checkpoint..."
             )
@@ -1046,7 +1053,9 @@ def main():
         experiment = Experiment(experiment_settings, datetime)
 
         pathlib.Path(experiment.experiment_directory).mkdir(exist_ok=True)
-        log_file_path = f"{experiment.experiment_directory}/{experiment.filename}/experiment.log"
+        log_file_path = (
+            f"{experiment.experiment_directory}/{experiment.filename}/experiment.log"
+        )
         logger.add(log_file_path, format=logging_format)
 
         log_pytorch_cuda_info()
