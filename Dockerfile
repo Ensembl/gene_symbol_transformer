@@ -1,21 +1,23 @@
-# Gene Symbol Classifier Dockerfile
-# https://github.com/Ensembl/gene_symbol_classifier
-
 FROM python:3.9
 
 LABEL maintainer="William Stark <william@ebi.ac.uk>"
 
+# disable caching
+ENV \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1
+
 # Poetry installation environment variables
 ENV \
     POETRY_HOME="/opt/poetry" \
-    POETRY_VERSION=1.1.11 \
+    POETRY_VERSION=1.1.12 \
     POETRY_VIRTUALENVS_CREATE=false
 
 # add Poetry bin directory to PATH
 ENV PATH="${POETRY_HOME}/bin:${PATH}"
 
 # install Poetry
-RUN curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/install-poetry.py | python -
+RUN curl -sSL https://install.python-poetry.org | python3 -
 
 # specify working directory
 WORKDIR /app
@@ -36,7 +38,6 @@ RUN mkdir --verbose /app/data
 COPY \
     gene_symbol_classifier.py \
     utils.py \
-    dataset_generation.py \
     /app/
 
 VOLUME /app/checkpoints
