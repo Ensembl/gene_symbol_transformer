@@ -352,21 +352,17 @@ class GeneSymbolClassifier(nn.Module):
         Convert lists of protein sequences and species clades to an one-hot
         encoded features tensor.
         """
+        padding_side_to_align = {"left": ">", "right": "<"}
+
         one_hot_features_list = []
         for sequence, clade in zip(sequences, clades):
             # pad or truncate sequence to be exactly `self.sequence_length` letters long
-            string_length = len(sequence)
-            if string_length <= self.sequence_length:
-                if self.padding_side == "right":
-                    sequence = sequence + " " * (self.sequence_length - string_length)
-                elif self.padding_side == "left":
-                    sequence = " " * (self.sequence_length - string_length) + sequence
-                else:
-                    raise ValueError(
-                        f'{self.padding_side} is an invalid value for padding_side, must be one of ["left", "right"]'
-                    )
-            else:
-                sequence = sequence[: self.sequence_length]
+            sequence = "{string:{align}{string_length}.{truncate_length}}".format(
+                string=sequence,
+                align=padding_side_to_align[self.padding_side],
+                string_length=self.sequence_length,
+                truncate_length=self.sequence_length,
+            )
 
             one_hot_sequence = self.protein_sequence_mapper.protein_letters_to_one_hot(
                 sequence
