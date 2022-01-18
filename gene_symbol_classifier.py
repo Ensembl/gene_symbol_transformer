@@ -720,6 +720,7 @@ def evaluate_network(checkpoint_path, complete=False):
 
     clade_groups = comparison_statistics.groupby(["clade"])
     clade_groups_statistics = []
+    aggregated_statistics = []
     for clade, group in clade_groups:
         with pd.option_context("display.float_format", "{:.2f}".format):
             group_string = group.to_string(index=False)
@@ -746,6 +747,15 @@ def evaluate_network(checkpoint_path, complete=False):
             total_percentage_weighted_average,
         )
 
+        aggregated_statistics.append(
+            {
+                "clade": clade,
+                "exact matches": matching_percentage_weighted_average,
+                "fuzzy matches": fuzzy_percentage_weighted_average,
+                "total matches": total_percentage_weighted_average,
+            }
+        )
+
         clade_statistics = f"{group_string}\n{averages_message}"
 
         clade_groups_statistics.append(clade_statistics)
@@ -755,6 +765,9 @@ def evaluate_network(checkpoint_path, complete=False):
         clade_statistics for clade_statistics in clade_groups_statistics
     )
     logger.info(comparison_statistics_string)
+
+    aggregated_statistics = pd.DataFrame(aggregated_statistics)
+    logger.info(f"\n\n{aggregated_statistics.to_string(index=False)}")
 
 
 def is_exact_match(symbol_a, symbol_b):
