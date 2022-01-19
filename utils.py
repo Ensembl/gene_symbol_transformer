@@ -26,8 +26,9 @@ General project functions and classes.
 # standard library imports
 import gzip
 import itertools
+import logging
 import pathlib
-import pprint
+import sys
 import time
 import warnings
 
@@ -44,19 +45,31 @@ import torch
 import torch.nn.functional as F
 
 from Bio import SeqIO
-from loguru import logger
 from torch import nn
 from torch.utils.data import Dataset
 
 
-DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+# logging formats
+logging_formatter_time_message = logging.Formatter(
+    fmt="%(asctime)s | %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
+logging_formatter_message = logging.Formatter(fmt="%(message)s")
+
+# set up base logger
+logger = logging.getLogger("main_logger")
+logger.setLevel(logging.DEBUG)
+logger.propagate = False
+# create console handler and add to logger
+console_handler = logging.StreamHandler(sys.stderr)
+console_handler.setLevel(logging.DEBUG)
+console_handler.setFormatter(logging_formatter_time_message)
+logger.addHandler(console_handler)
 
 data_directory = pathlib.Path("data")
 sequences_directory = data_directory / "protein_sequences"
 
 dev_datasets_num_symbols = [3, 100, 1000]
-
-logging_format = "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{message}</level>"
 
 genebuild_clades = {
     "Amphibia": "amphibians",
@@ -1175,6 +1188,18 @@ def get_species_taxonomy_id(scientific_name):
     taxonomy_id = response[0]["id"]
 
     return taxonomy_id
+
+
+def add_log_file_handler(
+        logger, log_file_path, logging_formatter=logging_formatter_time_message
+    ):
+    """
+    Create file handler and add to logger.
+    """
+    file_handler = logging.FileHandler(log_file_path, mode="a+")
+    file_handler.setLevel(logging.DEBUG)
+    file_handler.setFormatter(logging_formatter)
+    logger.addHandler(file_handler)
 
 
 if __name__ == "__main__":
