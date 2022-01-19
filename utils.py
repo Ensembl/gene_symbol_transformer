@@ -369,6 +369,7 @@ class GeneSymbolClassifier(pl.LightningModule):
         # torchscript_path = experiment_directory_path / "torchscript_network.pt"
         # torchscript = self.to_torchscript()
         # torch.jit.save(torchscript, torchscript_path)
+        pass
 
     def on_test_start(self):
         self.test_accuracy = torchmetrics.Accuracy().to(self.device)
