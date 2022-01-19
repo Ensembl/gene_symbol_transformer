@@ -28,6 +28,7 @@ https://rapid.ensembl.org/info/about/species.html
 # standard library imports
 import argparse
 import json
+import logging
 import pathlib
 import sys
 import time
@@ -36,11 +37,10 @@ import time
 import pandas as pd
 import pymysql
 
-from loguru import logger
-
 # project imports
 from gene_symbol_classifier import Experiment, assign_symbols
 from utils import (
+    add_log_file_handler,
     GeneSymbolClassifier,
     PrettySimpleNamespace,
     data_directory,
@@ -48,7 +48,7 @@ from utils import (
     generate_canonical_protein_sequences_fasta,
     get_ensembl_release,
     load_checkpoint,
-    logging_format,
+    logger,
     sequences_directory,
 )
 
@@ -227,17 +227,13 @@ def main():
 
     args = argument_parser.parse_args()
 
-    # set up logger
-    logger.remove()
-    logger.add(sys.stderr, format=logging_format)
-
     # assign symbols to genome assemblies on the Rapid Release
     if args.checkpoint:
         checkpoint_path = pathlib.Path(args.checkpoint)
         log_file_path = pathlib.Path(
             f"{checkpoint_path.parent}/{checkpoint_path.stem}_rapid_release.log"
         )
-        logger.add(log_file_path, format=logging_format)
+        add_log_file_handler(logger, log_file_path)
 
         generate_assignments(checkpoint_path)
 

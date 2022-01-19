@@ -28,26 +28,25 @@ a subset of the full dataset for faster prototyping, and dataset statistics.
 # standard library imports
 import argparse
 import json
+import logging
 import sys
 import time
 
 # third party imports
 import pandas as pd
 
-from loguru import logger
-
 # project imports
 from utils import (
+    add_log_file_handler,
     data_directory,
     dev_datasets_num_symbols,
     fasta_to_dict,
     generate_canonical_protein_sequences_fasta,
     get_assemblies_metadata,
     get_ensembl_release,
-    get_taxonomy_id_clade,
     get_xref_canonical_translations,
     load_dataset,
-    logging_format,
+    logger,
     sequences_directory,
     sizeof_fmt,
 )
@@ -347,12 +346,8 @@ def main():
 
     args = argument_parser.parse_args()
 
-    # set up logger
-    logger.remove()
-    logger.add(sys.stderr, format=logging_format)
-    data_directory.mkdir(exist_ok=True)
     log_file_path = data_directory / "dataset_generation.log"
-    logger.add(log_file_path, format=logging_format)
+    add_log_file_handler(logger, log_file_path)
 
     if args.generate_datasets:
         generate_datasets()
