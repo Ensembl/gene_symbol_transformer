@@ -30,7 +30,6 @@ import logging
 import pathlib
 import sys
 import time
-import warnings
 
 from types import SimpleNamespace
 
@@ -40,9 +39,11 @@ import ensembl_rest
 import numpy as np
 import pandas as pd
 import pymysql
+import pytorch_lightning as pl
 import requests
 import torch
 import torch.nn.functional as F
+import torchmetrics
 
 from Bio import SeqIO
 from torch import nn
@@ -256,56 +257,48 @@ AND external_db.db_name = 'Uniprot_gn';
 """
 
 
-class GeneSymbolClassifier(nn.Module):
+class GeneSymbolClassifier(pl.LightningModule):
     """
     A fully connected neural network for gene name classification of protein sequences
     using the protein letters as features.
     """
 
-    def __init__(
-        self,
-        sequence_length,
-        padding_side,
-        num_protein_letters,
-        num_clades,
-        num_symbols,
-        num_connections,
-        dropout_probability,
-        symbol_mapper,
-        protein_sequence_mapper,
-        clade_mapper,
-    ):
-        """
-        Initialize the neural network.
-        """
+    def __init__(self, **kwargs):
         super().__init__()
 
-        self.sequence_length = sequence_length
-        self.padding_side = padding_side
-        self.dropout_probability = dropout_probability
-        self.symbol_mapper = symbol_mapper
-        self.protein_sequence_mapper = protein_sequence_mapper
-        self.clade_mapper = clade_mapper
+        self.save_hyperparameters()
 
-        input_size = (self.sequence_length * num_protein_letters) + num_clades
-        output_size = num_symbols
+        self.sequence_length = self.hparams.sequence_length
+        self.padding_side = self.hparams.padding_side
+        self.num_protein_letters = self.hparams.num_protein_letters
+        self.num_clades = self.hparams.num_clades
+        self.num_symbols = self.hparams.num_symbols
+        self.num_connections = self.hparams.num_connections
+        self.dropout_probability = self.hparams.dropout_probability
+        self.symbol_mapper = self.hparams.symbol_mapper
+        self.protein_sequence_mapper = self.hparams.protein_sequence_mapper
+        self.clade_mapper = self.hparams.clade_mapper
 
-        self.input_layer = nn.Linear(in_features=input_size, out_features=num_connections)
+        self.num_sample_predictions = self.hparams.num_sample_predictions
+
+        input_size = (self.sequence_length * self.num_protein_letters) + self.num_clades
+        output_size = self.num_symbols
+
+        self.input_layer = nn.Linear(in_features=input_size, out_features=self.num_connections)
         if self.dropout_probability > 0:
             self.dropout = nn.Dropout(self.dropout_probability)
 
         self.relu = nn.ReLU()
 
         self.output_layer = nn.Linear(
-            in_features=num_connections, out_features=output_size
+            in_features=self.num_connections, out_features=output_size
         )
 
         self.final_activation = nn.LogSoftmax(dim=1)
 
+        self.best_validation_accuracy = 0
+
     def forward(self, x):
-        """
-        Perform a forward pass of the network.
-        """
         x = self.input_layer(x)
         if self.dropout_probability > 0:
             x = self.dropout(x)
@@ -317,6 +310,153 @@ class GeneSymbolClassifier(nn.Module):
         x = self.final_activation(x)
 
         return x
+
+    def on_pretrain_routine_end(self):
+        logger.info("start network training")
+        logger.info(f"configuration:\n{self.hparams}")
+
+    def on_train_start(self):
+        # https://torchmetrics.readthedocs.io/en/stable/pages/overview.html#metrics-and-devices
+        self.train_accuracy = torchmetrics.Accuracy(num_classes=self.num_symbols).to(self.device)
+
+    def training_step(self, batch, batch_index):
+        features, labels = batch
+
+        # forward pass
+        output = self(features)
+
+        # loss function
+        training_loss = F.nll_loss(output, labels)
+        self.log("training_loss", training_loss)
+
+        # get predicted label indexes from output
+        predictions, _ = self.get_prediction_indexes_probabilities(output)
+
+        self.train_accuracy(predictions, labels)
+
+        return training_loss
+
+    def on_validation_start(self):
+        self.validation_accuracy = torchmetrics.Accuracy(num_classes=self.num_symbols).to(self.device)
+
+    def validation_step(self, batch, batch_index):
+        features, labels = batch
+
+        # forward pass
+        output = self(features)
+
+        # loss function
+        validation_loss = F.nll_loss(output, labels)
+        self.log("validation_loss", validation_loss)
+
+        # get predicted label indexes from output
+        predictions, _ = self.get_prediction_indexes_probabilities(output)
+
+        self.validation_accuracy(predictions, labels)
+
+        return validation_loss
+
+    def on_validation_end(self):
+        self.best_validation_accuracy = max(
+            self.best_validation_accuracy,
+            self.validation_accuracy.compute().item(),
+        )
+
+    def on_train_end(self):
+        # NOTE: disabling saving network to TorchScript, seems buggy
+        # save network in TorchScript format
+        # experiment_directory_path = pathlib.Path(self.hparams.experiment_directory)
+        # torchscript_path = experiment_directory_path / "torchscript_network.pt"
+        # torchscript = self.to_torchscript()
+        # torch.jit.save(torchscript, torchscript_path)
+
+    def on_test_start(self):
+        self.test_accuracy = torchmetrics.Accuracy().to(self.device)
+        self.test_precision = torchmetrics.Precision(
+            num_classes=self.num_symbols, average="macro"
+        ).to(self.device)
+        self.test_recall = torchmetrics.Recall(
+            num_classes=self.num_symbols, average="macro"
+        ).to(self.device)
+
+        self.sample_labels = torch.empty(0)
+        self.sample_predictions = torch.empty(0)
+
+    def test_step(self, batch, batch_index):
+        features, labels = batch
+
+        # forward pass
+        output = self(features)
+
+        # get predicted label indexes from output
+        predictions, _ = self.get_prediction_indexes_probabilities(output)
+
+        self.test_accuracy(predictions, labels)
+        self.test_precision(predictions, labels)
+        self.test_recall(predictions, labels)
+
+        if self.num_sample_predictions > 0:
+            with torch.random.fork_rng():
+                torch.manual_seed(int(time.time() * 1000))
+                permutation = torch.randperm(len(labels))
+
+            sample_labels = labels[permutation[0 : self.num_sample_predictions]]
+            sample_predictions = predictions[permutation[0 : self.num_sample_predictions]]
+
+            self.sample_labels = torch.cat((self.sample_labels, sample_labels))
+            self.sample_predictions = torch.cat(
+                (self.sample_predictions, sample_predictions)
+            )
+
+    def on_test_end(self):
+        # log statistics
+        accuracy = self.test_accuracy.compute()
+        precision = self.test_precision.compute()
+        recall = self.test_recall.compute()
+        logger.info(
+            f"test accuracy: {accuracy:.4f} | precision: {precision:.4f} | recall: {recall:.4f}"
+        )
+        logger.info(f"best validation accuracy: {self.best_validation_accuracy:.4f}")
+
+        if self.num_sample_predictions > 0:
+            with torch.random.fork_rng():
+                torch.manual_seed(int(time.time() * 1000))
+                permutation = torch.randperm(len(self.sample_labels))
+
+            self.sample_labels = self.sample_labels[
+                permutation[0 : self.num_sample_predictions]
+            ].tolist()
+            self.sample_predictions = self.sample_predictions[
+                permutation[0 : self.num_sample_predictions]
+            ].tolist()
+
+            # change logging format to raw messages
+            for handler in logger.handlers:
+                handler.setFormatter(logging_formatter_message)
+
+            labels = [self.symbol_mapper.index_to_label(label) for label in self.sample_labels]
+            assignments = [
+                self.symbol_mapper.index_to_label(prediction)
+                for prediction in self.sample_predictions
+            ]
+
+            logger.info("\nsample assignments")
+            logger.info("assignment | true label")
+            logger.info("-----------------------")
+            for assignment, label in zip(assignments, labels):
+                if assignment == label:
+                    logger.info(f"{assignment:>10} | {label:>10}")
+                else:
+                    logger.info(f"{assignment:>10} | {label:>10}  !!!")
+
+    def configure_optimizers(self):
+        # optimization function
+        optimizer = torch.optim.Adam(
+            params=self.parameters(),
+            lr=self.hparams.learning_rate,
+            weight_decay=self.hparams.weight_decay,
+        )
+        return optimizer
 
     def predict_probabilities(self, sequences, clades):
         """
@@ -567,6 +707,18 @@ class ProteinSequenceMapper:
         return one_hot_sequence
 
 
+class AttributeDict(dict):
+    """
+    Extended dictionary accessible with dot notation.
+    """
+
+    def __getattr__(self, key):
+        return self[key]
+
+    def __setattr__(self, key, value):
+        self[key] = value
+
+
 def read_fasta_in_chunks(fasta_file_path, num_chunk_entries=1024):
     """
     Read a FASTA file in chunks, returning a list of tuples of two strings,
@@ -804,7 +956,7 @@ def get_assemblies_metadata():
     if assemblies_metadata_path.exists():
         assemblies_metadata_df = pd.read_pickle(assemblies_metadata_path)
         assemblies_metadata = [
-            PrettySimpleNamespace(**values.to_dict())
+            SimpleNamespace(**values.to_dict())
             for index, values in assemblies_metadata_df.iterrows()
         ]
         return assemblies_metadata
@@ -822,7 +974,7 @@ def get_assemblies_metadata():
     assemblies_df = pd.read_csv(species_data_path, sep="\t", index_col=False)
     assemblies_df = assemblies_df.rename(columns={"#name": "name"})
     assemblies = [
-        PrettySimpleNamespace(**genome_row._asdict())
+        SimpleNamespace(**genome_row._asdict())
         for genome_row in assemblies_df.itertuples()
     ]
 
@@ -837,12 +989,12 @@ def get_assemblies_metadata():
         # delay between REST API calls
         time.sleep(0.1)
 
-        assembly_metadata = PrettySimpleNamespace()
+        assembly_metadata = SimpleNamespace()
 
         # retrieve additional information for the assembly from the REST API
         # https://ensemblrest.readthedocs.io/en/latest/#ensembl_rest.EnsemblClient.info_genomes_assembly
         response = ensembl_rest.info_genomes_assembly(assembly.assembly_accession)
-        rest_assembly = PrettySimpleNamespace(**response)
+        rest_assembly = SimpleNamespace(**response)
 
         assembly_metadata.assembly_accession = assembly.assembly_accession
         assembly_metadata.scientific_name = rest_assembly.scientific_name
@@ -876,7 +1028,7 @@ def get_assemblies_metadata():
     logger.info(f"dataset metadata saved at {assemblies_metadata_path}")
 
     assemblies_metadata = [
-        PrettySimpleNamespace(**values.to_dict())
+        SimpleNamespace(**values.to_dict())
         for index, values in assemblies_metadata_df.iterrows()
     ]
 
@@ -998,19 +1150,6 @@ def get_ensembl_release():
     return ensembl_release
 
 
-class PrettySimpleNamespace(SimpleNamespace):
-    """
-    Add a pretty formatting printing to the SimpleNamespace.
-
-    NOTE
-    This will most probably not be needed from Python version 3.9 on, as support
-    for pretty-printing types.SimpleNamespace has been added to pprint in that version.
-    """
-
-    def __str__(self):
-        return pprint.pformat(self.__dict__, sort_dicts=False)
-
-
 class SuppressSettingWithCopyWarning:
     """
     Suppress SettingWithCopyWarning warning.
@@ -1123,7 +1262,6 @@ def load_checkpoint(checkpoint_path):
         experiment.clade_mapper,
     )
     network.load_state_dict(checkpoint["network_state_dict"])
-    network.to(DEVICE)
 
     optimizer = torch.optim.Adam(network.parameters(), lr=experiment.learning_rate)
     optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
@@ -1188,6 +1326,23 @@ def get_species_taxonomy_id(scientific_name):
     taxonomy_id = response[0]["id"]
 
     return taxonomy_id
+
+
+def log_pytorch_cuda_info():
+    """
+    Log PyTorch and CUDA info and device to be used.
+    """
+    DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    logger.debug(f"{torch.__version__=}")
+    logger.debug(f"{DEVICE=}")
+    logger.debug(f"{torch.version.cuda=}")
+    logger.debug(f"{torch.backends.cudnn.enabled=}")
+    logger.debug(f"{torch.cuda.is_available()=}")
+
+    if torch.cuda.is_available():
+        logger.debug(f"{torch.cuda.device_count()=}")
+        logger.debug(f"{torch.cuda.get_device_properties(DEVICE)}")
 
 
 def add_log_file_handler(
