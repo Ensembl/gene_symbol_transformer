@@ -31,43 +31,9 @@ The classifier is implemented as a fully connected feedforward neural network wi
 During training a validation set is being tested and early stopping is used for regularization, halting the training session when the validation loss stops decreasing between epochs.
 
 
-## experiment setup
+### experiment setup
 
-A YAML file has been defined for specifying hyperparameters for an experiment, using a flat dictionary structure:
-
-```yaml
-# experiment filenames prefix
-filename_prefix: experiment
-
-# PyTorch random number generator initialization seed
-random_seed: 5
-
-num_symbols: 30241
-
-# training, validation, test split
-test_ratio: 0.1
-validation_ratio: 0.1
-
-sequence_length: 841
-
-# number of connections between fully connected network layers
-num_connections: 512
-
-# max norm for gradient clipping
-clip_max_norm: 5
-
-dropout_probability: 0
-
-batch_size: 1024
-
-learning_rate: 0.001
-
-# number of epochs without validation loss improvement before training stops
-patience: 5
-
-# maximum number of training epochs
-max_epochs: 100
-```
+Specify parameters and hyperparameters for your experiment by editing or copying the `configuration.yaml` configuration file.
 
 
 ## create and use a classifier
@@ -95,18 +61,18 @@ Training can be either run directly on a compute node or submitted as an LSF job
 
 train directly on a compute node
 ```
-python gene_symbol_classifier.py -ex <experiment settings YAML file path> --train --test
+python gene_symbol_classifier.py --configuration <experiment configuration YAML file path> --train --test
 
 # e.g.
-python gene_symbol_classifier.py -ex experiment.yaml --train --test
+python gene_symbol_classifier.py --configuration configuration.yaml --train --test
 ```
 
 submit a training job with bsub
 ```
-python submit_LSF_job.py -ex <experiment settings YAML file path>
+python submit_LSF_job.py --configuration <experiment configuration YAML file path>
 
 # e.g.
-python submit_LSF_job.py -ex experiment.yaml
+python submit_LSF_job.py --configuration configuration.yaml
 ```
 
 Resuming training of a network is also supported. Simply load the saved checkpoint and pass the `--train` argument to continue training the network with the same configuration and hyperparameters.

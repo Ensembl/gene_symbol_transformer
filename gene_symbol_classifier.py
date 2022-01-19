@@ -40,36 +40,35 @@ import argparse
 import csv
 import datetime as dt
 import json
-import math
+import logging
 import pathlib
-import pprint
 import random
 import sys
-import time
+import warnings
 
 # third party imports
-import numpy as np
 import pandas as pd
+import pytorch_lightning as pl
 import torch
-import torchmetrics
 import yaml
 
-from loguru import logger
-from torch import nn
 from torch.utils.data import DataLoader, random_split
-from torch.utils.tensorboard import SummaryWriter
 
 # project imports
 from utils import (
+    AttributeDict,
     GeneSymbolClassifier,
     SequenceDataset,
+    add_log_file_handler,
     data_directory,
     get_assemblies_metadata,
     get_species_taxonomy_id,
     get_taxonomy_id_clade,
     get_xref_canonical_translations,
     load_checkpoint,
-    logging_format,
+    log_pytorch_cuda_info,
+    logger,
+    logging_formatter_time_message,
     read_fasta_in_chunks,
     sequences_directory,
 )
@@ -96,43 +95,6 @@ selected_genome_assemblies = {
     "GCA_000146045.2": ("Saccharomyces cerevisiae", "Saccharomyces cerevisiae"),
     "GCA_000003025.6": ("Sus scrofa", "Pig"),
 }
-
-
-DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-
-class Experiment:
-    """
-    Object containing settings values and status of an experiment.
-    """
-
-    def __init__(self, experiment_settings, datetime):
-        for attribute, value in experiment_settings.items():
-            setattr(self, attribute, value)
-
-        # experiment parameters
-        self.datetime = datetime
-
-        # set a seed for the PyTorch random number generator if not present
-        if not hasattr(self, "random_seed"):
-            self.random_seed = random.randint(1_000_000, 1_001_000)
-
-        # early stopping
-        self.no_progress_epochs = 0
-        self.min_validation_loss = np.Inf
-
-        # loss function
-        self.criterion = nn.NLLLoss()
-
-        self.num_complete_epochs = 0
-
-        self.filename = f"{self.filename_prefix}_ns{self.num_symbols}_{self.datetime}"
-
-        # self.padding_side = "left"
-        self.padding_side = "right"
-
-    def __str__(self):
-        return pprint.pformat(self.__dict__, sort_dicts=False)
 
 
 def generate_dataloaders(experiment):
@@ -215,325 +177,6 @@ def generate_dataloaders(experiment):
     return (training_loader, validation_loader, test_loader)
 
 
-def train_network(
-    network,
-    optimizer,
-    experiment,
-    symbols_metadata,
-    training_loader,
-    validation_loader,
-):
-    tensorboard_log_dir = f"{experiment.experiment_directory}/{experiment.filename}"
-    summary_writer = SummaryWriter(log_dir=tensorboard_log_dir)
-
-    max_epochs = experiment.max_epochs
-    criterion = experiment.criterion
-
-    checkpoint_path = (
-        f"{experiment.experiment_directory}/{experiment.filename}/checkpoint.pth"
-    )
-    logger.info(f"start training, experiment checkpoints saved at {checkpoint_path}")
-
-    path = pathlib.Path(checkpoint_path)
-    network_path = pathlib.Path(f"{path.parent}/network.pth")
-    torch.save(network, network_path)
-    logger.info(f"initial raw network saved at {network_path}")
-
-    max_epochs_length = len(str(max_epochs))
-
-    num_train_batches = math.ceil(experiment.training_size / experiment.batch_size)
-    num_batches_length = len(str(num_train_batches))
-
-    if not hasattr(experiment, "average_training_losses"):
-        experiment.average_training_losses = []
-
-    if not hasattr(experiment, "average_validation_losses"):
-        experiment.average_validation_losses = []
-
-    experiment.epoch = experiment.num_complete_epochs + 1
-    epoch_times = []
-    for epoch in range(experiment.epoch, max_epochs + 1):
-        epoch_start_time = time.time()
-
-        experiment.epoch = epoch
-
-        # training
-        ########################################################################
-        training_losses = []
-        # https://torchmetrics.readthedocs.io/en/latest/pages/overview.html#metrics-and-devices
-        train_accuracy = torchmetrics.Accuracy().to(DEVICE)
-
-        # set the network in training mode
-        network.train()
-
-        batch_execution_times = []
-        batch_loading_times = []
-        pre_batch_loading_time = time.time()
-        for batch_number, (inputs, labels) in enumerate(training_loader, start=1):
-            batch_start_time = time.time()
-            batch_loading_time = batch_start_time - pre_batch_loading_time
-            if batch_number < num_train_batches:
-                batch_loading_times.append(batch_loading_time)
-
-            inputs, labels = inputs.to(DEVICE), labels.to(DEVICE)
-
-            # zero accumulated gradients
-            optimizer.zero_grad()
-
-            # forward pass
-            output = network(inputs)
-
-            # get predicted label indexes from output
-            predictions, _ = network.get_prediction_indexes_probabilities(output)
-
-            # compute training loss
-            training_loss = criterion(output, labels)
-            training_losses.append(training_loss.item())
-            summary_writer.add_scalar("loss/training", training_loss, epoch)
-
-            # perform back propagation
-            training_loss.backward()
-
-            # prevent the exploding gradient problem
-            nn.utils.clip_grad_norm_(network.parameters(), experiment.clip_max_norm)
-
-            # perform optimization step
-            optimizer.step()
-
-            batch_train_accuracy = train_accuracy(predictions, labels)
-            average_training_loss = np.average(training_losses)
-
-            batch_finish_time = time.time()
-            pre_batch_loading_time = batch_finish_time
-            batch_execution_time = batch_finish_time - batch_start_time
-            if batch_number < num_train_batches:
-                batch_execution_times.append(batch_execution_time)
-
-            train_progress = f"epoch {epoch:{max_epochs_length}} batch {batch_number:{num_batches_length}} of {num_train_batches} | average loss: {average_training_loss:.5f} | accuracy: {batch_train_accuracy:.4f} | execution: {batch_execution_time:.2f}s | loading: {batch_loading_time:.2f}s"
-            logger.info(train_progress)
-
-        experiment.num_complete_epochs += 1
-
-        average_training_loss = np.average(training_losses)
-        experiment.average_training_losses.append(average_training_loss)
-
-        # validation
-        ########################################################################
-        num_validation_batches = math.ceil(
-            experiment.validation_size / experiment.batch_size
-        )
-        num_batches_length = len(str(num_validation_batches))
-
-        validation_losses = []
-        validation_accuracy = torchmetrics.Accuracy().to(DEVICE)
-
-        # disable gradient calculation
-        with torch.no_grad():
-            # set the network in evaluation mode
-            network.eval()
-            for batch_number, (inputs, labels) in enumerate(validation_loader, start=1):
-                inputs, labels = inputs.to(DEVICE), labels.to(DEVICE)
-
-                # forward pass
-                output = network(inputs)
-
-                # get predicted label indexes from output
-                predictions, _ = network.get_prediction_indexes_probabilities(output)
-
-                # compute validation loss
-                validation_loss = criterion(output, labels)
-                validation_losses.append(validation_loss.item())
-                summary_writer.add_scalar("loss/validation", validation_loss, epoch)
-
-                batch_validation_accuracy = validation_accuracy(predictions, labels)
-                average_validation_loss = np.average(validation_losses)
-
-                validation_progress = f"epoch {epoch:{max_epochs_length}} validation batch {batch_number:{num_batches_length}} of {num_validation_batches} | average loss: {average_validation_loss:.5f} | accuracy: {batch_validation_accuracy:.4f}"
-                logger.info(validation_progress)
-
-        average_validation_loss = np.average(validation_losses)
-        experiment.average_validation_losses.append(average_validation_loss)
-
-        total_validation_accuracy = validation_accuracy.compute()
-
-        average_batch_execution_time = sum(batch_execution_times) / len(
-            batch_execution_times
-        )
-        average_batch_loading_time = sum(batch_loading_times) / len(batch_loading_times)
-
-        epoch_finish_time = time.time()
-        epoch_time = epoch_finish_time - epoch_start_time
-        epoch_times.append(epoch_time)
-
-        train_progress = f"epoch {epoch:{max_epochs_length}} complete | validation loss: {average_validation_loss:.5f} | validation accuracy: {total_validation_accuracy:.4f} | time: {epoch_time:.2f}s"
-        logger.info(train_progress)
-        logger.info(
-            f"training batch average execution time: {average_batch_execution_time:.2f}s | average loading time: {average_batch_loading_time:.2f}s ({num_train_batches - 1} complete batches)"
-        )
-
-        # early stopping
-        if experiment.min_validation_loss == np.Inf:
-            experiment.min_validation_loss = average_validation_loss
-            logger.info("saving first network checkpoint...")
-            checkpoint = {
-                "experiment": experiment,
-                "network_state_dict": network.state_dict(),
-                "optimizer_state_dict": optimizer.state_dict(),
-                "symbols_metadata": symbols_metadata,
-            }
-            torch.save(checkpoint, checkpoint_path)
-
-        elif (
-            average_validation_loss
-            <= experiment.min_validation_loss - experiment.loss_delta
-        ):
-            validation_loss_decrease = (
-                experiment.min_validation_loss - average_validation_loss
-            )
-            logger.info(
-                f"validation loss decreased by {validation_loss_decrease:.5f}, saving network checkpoint..."
-            )
-
-            experiment.min_validation_loss = average_validation_loss
-            experiment.no_progress_epochs = 0
-            checkpoint = {
-                "experiment": experiment,
-                "network_state_dict": network.state_dict(),
-                "optimizer_state_dict": optimizer.state_dict(),
-                "symbols_metadata": symbols_metadata,
-            }
-            torch.save(checkpoint, checkpoint_path)
-
-        # average_validation_loss > experiment.min_validation_loss - experiment.loss_delta
-        else:
-            experiment.no_progress_epochs += 1
-
-        if experiment.no_progress_epochs == experiment.patience:
-            logger.info(
-                f"{experiment.no_progress_epochs} epochs with no validation loss improvement, stopping training"
-            )
-            summary_writer.flush()
-            summary_writer.close()
-            break
-
-    training_time = sum(epoch_times)
-    average_epoch_time = training_time / len(epoch_times)
-    logger.info(
-        f"total training time: {training_time:.2f}s | epoch average training time: {average_epoch_time:.2f}s ({epoch} epochs)"
-    )
-
-    return checkpoint_path
-
-
-def test_network(checkpoint_path, print_sample_assignments=False):
-    """
-    Calculate test loss and generate metrics.
-    """
-    experiment, network, _optimizer, _symbols_metadata = load_checkpoint(checkpoint_path)
-
-    logger.info("start testing classifier")
-    logger.info(f"experiment:\n{experiment}")
-    logger.info(f"network:\n{network}")
-
-    # get test dataloader
-    _, _, test_loader = generate_dataloaders(experiment)
-
-    criterion = experiment.criterion
-
-    num_test_batches = math.ceil(experiment.test_size / experiment.batch_size)
-    num_batches_length = len(str(num_test_batches))
-
-    test_losses = []
-    test_accuracy = torchmetrics.Accuracy().to(DEVICE)
-    test_precision = torchmetrics.Precision(
-        num_classes=experiment.num_symbols, average="macro"
-    ).to(DEVICE)
-    test_recall = torchmetrics.Recall(
-        num_classes=experiment.num_symbols, average="macro"
-    ).to(DEVICE)
-
-    with torch.no_grad():
-        network.eval()
-
-        for batch_number, (inputs, labels) in enumerate(test_loader, start=1):
-            inputs, labels = inputs.to(DEVICE), labels.to(DEVICE)
-
-            # forward pass
-            output = network(inputs)
-
-            # get predicted label indexes from output
-            predictions, _ = network.get_prediction_indexes_probabilities(output)
-
-            # calculate test loss
-            test_loss = criterion(output, labels)
-            test_losses.append(test_loss.item())
-
-            batch_accuracy = test_accuracy(predictions, labels)
-            test_precision(predictions, labels)
-            test_recall(predictions, labels)
-
-            logger.info(
-                f"test batch {batch_number:{num_batches_length}} of {num_test_batches} | accuracy: {batch_accuracy:.4f}"
-            )
-
-    # log statistics
-    average_test_loss = np.mean(test_losses)
-    total_test_accuracy = test_accuracy.compute()
-    precision = test_precision.compute()
-    recall = test_recall.compute()
-    logger.info(
-        f"testing complete | average loss: {average_test_loss:.5f} | accuracy: {total_test_accuracy:.4f}"
-    )
-    logger.info(f"precision: {precision:.4f} | recall: {recall:.4f}")
-
-    if print_sample_assignments:
-        num_sample_assignments = 10
-        # num_sample_assignments = 20
-        # num_sample_assignments = 100
-
-        with torch.no_grad():
-            network.eval()
-
-            inputs, labels = next(iter(test_loader))
-            # inputs, labels = inputs.to(DEVICE), labels.to(DEVICE)
-            inputs = inputs.to(DEVICE)
-
-            with torch.random.fork_rng():
-                torch.manual_seed(time.time() * 1000)
-                permutation = torch.randperm(len(inputs))
-
-            inputs = inputs[permutation[0:num_sample_assignments]]
-            labels = labels[permutation[0:num_sample_assignments]]
-
-            # forward pass
-            output = network(inputs)
-
-            # get predicted labels from output
-            predictions, _ = network.get_prediction_indexes_probabilities(output)
-
-        # reset logger, add raw messages format
-        logger.remove()
-        logger.add(sys.stderr, format="{message}")
-        checkpoint_path = pathlib.Path(checkpoint_path)
-        log_file_path = f"{checkpoint_path.parent}/experiment.log"
-        logger.add(log_file_path, format="{message}")
-
-        assignments = [
-            network.symbol_mapper.index_to_label(prediction.item())
-            for prediction in predictions.cpu()
-        ]
-        labels = [network.symbol_mapper.index_to_label(label.item()) for label in labels]
-
-        logger.info("\nsample assignments")
-        logger.info("assignment | true label")
-        logger.info("-----------------------")
-        for assignment, label in zip(assignments, labels):
-            if assignment == label:
-                logger.info(f"{assignment:>10} | {label:>10}")
-            else:
-                logger.info(f"{assignment:>10} | {label:>10}  !!!")
-
-
 def assign_symbols(
     network,
     symbols_metadata,
@@ -609,21 +252,6 @@ def save_network_from_checkpoint(checkpoint_path):
     torch.save(network, network_path)
 
     return network_path
-
-
-def log_pytorch_cuda_info():
-    """
-    Log PyTorch and CUDA info and device to be used.
-    """
-    logger.debug(f"{torch.__version__=}")
-    logger.debug(f"{DEVICE=}")
-    logger.debug(f"{torch.version.cuda=}")
-    logger.debug(f"{torch.backends.cudnn.enabled=}")
-    logger.debug(f"{torch.cuda.is_available()=}")
-
-    if torch.cuda.is_available():
-        logger.debug(f"{torch.cuda.device_count()=}")
-        logger.debug(f"{torch.cuda.get_device_properties(DEVICE)}")
 
 
 def evaluate_network(checkpoint_path, complete=False):
@@ -931,10 +559,11 @@ def compare_assignments(
 ):
     """Compare assignments with the ones on the latest Ensembl release."""
     assignments_csv_path = pathlib.Path(assignments_csv)
+
     log_file_path = pathlib.Path(
         f"{assignments_csv_path.parent}/{assignments_csv_path.stem}_compare.log"
     )
-    logger.add(log_file_path, format=logging_format)
+    add_log_file_handler(logger, log_file_path)
 
     if checkpoint is None:
         symbols_set = None
@@ -1003,9 +632,8 @@ def main():
         help="datetime string; if set this will be used instead of generating a new one",
     )
     argument_parser.add_argument(
-        "-ex",
-        "--experiment_settings",
-        help="path to the experiment settings configuration file",
+        "--configuration",
+        help="path to the experiment configuration file",
     )
     argument_parser.add_argument(
         "--checkpoint",
@@ -1047,36 +675,53 @@ def main():
 
     args = argument_parser.parse_args()
 
-    # set up logger
-    logger.remove()
-    logger.add(sys.stderr, format=logging_format)
+    # filter warning about number of dataloader workers
+    warnings.filterwarnings(
+        "ignore",
+        ".*does not have many workers which may be a bottleneck. Consider increasing the value of the `num_workers` argument.*",
+    )
 
     # train a new classifier
-    if args.train and args.experiment_settings:
-        # read the experiment settings YAML file to a dictionary
-        with open(args.experiment_settings) as file:
-            experiment_settings = yaml.safe_load(file)
+    if args.train and args.configuration:
+        # read the experiment configuration YAML file to a dictionary
+        with open(args.configuration) as file:
+            configuration = yaml.safe_load(file)
 
-        if args.datetime is None:
-            datetime = dt.datetime.now().isoformat(sep="_", timespec="seconds")
-        else:
-            datetime = args.datetime
+        configuration = AttributeDict(configuration)
 
-        # generate new experiment
-        experiment = Experiment(experiment_settings, datetime)
-
-        pathlib.Path(experiment.experiment_directory).mkdir(exist_ok=True)
-        log_file_path = (
-            f"{experiment.experiment_directory}/{experiment.filename}/experiment.log"
+        configuration.datetime = configuration.get(
+            "datetime", dt.datetime.now().isoformat(sep="_", timespec="seconds")
         )
-        logger.add(log_file_path, format=logging_format)
+
+        configuration.logging_version = f"{configuration.experiment_prefix}_ns{configuration.num_symbols}_{configuration.datetime}"
+
+        # generate random seed if it doesn't exist
+        # Using the range [1_000_000, 1_001_000] for the random seed. This range contains
+        # numbers that have a good balance of 0 and 1 bits, as recommended by the PyTorch docs.
+        # https://pytorch.org/docs/stable/generated/torch.Generator.html#torch.Generator.manual_seed
+        configuration.random_seed = configuration.get(
+            "random_seed", random.randint(1_000_000, 1_001_000)
+        )
+
+        configuration.feature_encoding = "label"
+
+        configuration.experiment_directory = (
+            f"{configuration.save_directory}/{configuration.logging_version}"
+        )
+        log_directory_path = pathlib.Path(configuration.experiment_directory)
+        log_directory_path.mkdir(parents=True, exist_ok=True)
+
+        log_file_path = log_directory_path / "experiment.log"
+        add_log_file_handler(logger, log_file_path)
 
         log_pytorch_cuda_info()
 
         # get training, validation, and test dataloaders
-        training_loader, validation_loader, _test_loader = generate_dataloaders(
-            experiment
-        )
+        (
+            training_dataloader,
+            validation_dataloader,
+            test_dataloader,
+        ) = generate_dataloaders(configuration)
 
         # load symbols metadata
         symbols_metadata_filename = "symbols_metadata.json"
@@ -1085,45 +730,49 @@ def main():
             symbols_metadata = json.load(file)
 
         # instantiate neural network
-        network = GeneSymbolClassifier(
-            experiment.sequence_length,
-            experiment.padding_side,
-            experiment.num_protein_letters,
-            experiment.num_clades,
-            experiment.num_symbols,
-            experiment.num_connections,
-            experiment.dropout_probability,
-            experiment.symbol_mapper,
-            experiment.protein_sequence_mapper,
-            experiment.clade_mapper,
+        network = GeneSymbolClassifier(**configuration)
+
+        # don't use a per-experiment subdirectory
+        logging_name = ""
+
+        tensorboard_logger = pl.loggers.TensorBoardLogger(
+            save_dir=configuration.save_directory,
+            name=logging_name,
+            version=configuration.logging_version,
+            default_hp_metric=False,
         )
-        network.to(DEVICE)
 
-        # optimization function
-        optimizer = torch.optim.Adam(network.parameters(), lr=experiment.learning_rate)
+        early_stopping_callback = pl.callbacks.early_stopping.EarlyStopping(
+            monitor="validation_loss",
+            min_delta=configuration.loss_delta,
+            patience=configuration.patience,
+            verbose=True,
+        )
 
-        logger.info("start training new classifier")
-        logger.info(f"experiment:\n{experiment}")
-        logger.info(f"network:\n{network}")
+        trainer = pl.Trainer(
+            gpus=configuration.gpus,
+            logger=tensorboard_logger,
+            max_epochs=configuration.max_epochs,
+            log_every_n_steps=1,
+            callbacks=[early_stopping_callback],
+            profiler=configuration.profiler,
+        )
 
-        checkpoint_path = train_network(
-            network,
-            optimizer,
-            experiment,
-            symbols_metadata,
-            training_loader,
-            validation_loader,
+        trainer.fit(
+            model=network,
+            train_dataloaders=training_dataloader,
+            val_dataloaders=validation_dataloader,
         )
 
         if args.test:
-            test_network(checkpoint_path, print_sample_assignments=True)
+            trainer.test(ckpt_path="best", dataloaders=test_dataloader)
 
     # resume training and/or test a classifier
     elif (args.train or args.test) and args.checkpoint:
         checkpoint_path = pathlib.Path(args.checkpoint)
 
         log_file_path = f"{checkpoint_path.parent}/experiment.log"
-        logger.add(log_file_path, format=logging_format)
+        add_log_file_handler(logger, log_file_path)
 
         # resume training classifier
         if args.train:
@@ -1161,7 +810,7 @@ def main():
         )
         evaluation_directory_path.mkdir()
         log_file_path = evaluation_directory_path / f"{checkpoint_path.stem}_evaluate.log"
-        logger.add(log_file_path, format=logging_format)
+        add_log_file_handler(logger, log_file_path)
 
         evaluate_network(checkpoint_path, args.complete)
 
@@ -1170,7 +819,7 @@ def main():
         checkpoint_path = pathlib.Path(args.checkpoint)
 
         log_file_path = f"{checkpoint_path.parent}/experiment.log"
-        logger.add(log_file_path, format=logging_format)
+        add_log_file_handler(logger, log_file_path)
 
         _experiment, network, _optimizer, symbols_metadata = load_checkpoint(
             checkpoint_path

@@ -1,12 +1,12 @@
 # general
 ################################################################################
 # experiment files directory
-experiment_directory: experiments
+save_directory: experiments
 
-# experiment filenames prefix
-filename_prefix: experiment
-#filename_prefix: only_human
-#filename_prefix: exclude_bos
+# experiment naming prefix
+experiment_prefix: experiment
+#experiment_prefix: only_human
+#experiment_prefix: exclude_bos
 
 # PyTorch random number generator initialization seed
 #random_seed: 5
@@ -54,6 +54,9 @@ validation_ratio: 0.2
 #sequence_length: 581  # ~ 580.63 : dataset sequences mean length
 sequence_length: 841  # ~ 580.63 + 0.5 * 521.15 : mean + 0.5 * standard_deviation
 #sequence_length: 1102  # ~ 580.63 + 1 * 521.15 : mean + 1 * standard_deviation
+
+#padding_side: left
+padding_side: right
 ################################################################################
 
 # network architecture
@@ -66,9 +69,9 @@ num_connections: 64
 #num_connections: 256
 #num_connections: 512
 
-# max norm for gradient clipping
-#clip_max_norm: 0
-clip_max_norm: 5
+# L2 regularization parameter
+weight_decay: 0
+#weight_decay: 1.0e-5
 
 dropout_probability: 0
 #dropout_probability: 0.1
@@ -90,9 +93,8 @@ num_workers: 0
 #num_workers: 31
 #num_workers: 47
 
-#learning_rate: 0.005
-learning_rate: 0.001
-#learning_rate: 0.0005
+#learning_rate: 0.001
+learning_rate: 0.0005
 #learning_rate: 0.0001
 
 # number of epochs without validation loss improvement before training stops
@@ -105,9 +107,17 @@ loss_delta: 0
 #loss_delta: 1.0e-6
 
 # maximum number of training epochs
-max_epochs: 1
+#max_epochs: 1
 #max_epochs: 3
 #max_epochs: 10
-#max_epochs: 90
-#max_epochs: 900
+max_epochs: 100
+
+gpus:
+#gpus: 1
+
+profiler:
+#profiler: simple
+#profiler: pytorch
+
+num_sample_predictions: 10
 ################################################################################
