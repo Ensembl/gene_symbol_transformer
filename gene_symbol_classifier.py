@@ -57,6 +57,7 @@ from torch.utils.data import DataLoader, random_split
 # project imports
 from utils import (
     AttributeDict,
+    ConciseReprDict,
     GeneSymbolClassifier,
     SequenceDataset,
     add_log_file_handler,
@@ -65,7 +66,6 @@ from utils import (
     get_species_taxonomy_id,
     get_taxonomy_id_clade,
     get_xref_canonical_translations,
-    load_checkpoint,
     log_pytorch_cuda_info,
     logger,
     logging_formatter_time_message,
@@ -97,81 +97,81 @@ selected_genome_assemblies = {
 }
 
 
-def generate_dataloaders(experiment):
+def generate_dataloaders(configuration):
     """
     Generate training, validation, and test dataloaders from the dataset files.
 
     Args:
-        experiment (Experiment): Experiment object containing metadata
+        configuration (AttributeDict): experiment configuration AttributeDict
     Returns:
         tuple containing the training, validation, and test dataloaders
     """
     dataset = SequenceDataset(
-        num_symbols=experiment.num_symbols,
-        sequence_length=experiment.sequence_length,
-        padding_side=experiment.padding_side,
-        excluded_genera=experiment.excluded_genera,
+        num_symbols=configuration.num_symbols,
+        sequence_length=configuration.sequence_length,
+        padding_side=configuration.padding_side,
+        excluded_genera=configuration.excluded_genera,
     )
 
-    experiment.symbol_mapper = dataset.symbol_mapper
-    experiment.protein_sequence_mapper = dataset.protein_sequence_mapper
-    experiment.clade_mapper = dataset.clade_mapper
+    configuration.symbol_mapper = dataset.symbol_mapper
+    configuration.protein_sequence_mapper = dataset.protein_sequence_mapper
+    configuration.clade_mapper = dataset.clade_mapper
 
-    experiment.num_protein_letters = (
-        experiment.protein_sequence_mapper.num_protein_letters
+    configuration.num_protein_letters = (
+        configuration.protein_sequence_mapper.num_protein_letters
     )
-    experiment.num_clades = experiment.clade_mapper.num_categories
+    configuration.num_clades = configuration.clade_mapper.num_categories
 
     logger.info(
-        "gene symbols:\n{}".format(pd.Series(experiment.symbol_mapper.categories))
+        "gene symbols:\n{}".format(pd.Series(configuration.symbol_mapper.categories))
     )
 
     # calculate the training, validation, and test set size
     dataset_size = len(dataset)
-    experiment.validation_size = int(experiment.validation_ratio * dataset_size)
-    experiment.test_size = int(experiment.test_ratio * dataset_size)
-    experiment.training_size = (
-        dataset_size - experiment.validation_size - experiment.test_size
+    configuration.validation_size = int(configuration.validation_ratio * dataset_size)
+    configuration.test_size = int(configuration.test_ratio * dataset_size)
+    configuration.training_size = (
+        dataset_size - configuration.validation_size - configuration.test_size
     )
 
     # split dataset into training, validation, and test datasets
     training_dataset, validation_dataset, test_dataset = random_split(
         dataset,
         lengths=(
-            experiment.training_size,
-            experiment.validation_size,
-            experiment.test_size,
+            configuration.training_size,
+            configuration.validation_size,
+            configuration.test_size,
         ),
-        generator=torch.Generator().manual_seed(experiment.random_seed),
+        generator=torch.Generator().manual_seed(configuration.random_seed),
     )
 
     logger.info(
-        f"dataset split to training ({experiment.training_size}), validation ({experiment.validation_size}), and test ({experiment.test_size}) datasets"
+        f"dataset split to training ({configuration.training_size}), validation ({configuration.validation_size}), and test ({configuration.test_size}) datasets"
     )
 
     # set the batch size equal to the size of the smallest dataset if larger than that
-    experiment.batch_size = min(
-        experiment.batch_size,
-        experiment.training_size,
-        experiment.validation_size,
-        experiment.test_size,
+    configuration.batch_size = min(
+        configuration.batch_size,
+        configuration.training_size,
+        configuration.validation_size,
+        configuration.test_size,
     )
 
     training_loader = DataLoader(
         training_dataset,
-        batch_size=experiment.batch_size,
+        batch_size=configuration.batch_size,
         shuffle=True,
-        num_workers=experiment.num_workers,
+        num_workers=configuration.num_workers,
     )
     validation_loader = DataLoader(
         validation_dataset,
-        batch_size=experiment.batch_size,
-        num_workers=experiment.num_workers,
+        batch_size=configuration.batch_size,
+        num_workers=configuration.num_workers,
     )
     test_loader = DataLoader(
         test_dataset,
-        batch_size=experiment.batch_size,
-        num_workers=experiment.num_workers,
+        batch_size=configuration.batch_size,
+        num_workers=configuration.num_workers,
     )
 
     return (training_loader, validation_loader, test_loader)
@@ -240,20 +240,6 @@ def assign_symbols(
     logger.info(f"symbol assignments saved at {assignments_csv_path}")
 
 
-def save_network_from_checkpoint(checkpoint_path):
-    """
-    Save the network in a checkpoint file as a separate file.
-    """
-    _experiment, network, _optimizer, _symbols_metadata = load_checkpoint(checkpoint_path)
-
-    path = checkpoint_path
-    network_path = pathlib.Path(f"{path.parent}/{path.stem}_network.pth")
-
-    torch.save(network, network_path)
-
-    return network_path
-
-
 def evaluate_network(checkpoint_path, complete=False):
     """
     Evaluate a trained network by assigning gene symbols to the protein sequences
@@ -270,8 +256,10 @@ def evaluate_network(checkpoint_path, complete=False):
         checkpoint_path.parent / f"{checkpoint_path.stem}_evaluation"
     )
 
-    experiment, network, _optimizer, symbols_metadata = load_checkpoint(checkpoint_path)
-    symbols_set = set(symbol.lower() for symbol in experiment.symbol_mapper.categories)
+    network = GeneSymbolClassifier.load_from_checkpoint(checkpoint_path)
+    configuration = network.hparams
+
+    symbols_set = set(symbol.lower() for symbol in configuration.symbol_mapper.categories)
 
     assemblies = get_assemblies_metadata()
     comparison_statistics_list = []
@@ -292,7 +280,7 @@ def evaluate_network(checkpoint_path, complete=False):
             logger.info(f"assigning gene symbols to {canonical_fasta_path}")
             assign_symbols(
                 network,
-                symbols_metadata,
+                configuration.symbols_metadata,
                 canonical_fasta_path,
                 scientific_name=assembly.scientific_name,
                 output_directory=evaluation_directory_path,
@@ -652,11 +640,6 @@ def main():
         help="scientific name of the species the protein sequences belong to",
     )
     argument_parser.add_argument(
-        "--save_network",
-        action="store_true",
-        help="save the network in a checkpoint file as a separate file",
-    )
-    argument_parser.add_argument(
         "--evaluate", action="store_true", help="evaluate a classifier"
     )
     argument_parser.add_argument(
@@ -689,9 +672,10 @@ def main():
 
         configuration = AttributeDict(configuration)
 
-        configuration.datetime = configuration.get(
-            "datetime", dt.datetime.now().isoformat(sep="_", timespec="seconds")
-        )
+        if args.datetime:
+            configuration.datetime = args.datetime
+        else:
+            configuration.datetime = dt.datetime.now().isoformat(sep="_", timespec="seconds")
 
         configuration.logging_version = f"{configuration.experiment_prefix}_ns{configuration.num_symbols}_{configuration.datetime}"
 
@@ -727,7 +711,7 @@ def main():
         symbols_metadata_filename = "symbols_metadata.json"
         symbols_metadata_path = data_directory / symbols_metadata_filename
         with open(symbols_metadata_path) as file:
-            symbols_metadata = json.load(file)
+            configuration.symbols_metadata = ConciseReprDict(json.load(file))
 
         # instantiate neural network
         network = GeneSymbolClassifier(**configuration)
@@ -767,40 +751,19 @@ def main():
         if args.test:
             trainer.test(ckpt_path="best", dataloaders=test_dataloader)
 
-    # resume training and/or test a classifier
-    elif (args.train or args.test) and args.checkpoint:
+    # test a trained classifier
+    elif args.test and args.checkpoint:
         checkpoint_path = pathlib.Path(args.checkpoint)
 
         log_file_path = f"{checkpoint_path.parent}/experiment.log"
         add_log_file_handler(logger, log_file_path)
 
-        # resume training classifier
-        if args.train:
-            logger.info("resume training classifier")
-            experiment, network, optimizer, symbols_metadata = load_checkpoint(
-                checkpoint_path
-            )
+        network = GeneSymbolClassifier.load_from_checkpoint(args.checkpoint)
 
-            logger.info(f"experiment:\n{experiment}")
-            logger.info(f"network:\n{network}")
+        _, _, test_dataloader = generate_dataloaders(network.hparams)
 
-            # get training, validation, and test dataloaders
-            training_loader, validation_loader, test_loader = generate_dataloaders(
-                experiment
-            )
-
-            train_network(
-                network,
-                optimizer,
-                experiment,
-                symbols_metadata,
-                training_loader,
-                validation_loader,
-            )
-
-        # test classifier
-        if args.test:
-            test_network(checkpoint_path, print_sample_assignments=True)
+        trainer = pl.Trainer()
+        trainer.test(network, dataloaders=test_dataloader)
 
     # evaluate classifier
     elif args.evaluate and args.checkpoint:
@@ -808,7 +771,7 @@ def main():
         evaluation_directory_path = (
             checkpoint_path.parent / f"{checkpoint_path.stem}_evaluation"
         )
-        evaluation_directory_path.mkdir()
+        evaluation_directory_path.mkdir(exist_ok=True)
         log_file_path = evaluation_directory_path / f"{checkpoint_path.stem}_evaluate.log"
         add_log_file_handler(logger, log_file_path)
 
@@ -841,13 +804,6 @@ def main():
             args.scientific_name,
             args.checkpoint,
         )
-
-    # save a network in a checkpoint as a separate file
-    elif args.save_network and args.checkpoint:
-        checkpoint_path = pathlib.Path(args.checkpoint)
-
-        network_path = save_network_from_checkpoint(checkpoint_path)
-        logger.info(f'saved network at "{network_path}"')
 
     else:
         argument_parser.print_help()

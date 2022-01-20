@@ -417,7 +417,7 @@ class GeneSymbolClassifier(pl.LightningModule):
         logger.info(
             f"test accuracy: {accuracy:.4f} | precision: {precision:.4f} | recall: {recall:.4f}"
         )
-        logger.info(f"best validation accuracy: {self.best_validation_accuracy:.4f}")
+        logger.info(f"(best validation accuracy: {self.best_validation_accuracy:.4f})")
 
         if self.num_sample_predictions > 0:
             with torch.random.fork_rng():
@@ -465,7 +465,6 @@ class GeneSymbolClassifier(pl.LightningModule):
         the probabilities of predictions.
         """
         features_tensor = self.generate_features_tensor(sequences, clades)
-        features_tensor = features_tensor.to(DEVICE)
 
         # run inference
         with torch.no_grad():
@@ -1231,47 +1230,6 @@ def load_dataset(num_symbols=None, min_frequency=None):
     return dataset
 
 
-def load_checkpoint(checkpoint_path):
-    """
-    Load a experiment checkpoint and return the experiment, network, optimizer objects
-    and symbols metadata dictionary.
-
-
-    Args:
-        checkpoint_path (path-like object): path to the saved experiment checkpoint
-    Returns:
-        tuple[Experiment, torch.nn.Module, torch.optim.Optimizer, dict]
-        containing the experiment state, classifier network, optimizer and the
-        symbols metadata dictionary
-    """
-    logger.info(f'loading experiment checkpoint "{checkpoint_path}" ...')
-    checkpoint = torch.load(checkpoint_path, map_location=DEVICE)
-    logger.info(f'"{checkpoint_path}" experiment checkpoint loaded')
-
-    experiment = checkpoint["experiment"]
-
-    network = GeneSymbolClassifier(
-        experiment.sequence_length,
-        experiment.padding_side,
-        experiment.num_protein_letters,
-        experiment.num_clades,
-        experiment.num_symbols,
-        experiment.num_connections,
-        experiment.dropout_probability,
-        experiment.symbol_mapper,
-        experiment.protein_sequence_mapper,
-        experiment.clade_mapper,
-    )
-    network.load_state_dict(checkpoint["network_state_dict"])
-
-    optimizer = torch.optim.Adam(network.parameters(), lr=experiment.learning_rate)
-    optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
-
-    symbols_metadata = checkpoint["symbols_metadata"]
-
-    return (experiment, network, optimizer, symbols_metadata)
-
-
 def sizeof_fmt(num, suffix="B"):
     for unit in ["", "Ki", "Mi", "Gi", "Ti", "Pi", "Ei", "Zi"]:
         if abs(num) < 1024:
@@ -1356,6 +1314,17 @@ def add_log_file_handler(
     file_handler.setLevel(logging.DEBUG)
     file_handler.setFormatter(logging_formatter)
     logger.addHandler(file_handler)
+
+
+class ConciseReprDict(dict):
+    """
+    Dictionary with a concise representation.
+    """
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def __repr__(self):
+        return f"dictionary with {len(self.items())} items"
 
 
 if __name__ == "__main__":
