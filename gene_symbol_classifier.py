@@ -40,7 +40,6 @@ import argparse
 import csv
 import datetime as dt
 import json
-import logging
 import pathlib
 import random
 import sys
@@ -68,7 +67,6 @@ from utils import (
     get_xref_canonical_translations,
     log_pytorch_cuda_info,
     logger,
-    logging_formatter_time_message,
     read_fasta_in_chunks,
     sequences_directory,
 )
@@ -556,9 +554,11 @@ def compare_assignments(
     if checkpoint is None:
         symbols_set = None
     else:
-        experiment, _network, _optimizer, _symbols_metadata = load_checkpoint(checkpoint)
+        network = GeneSymbolClassifier.load_from_checkpoint(checkpoint)
+        configuration = network.hparams
+
         symbols_set = set(
-            symbol.lower() for symbol in experiment.symbol_mapper.categories
+            symbol.lower() for symbol in configuration.symbol_mapper.categories
         )
 
     comparisons_csv_path = pathlib.Path(
@@ -751,7 +751,7 @@ def main():
         if args.test:
             trainer.test(ckpt_path="best", dataloaders=test_dataloader)
 
-    # test a trained classifier
+    # test a classifier
     elif args.test and args.checkpoint:
         checkpoint_path = pathlib.Path(args.checkpoint)
 
@@ -765,7 +765,7 @@ def main():
         trainer = pl.Trainer()
         trainer.test(network, dataloaders=test_dataloader)
 
-    # evaluate classifier
+    # evaluate a classifier
     elif args.evaluate and args.checkpoint:
         checkpoint_path = pathlib.Path(args.checkpoint)
         evaluation_directory_path = (
@@ -784,14 +784,13 @@ def main():
         log_file_path = f"{checkpoint_path.parent}/experiment.log"
         add_log_file_handler(logger, log_file_path)
 
-        _experiment, network, _optimizer, symbols_metadata = load_checkpoint(
-            checkpoint_path
-        )
+        network = GeneSymbolClassifier.load_from_checkpoint(args.checkpoint)
+        configuration = network.hparams
 
         logger.info("assigning symbols...")
         assign_symbols(
             network,
-            symbols_metadata,
+            configuration.symbols_metadata,
             args.sequences_fasta,
             scientific_name=args.scientific_name,
         )
