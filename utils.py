@@ -24,6 +24,7 @@ General project functions and classes.
 
 
 # standard library imports
+import csv
 import gzip
 import itertools
 import logging
@@ -284,7 +285,9 @@ class GeneSymbolClassifier(pl.LightningModule):
         input_size = (self.sequence_length * self.num_protein_letters) + self.num_clades
         output_size = self.num_symbols
 
-        self.input_layer = nn.Linear(in_features=input_size, out_features=self.num_connections)
+        self.input_layer = nn.Linear(
+            in_features=input_size, out_features=self.num_connections
+        )
         if self.dropout_probability > 0:
             self.dropout = nn.Dropout(self.dropout_probability)
 
@@ -317,7 +320,9 @@ class GeneSymbolClassifier(pl.LightningModule):
 
     def on_train_start(self):
         # https://torchmetrics.readthedocs.io/en/stable/pages/overview.html#metrics-and-devices
-        self.train_accuracy = torchmetrics.Accuracy(num_classes=self.num_symbols).to(self.device)
+        self.train_accuracy = torchmetrics.Accuracy(num_classes=self.num_symbols).to(
+            self.device
+        )
 
     def training_step(self, batch, batch_index):
         features, labels = batch
@@ -337,7 +342,9 @@ class GeneSymbolClassifier(pl.LightningModule):
         return training_loss
 
     def on_validation_start(self):
-        self.validation_accuracy = torchmetrics.Accuracy(num_classes=self.num_symbols).to(self.device)
+        self.validation_accuracy = torchmetrics.Accuracy(num_classes=self.num_symbols).to(
+            self.device
+        )
 
     def validation_step(self, batch, batch_index):
         features, labels = batch
@@ -435,7 +442,9 @@ class GeneSymbolClassifier(pl.LightningModule):
             for handler in logger.handlers:
                 handler.setFormatter(logging_formatter_message)
 
-            labels = [self.symbol_mapper.index_to_label(label) for label in self.sample_labels]
+            labels = [
+                self.symbol_mapper.index_to_label(label) for label in self.sample_labels
+            ]
             assignments = [
                 self.symbol_mapper.index_to_label(prediction)
                 for prediction in self.sample_predictions
@@ -717,6 +726,69 @@ class AttributeDict(dict):
 
     def __setattr__(self, key, value):
         self[key] = value
+
+
+def assign_symbols(
+    network,
+    symbols_metadata,
+    sequences_fasta,
+    scientific_name=None,
+    taxonomy_id=None,
+    output_directory=None,
+):
+    """
+    Use the trained network to assign symbols to the sequences in the FASTA file.
+    """
+    sequences_fasta_path = pathlib.Path(sequences_fasta)
+
+    if scientific_name is not None:
+        taxonomy_id = get_species_taxonomy_id(scientific_name)
+    clade = get_taxonomy_id_clade(taxonomy_id)
+    # logger.info(f"got clade {clade} for {scientific_name}")
+
+    if output_directory is None:
+        output_directory = sequences_fasta_path.parent
+    assignments_csv_path = pathlib.Path(
+        f"{output_directory}/{sequences_fasta_path.stem}_symbols.csv"
+    )
+
+    # read the FASTA file in chunks and assign symbols
+    with open(assignments_csv_path, "w+", newline="") as csv_file:
+        # generate a csv writer, create the CSV file with a header
+        field_names = ["stable_id", "symbol", "probability", "description", "source"]
+        csv_writer = csv.writer(csv_file, delimiter="\t", lineterminator="\n")
+        csv_writer.writerow(field_names)
+
+        for fasta_entries in read_fasta_in_chunks(sequences_fasta_path):
+            if fasta_entries[-1] is None:
+                fasta_entries = [
+                    fasta_entry
+                    for fasta_entry in fasta_entries
+                    if fasta_entry is not None
+                ]
+
+            identifiers = [fasta_entry[0].split(" ")[0] for fasta_entry in fasta_entries]
+            sequences = [fasta_entry[1] for fasta_entry in fasta_entries]
+            clades = [clade for _ in range(len(fasta_entries))]
+
+            assignments_probabilities = network.predict_probabilities(sequences, clades)
+            # save assignments and probabilities to the CSV file
+            for identifier, (assignment, probability) in zip(
+                identifiers, assignments_probabilities
+            ):
+                symbol_description = symbols_metadata[assignment]["description"]
+                symbol_source = symbols_metadata[assignment]["source"]
+                csv_writer.writerow(
+                    [
+                        identifier,
+                        assignment,
+                        probability,
+                        symbol_description,
+                        symbol_source,
+                    ]
+                )
+
+    logger.info(f"symbol assignments saved at {assignments_csv_path}")
 
 
 def read_fasta_in_chunks(fasta_file_path, num_chunk_entries=1024):
@@ -1305,8 +1377,8 @@ def log_pytorch_cuda_info():
 
 
 def add_log_file_handler(
-        logger, log_file_path, logging_formatter=logging_formatter_time_message
-    ):
+    logger, log_file_path, logging_formatter=logging_formatter_time_message
+):
     """
     Create file handler and add to logger.
     """
@@ -1320,6 +1392,7 @@ class ConciseReprDict(dict):
     """
     Dictionary with a concise representation.
     """
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
