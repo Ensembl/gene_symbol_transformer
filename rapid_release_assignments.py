@@ -28,43 +28,39 @@ https://rapid.ensembl.org/info/about/species.html
 # standard library imports
 import argparse
 import json
-import logging
 import pathlib
 import sys
 import time
+
+from types import SimpleNamespace
 
 # third party imports
 import pandas as pd
 import pymysql
 
 # project imports
-from gene_symbol_classifier import Experiment, assign_symbols
 from utils import (
-    add_log_file_handler,
     GeneSymbolClassifier,
-    PrettySimpleNamespace,
+    add_log_file_handler,
+    assign_symbols,
     data_directory,
     download_file,
     generate_canonical_protein_sequences_fasta,
-    get_ensembl_release,
-    load_checkpoint,
     logger,
-    sequences_directory,
 )
 
 
-def generate_assignments(checkpoint_path):
+def generate_assignments(checkpoint_path, rapid_ensembl_release):
     """
     Generate gene symbol assignments for genome assemblies on the Rapid Release.
 
     Args:
         checkpoint_path (Path): path to the experiment checkpoint
     """
-    experiment, network, _optimizer, symbols_metadata = load_checkpoint(checkpoint_path)
-    logger.info(experiment)
-    logger.info(network)
+    network = GeneSymbolClassifier.load_from_checkpoint(checkpoint_path)
+    configuration = network.hparams
 
-    assemblies = get_rapid_release_assemblies_metadata()
+    assemblies = get_rapid_release_assemblies_metadata(rapid_ensembl_release)
 
     for assembly in assemblies:
         canonical_fasta_path = generate_canonical_protein_sequences_fasta(
@@ -79,14 +75,14 @@ def generate_assignments(checkpoint_path):
             logger.info(f"assigning gene symbols to {canonical_fasta_path}")
             assign_symbols(
                 network,
-                symbols_metadata,
+                configuration.symbols_metadata,
                 canonical_fasta_path,
                 taxonomy_id=assembly.taxonomy_id,
                 output_directory=checkpoint_path.parent,
             )
 
 
-def get_rapid_release_assemblies_metadata():
+def get_rapid_release_assemblies_metadata(rapid_ensembl_release):
     """
     Get metadata for genome assemblies on Ensembl Rapid Release.
 
@@ -97,7 +93,7 @@ def get_rapid_release_assemblies_metadata():
     if assemblies_metadata_path.exists():
         assemblies_metadata_df = pd.read_pickle(assemblies_metadata_path)
         assemblies_metadata = [
-            PrettySimpleNamespace(**values.to_dict())
+            SimpleNamespace(**values.to_dict())
             for index, values in assemblies_metadata_df.iterrows()
         ]
         return assemblies_metadata
@@ -119,10 +115,10 @@ def get_rapid_release_assemblies_metadata():
         assemblies_metadata = json.load(file)
 
     assemblies_metadata = [
-        PrettySimpleNamespace(**assembly) for assembly in assemblies_metadata
+        SimpleNamespace(**assembly) for assembly in assemblies_metadata
     ]
 
-    gca_to_core_dbs = get_rapid_release_core_dbs()
+    gca_to_core_dbs = get_rapid_release_core_dbs(rapid_ensembl_release)
 
     for assembly in assemblies_metadata:
         assembly.core_db = gca_to_core_dbs[assembly.assembly_accession]
@@ -142,7 +138,7 @@ def get_rapid_release_assemblies_metadata():
     logger.info(f"dataset metadata saved at {assemblies_metadata_path}")
 
     assemblies_metadata = [
-        PrettySimpleNamespace(**values.to_dict())
+        SimpleNamespace(**values.to_dict())
         for index, values in assemblies_metadata_df.iterrows()
     ]
 
@@ -162,6 +158,7 @@ def fix_assembly_geneset(assembly):
 
 
 def get_rapid_release_core_dbs(
+    rapid_ensembl_release,
     host="mysql-ens-mirror-5",
     port=4692,
     user="ensro",
@@ -169,20 +166,23 @@ def get_rapid_release_core_dbs(
     """
     Get assembly accessions to core database names for Rapid Release.
     """
-    ensembl_release = get_ensembl_release()
-
     connection = pymysql.connect(
         host=host,
         port=port,
         user=user,
     )
     get_core_databases_sql = f"""
-    SHOW DATABASES LIKE '%core_{ensembl_release}%';
+    SHOW DATABASES LIKE '%core_{rapid_ensembl_release}%';
     """
     with connection:
         with connection.cursor() as cursor:
             cursor.execute(get_core_databases_sql)
             core_databases = cursor.fetchall()
+
+    skip_databases = {
+        "viruses_mixed_collection_core_104_1",
+        "viruses_orthocoronavirinae_collection_core_104_1",
+    }
 
     assembly_accession_to_core_databases = {}
     for core_database in core_databases:
@@ -191,6 +191,9 @@ def get_rapid_release_core_dbs(
 
         assert len(core_database) == 1, f"{core_database}"
         core_database = core_database[0]
+
+        if core_database in skip_databases:
+            continue
 
         connection = pymysql.connect(
             host=host,
@@ -220,22 +223,24 @@ def main():
     main function
     """
     argument_parser = argparse.ArgumentParser()
+    argument_parser.add_argument("--checkpoint", help="experiment checkpoint path")
     argument_parser.add_argument(
-        "--checkpoint",
-        help="experiment checkpoint path",
+        "--rapid_ensembl_release",
+        help="Rapid Release latest schema version",
+        type=int,
     )
 
     args = argument_parser.parse_args()
 
     # assign symbols to genome assemblies on the Rapid Release
-    if args.checkpoint:
+    if args.checkpoint and args.rapid_ensembl_release:
         checkpoint_path = pathlib.Path(args.checkpoint)
         log_file_path = pathlib.Path(
             f"{checkpoint_path.parent}/{checkpoint_path.stem}_rapid_release.log"
         )
         add_log_file_handler(logger, log_file_path)
 
-        generate_assignments(checkpoint_path)
+        generate_assignments(checkpoint_path, args.rapid_ensembl_release)
 
     else:
         argument_parser.print_help()

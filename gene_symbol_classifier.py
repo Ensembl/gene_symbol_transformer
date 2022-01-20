@@ -60,6 +60,7 @@ from utils import (
     GeneSymbolClassifier,
     SequenceDataset,
     add_log_file_handler,
+    assign_symbols,
     data_directory,
     get_assemblies_metadata,
     get_species_taxonomy_id,
@@ -67,7 +68,6 @@ from utils import (
     get_xref_canonical_translations,
     log_pytorch_cuda_info,
     logger,
-    read_fasta_in_chunks,
     sequences_directory,
 )
 
@@ -173,69 +173,6 @@ def generate_dataloaders(configuration):
     )
 
     return (training_loader, validation_loader, test_loader)
-
-
-def assign_symbols(
-    network,
-    symbols_metadata,
-    sequences_fasta,
-    scientific_name=None,
-    taxonomy_id=None,
-    output_directory=None,
-):
-    """
-    Use the trained network to assign symbols to the sequences in the FASTA file.
-    """
-    sequences_fasta_path = pathlib.Path(sequences_fasta)
-
-    if scientific_name is not None:
-        taxonomy_id = get_species_taxonomy_id(scientific_name)
-    clade = get_taxonomy_id_clade(taxonomy_id)
-    # logger.info(f"got clade {clade} for {scientific_name}")
-
-    if output_directory is None:
-        output_directory = sequences_fasta_path.parent
-    assignments_csv_path = pathlib.Path(
-        f"{output_directory}/{sequences_fasta_path.stem}_symbols.csv"
-    )
-
-    # read the FASTA file in chunks and assign symbols
-    with open(assignments_csv_path, "w+", newline="") as csv_file:
-        # generate a csv writer, create the CSV file with a header
-        field_names = ["stable_id", "symbol", "probability", "description", "source"]
-        csv_writer = csv.writer(csv_file, delimiter="\t", lineterminator="\n")
-        csv_writer.writerow(field_names)
-
-        for fasta_entries in read_fasta_in_chunks(sequences_fasta_path):
-            if fasta_entries[-1] is None:
-                fasta_entries = [
-                    fasta_entry
-                    for fasta_entry in fasta_entries
-                    if fasta_entry is not None
-                ]
-
-            identifiers = [fasta_entry[0].split(" ")[0] for fasta_entry in fasta_entries]
-            sequences = [fasta_entry[1] for fasta_entry in fasta_entries]
-            clades = [clade for _ in range(len(fasta_entries))]
-
-            assignments_probabilities = network.predict_probabilities(sequences, clades)
-            # save assignments and probabilities to the CSV file
-            for identifier, (assignment, probability) in zip(
-                identifiers, assignments_probabilities
-            ):
-                symbol_description = symbols_metadata[assignment]["description"]
-                symbol_source = symbols_metadata[assignment]["source"]
-                csv_writer.writerow(
-                    [
-                        identifier,
-                        assignment,
-                        probability,
-                        symbol_description,
-                        symbol_source,
-                    ]
-                )
-
-    logger.info(f"symbol assignments saved at {assignments_csv_path}")
 
 
 def evaluate_network(checkpoint_path, complete=False):
@@ -675,7 +612,9 @@ def main():
         if args.datetime:
             configuration.datetime = args.datetime
         else:
-            configuration.datetime = dt.datetime.now().isoformat(sep="_", timespec="seconds")
+            configuration.datetime = dt.datetime.now().isoformat(
+                sep="_", timespec="seconds"
+            )
 
         configuration.logging_version = f"{configuration.experiment_prefix}_ns{configuration.num_symbols}_{configuration.datetime}"
 
