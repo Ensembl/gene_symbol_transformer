@@ -55,14 +55,14 @@ fi
 # https://sysinf.ebi.ac.uk/doku.php?id=ebi_cluster_good_computing_guide#gpu_hosts
 # https://www.ibm.com/docs/en/spectrum-lsf/10.1.0?topic=o-gpu
 
-#NUM_GPUS=1
-NUM_GPUS=2
+NUM_GPUS=1
+#NUM_GPUS=2
 #NUM_GPUS=4
 #NUM_GPUS=6
 #NUM_GPUS=8
 
-GPU_MEMORY=16384  # 16 GiBs
-#GPU_MEMORY=32510  # ~32 GiBs, total Tesla V100 memory
+#GPU_MEMORY=16384  # 16 GiBs
+GPU_MEMORY=32510  # ~32 GiBs, total Tesla V100 memory
 
 
 # https://www.ibm.com/docs/en/spectrum-lsf/10.1.0?topic=jobs-submitting-that-require-gpu-resources
