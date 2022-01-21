@@ -68,7 +68,7 @@ from utils import (
     get_xref_canonical_translations,
     log_pytorch_cuda_info,
     logger,
-    sequences_directory,
+    main_release_sequences_directory,
 )
 
 
@@ -205,7 +205,7 @@ def evaluate_network(checkpoint_path, complete=False):
         canonical_fasta_filename = assembly.fasta_filename.replace(
             "pep.all.fa", "pep.all_canonical.fa"
         )
-        canonical_fasta_path = sequences_directory / canonical_fasta_filename
+        canonical_fasta_path = main_release_sequences_directory / canonical_fasta_filename
 
         # assign symbols
         assignments_csv_path = (

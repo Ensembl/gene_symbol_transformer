@@ -69,7 +69,8 @@ console_handler.setFormatter(logging_formatter_time_message)
 logger.addHandler(console_handler)
 
 data_directory = pathlib.Path("data")
-sequences_directory = data_directory / "protein_sequences"
+main_release_sequences_directory = data_directory / "protein_sequences"
+rapid_release_sequences_directory = data_directory / "rapid_release_protein_sequences"
 
 dev_datasets_num_symbols = [3, 100, 1000]
 
@@ -886,8 +887,10 @@ def generate_canonical_protein_sequences_fasta(assembly, ensembl_release):
     """
     if ensembl_release == "rapid_release":
         base_url = "http://ftp.ensembl.org/pub/rapid-release/species/"
+        sequences_directory = rapid_release_sequences_directory
     else:
         base_url = f"http://ftp.ensembl.org/pub/release-{ensembl_release}/fasta/"
+        sequences_directory = main_release_sequences_directory
 
     # download and extract archived protein sequences FASTA file
     archived_fasta_filename = f"{assembly.fasta_filename}.gz"
