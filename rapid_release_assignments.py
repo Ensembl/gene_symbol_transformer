@@ -150,11 +150,25 @@ def fix_assembly_geneset(assembly):
         "GCA_902859565.1": "2021_02",
         "GCA_000001215.4": "2020_08",
         "GCA_004118075.1": "2021_03",
+        "GCA_914969975.1": "2021_05",
+        "GCA_000648675.3": "2021_05",
+        "GCA_015732765.1": "2021_07",
+        "GCA_013339745.1": "2021_08",
+        "GCA_013339765.1": "2021_09",
+        "GCA_013339685.1": "2021_09",
+        "GCA_013358835.1": "2021_09",
+        "GCA_016920785.2": "2021_07",
+        "GCA_013339725.1": "2021_08",
+        "GCA_013339695.1": "2021_08",
+        "GCA_014595675.1": "2021_07",
+        "GCA_910591555.1": "2021_05",
     }
 
     if assembly.assembly_accession in geneset_mappings:
+        erroneous_geneset = assembly.geneset
         geneset = geneset_mappings[assembly.assembly_accession]
         assembly.geneset = geneset
+        logger.info(f"assembly {assembly.assembly_accession} geneset fixed from {erroneous_geneset} to {geneset}")
 
 
 def get_rapid_release_core_dbs(
