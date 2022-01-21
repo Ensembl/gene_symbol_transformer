@@ -47,7 +47,7 @@ from utils import (
     get_xref_canonical_translations,
     load_dataset,
     logger,
-    sequences_directory,
+    main_release_sequences_directory,
     sizeof_fmt,
 )
 
@@ -91,7 +91,7 @@ def generate_datasets():
         canonical_fasta_filename = assembly.fasta_filename.replace(
             "pep.all.fa", "pep.all_canonical.fa"
         )
-        canonical_sequences_fasta_path = sequences_directory / canonical_fasta_filename
+        canonical_sequences_fasta_path = main_release_sequences_directory / canonical_fasta_filename
         assembly_fasta_dict = fasta_to_dict(canonical_sequences_fasta_path)
 
         assembly_translations["sequence"] = assembly_translations.apply(
