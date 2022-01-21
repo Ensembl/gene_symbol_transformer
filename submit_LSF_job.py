@@ -18,7 +18,8 @@
 # limitations under the License.
 
 
-"""Submit an LSF job to train or test a neural network gene symbol classifier.
+"""
+Submit an LSF job to train, test, or evaluate a neural network gene symbol classifier.
 """
 
 
@@ -33,8 +34,7 @@ import sys
 import yaml
 
 # project imports
-from gene_symbol_classifier import Experiment
-from utils import GeneSymbolClassifier, load_checkpoint
+from utils import AttributeDict, GeneSymbolClassifier
 
 
 def main():
@@ -43,9 +43,8 @@ def main():
     """
     argument_parser = argparse.ArgumentParser()
     argument_parser.add_argument(
-        "-ex",
-        "--experiment_settings",
-        help="path to the experiment settings configuration YAML file",
+        "--configuration",
+        help="path to the experiment configuration YAML file",
     )
     argument_parser.add_argument(
         "--mem_limit",
@@ -78,36 +77,36 @@ def main():
     args = argument_parser.parse_args()
 
     # submit new classifier training
-    if args.experiment_settings:
+    if args.configuration:
         datetime = dt.datetime.now().isoformat(sep="_", timespec="seconds")
 
-        with open(args.experiment_settings) as file:
-            experiment_settings = yaml.safe_load(file)
+        with open(args.configuration) as file:
+            configuration = yaml.safe_load(file)
+        configuration = AttributeDict(configuration)
 
-        num_symbols = experiment_settings["num_symbols"]
+        num_symbols = configuration.num_symbols
 
-        experiment = Experiment(experiment_settings, datetime)
-        job_name = experiment.filename
+        configuration.datetime = dt.datetime.now().isoformat(sep="_", timespec="seconds")
+
+        job_name = f"{configuration.experiment_prefix}_ns{configuration.num_symbols}_{configuration.datetime}"
 
         pipeline_command_elements = [
             "python gene_symbol_classifier.py",
             f"--datetime {datetime}",
-            f"--experiment_settings {args.experiment_settings}",
+            f"--configuration {args.configuration}",
             "--train",
             "--test",
         ]
 
-        root_directory = "experiments"
+        root_directory = configuration.save_directory
 
-    # resume training, test, or evaluate a classifier
+    # test or evaluate a classifier
     elif args.checkpoint:
         checkpoint_path = pathlib.Path(args.checkpoint)
 
-        experiment, _network, _optimizer, _symbols_metadata = load_checkpoint(
-            checkpoint_path
-        )
+        network = GeneSymbolClassifier.load_from_checkpoint(checkpoint_path)
 
-        num_symbols = experiment.num_symbols
+        num_symbols = network.hparams.num_symbols
 
         job_name = checkpoint_path.stem
         root_directory = checkpoint_path.parent
@@ -116,9 +115,6 @@ def main():
             "python gene_symbol_classifier.py",
             f"--checkpoint {args.checkpoint}",
         ]
-
-        if args.train:
-            pipeline_command_elements.append("--train")
 
         if args.test:
             pipeline_command_elements.append("--test")
@@ -138,11 +134,11 @@ def main():
     pipeline_command = " ".join(pipeline_command_elements)
 
     # specify lower mem_limit for dev datasets jobs
-    num_symbols_mem_limit = {3: 2048, 100: 4096, 1000: 12288}
+    num_symbols_mem_limit = {3: 1024, 100: 2048, 1000: 8192}
     if num_symbols in num_symbols_mem_limit:
         mem_limit = num_symbols_mem_limit[num_symbols]
     elif args.evaluate:
-        mem_limit = 4096
+        mem_limit = 2048
     else:
         mem_limit = args.mem_limit
 
@@ -156,7 +152,8 @@ def main():
 
     if args.gpu:
         num_gpus = 1
-        gpu_memory = 16384  # 16 GiBs
+        # gpu_memory = 16384  # 16 GiBs
+        gpu_memory = 32510  # ~32 GiBs, total Tesla V100 memory
 
         bsub_command_elements.extend(
             [
