@@ -616,7 +616,7 @@ def main():
                 sep="_", timespec="seconds"
             )
 
-        configuration.logging_version = f"{configuration.experiment_prefix}_ns{configuration.num_symbols}_{configuration.datetime}"
+        configuration.logging_version = f"{configuration.experiment_prefix}_{configuration.num_symbols}_symbols_{configuration.datetime}"
 
         # generate random seed if it doesn't exist
         # Using the range [1_000_000, 1_001_000] for the random seed. This range contains

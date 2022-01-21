@@ -88,7 +88,7 @@ def main():
 
         configuration.datetime = dt.datetime.now().isoformat(sep="_", timespec="seconds")
 
-        job_name = f"{configuration.experiment_prefix}_ns{configuration.num_symbols}_{configuration.datetime}"
+        job_name = f"{configuration.experiment_prefix}_{configuration.num_symbols}_symbols_{configuration.datetime}"
 
         pipeline_command_elements = [
             "python gene_symbol_classifier.py",
