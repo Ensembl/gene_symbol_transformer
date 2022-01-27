@@ -57,11 +57,11 @@ python dataset_generation.py --generate_datasets
 
 ### training
 
-Training can be either run directly on a compute node or submitted as an LSF job either manually or using a script that takes just the experiment settings YAML file as an argument.
+Training can be either run directly on a compute node or submitted as an LSF job either manually or using a script that takes the experiment configuration file as an argument.
 
 train directly on a compute node
 ```
-python gene_symbol_classifier.py --configuration <experiment configuration YAML file path> --train --test
+python gene_symbol_classifier.py --configuration <experiment configuration file path> --train --test
 
 # e.g.
 python gene_symbol_classifier.py --configuration configuration.yaml --train --test
@@ -69,16 +69,12 @@ python gene_symbol_classifier.py --configuration configuration.yaml --train --te
 
 submit a training job with bsub
 ```
-python submit_LSF_job.py --configuration <experiment configuration YAML file path>
+python submit_LSF_job.py --configuration <experiment configuration file path>
 
 # e.g.
 python submit_LSF_job.py --configuration configuration.yaml
 ```
 
-Resuming training of a network is also supported. Simply load the saved checkpoint and pass the `--train` argument to continue training the network with the same configuration and hyperparameters.
-```
-python gene_symbol_classifier.py --checkpoint <checkpoint path> --train --test
-```
 
 ### testing
 
