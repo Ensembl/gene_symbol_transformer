@@ -551,25 +551,34 @@ class SequenceDataset(Dataset):
     Custom Dataset for raw sequences.
     """
 
-    def __init__(
-        self,
-        num_symbols=None,
-        min_frequency=None,
-        sequence_length=None,
-        padding_side=None,
-        excluded_genera=None,
-    ):
-        self.num_symbols = num_symbols
+    def __init__(self, configuration):
+        if "num_symbols" in configuration:
+            assert (
+                "min_frequency" not in configuration
+            ), "num_symbols and min_frequency are mutually exclusive, provide only one of them in the configuration"
+            configuration.dataset_id = f"{configuration.num_symbols}_num_symbols"
+            data = load_dataset(num_symbols=configuration.num_symbols)
+        elif "min_frequency" in configuration:
+            assert (
+                "num_symbols" not in configuration
+            ), "num_symbols and min_frequency are mutually exclusive, provide only one of them in the configuration"
+            configuration.dataset_id = f"{configuration.min_frequency}_min_frequency"
+            data = load_dataset(min_frequency=configuration.min_frequency)
+            configuration.num_symbols = data["symbol"].nunique()
+        else:
+            raise KeyError(
+                'missing configuration value: one of "num_symbols", "min_frequency" is required'
+            )
 
-        data = load_dataset(num_symbols, min_frequency)
+        self.num_symbols = configuration.num_symbols
 
         # select the features and labels columns
         self.data = data[["sequence", "clade", "symbol", "scientific_name"]]
 
-        if excluded_genera is not None:
+        if configuration.excluded_genera is not None:
             num_total_samples = len(self.data)
 
-            for genus in excluded_genera:
+            for genus in configuration.excluded_genera:
                 scientific_name_prefix = f"{genus} "
                 self.data = self.data[
                     ~self.data["scientific_name"].str.startswith(scientific_name_prefix)
@@ -577,15 +586,19 @@ class SequenceDataset(Dataset):
             num_used_samples = len(self.data)
 
             logger.info(
-                f"excluded genera {excluded_genera}, using {num_used_samples} out of {num_total_samples} total samples"
+                f"excluded genera {configuration.excluded_genera}, using {num_used_samples} out of {num_total_samples} total samples"
             )
 
         # pad or truncate all sequences to size `sequence_length`
         with SuppressSettingWithCopyWarning():
             self.data["sequence"] = self.data["sequence"].str.pad(
-                width=sequence_length, side=padding_side, fillchar=" "
+                width=configuration.sequence_length,
+                side=configuration.padding_side,
+                fillchar=" ",
             )
-            self.data["sequence"] = self.data["sequence"].str.slice(stop=sequence_length)
+            self.data["sequence"] = self.data["sequence"].str.slice(
+                stop=configuration.sequence_length
+            )
 
         # generate gene symbols CategoryMapper
         symbols = sorted(self.data["symbol"].unique().tolist())
@@ -1249,8 +1262,8 @@ def load_dataset(num_symbols=None, min_frequency=None):
     Load full dataset if none of num_symbols and min_frequency are specified.
     With num_symbols specified, load the dataset subset of the num_symbols
     most frequent symbols.
-    With min_frequency specified, load the dataset subset of symbols with
-    at least min_frequency sequences.
+    With min_frequency specified, load the dataset subset of symbols with at least
+    min_frequency sequences.
 
     num_symbols and min_frequency are mutually exclusive.
 
@@ -1266,10 +1279,12 @@ def load_dataset(num_symbols=None, min_frequency=None):
         )
 
     full_dataset_pickle_path = data_directory / "dataset.pickle"
+
     if num_symbols is None and min_frequency is None:
         logger.info(f"loading full dataset {full_dataset_pickle_path} ...")
         dataset = pd.read_pickle(full_dataset_pickle_path)
         logger.info("full dataset loaded")
+
     elif num_symbols is not None:
         if num_symbols in dev_datasets_num_symbols:
             dataset_pickle_path = data_directory / f"{num_symbols}_symbols.pickle"
@@ -1287,6 +1302,7 @@ def load_dataset(num_symbols=None, min_frequency=None):
             dataset = dataset[dataset["symbol"].isin(symbol_counts[:num_symbols].index)]
 
             logger.info(f"{num_symbols} most frequent symbols samples dataset loaded")
+
     # min_frequency is not None
     else:
         logger.info(
@@ -1300,6 +1316,7 @@ def load_dataset(num_symbols=None, min_frequency=None):
             dataset["symbol"].isin(symbol_counts[symbol_counts >= min_frequency].index)
         ]
 
+        num_symbols = dataset["symbol"].nunique()
         logger.info(f"{num_symbols} most frequent symbols samples dataset loaded")
 
     return dataset

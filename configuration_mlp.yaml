@@ -17,8 +17,12 @@ random_seed: 5
 num_symbols: 3
 #num_symbols: 100
 #num_symbols: 1000
-#num_symbols: 25228
-#num_symbols: 30241
+
+#min_frequency: 300  # ~ 7 symbols
+#min_frequency: 200  # ~ 4000 symbols
+#min_frequency: 100  # ~ 14000 symbols
+#min_frequency: 24  # ~ 25000 symbols
+#min_frequency: 10  # ~ 30500 symbols
 
 # exclude genera from all pipeline datasets
 excluded_genera:
