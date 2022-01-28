@@ -27,6 +27,7 @@ Submit an LSF job to train, test, or evaluate a neural network gene symbol class
 import argparse
 import datetime as dt
 import pathlib
+import shutil
 import subprocess
 import sys
 
@@ -34,7 +35,7 @@ import sys
 import yaml
 
 # project imports
-from utils import AttributeDict, GeneSymbolClassifier
+from utils import AttributeDict
 
 
 def main():
@@ -42,15 +43,13 @@ def main():
     main function
     """
     argument_parser = argparse.ArgumentParser()
+    argument_parser.add_argument("--pipeline", help="pipeline script path")
     argument_parser.add_argument(
         "--configuration",
-        help="path to the experiment configuration YAML file",
+        help="experiment configuration file path",
     )
     argument_parser.add_argument(
-        "--mem_limit",
-        default=16384,
-        type=int,
-        help="memory limit for all the processes that belong to the job",
+        "--mem_limit", default=16384, type=int, help="LSF job memory limit"
     )
     argument_parser.add_argument(
         "--gpu",
@@ -61,9 +60,6 @@ def main():
         "--checkpoint",
         help="path to the saved experiment checkpoint",
     )
-    argument_parser.add_argument(
-        "--train", action="store_true", help="train a classifier"
-    )
     argument_parser.add_argument("--test", action="store_true", help="test a classifier")
     argument_parser.add_argument(
         "--evaluate", action="store_true", help="evaluate a classifier"
@@ -71,48 +67,50 @@ def main():
     argument_parser.add_argument(
         "--complete",
         action="store_true",
-        help="run the evaluation for all genome assemblies in the Ensembl release",
+        help="run evaluation for all genome assemblies in Ensembl main release",
     )
 
     args = argument_parser.parse_args()
 
     # submit new classifier training
-    if args.configuration:
+    if args.pipeline and args.configuration:
         datetime = dt.datetime.now().isoformat(sep="_", timespec="seconds")
+
+        pipeline_path = pathlib.Path(args.pipeline)
 
         with open(args.configuration) as file:
             configuration = yaml.safe_load(file)
         configuration = AttributeDict(configuration)
 
-        num_symbols = configuration.num_symbols
-
-        configuration.datetime = dt.datetime.now().isoformat(sep="_", timespec="seconds")
-
-        job_name = f"{configuration.experiment_prefix}_{configuration.num_symbols}_symbols_{configuration.datetime}"
-
-        pipeline_command_elements = [
-            "python gene_symbol_classifier.py",
-            f"--datetime {datetime}",
-            f"--configuration {args.configuration}",
-            "--train",
-            "--test",
-        ]
-
+        job_name = (
+            f"{configuration.experiment_prefix}_{configuration.dataset_id}_{datetime}"
+        )
         root_directory = configuration.save_directory
 
+        experiment_directory = pathlib.Path(f"{root_directory}/{job_name}")
+        experiment_directory.mkdir(exist_ok=True)
+
+        # copy pipeline script, configuration file, and dependencies
+        pipeline_copy = shutil.copy(pipeline_path, experiment_directory)
+        configuration_copy = shutil.copy(args.configuration, experiment_directory)
+        shutil.copy(pipeline_path.parent / "utils.py", experiment_directory)
+
+        pipeline_command_elements = [
+            f"python {pipeline_copy}",
+            f"--datetime {datetime}",
+            f"--configuration {configuration_copy}",
+            "--test",
+            "--train",
+        ]
+
     # test or evaluate a classifier
-    elif args.checkpoint:
+    elif args.pipeline and args.checkpoint:
         checkpoint_path = pathlib.Path(args.checkpoint)
-
-        network = GeneSymbolClassifier.load_from_checkpoint(checkpoint_path)
-
-        num_symbols = network.hparams.num_symbols
-
         job_name = checkpoint_path.stem
         root_directory = checkpoint_path.parent
 
         pipeline_command_elements = [
-            "python gene_symbol_classifier.py",
+            f"python {args.pipeline}",
             f"--checkpoint {args.checkpoint}",
         ]
 
@@ -133,21 +131,12 @@ def main():
 
     pipeline_command = " ".join(pipeline_command_elements)
 
-    # specify lower mem_limit for dev datasets jobs
-    num_symbols_mem_limit = {3: 1024, 100: 2048, 1000: 8192}
-    if num_symbols in num_symbols_mem_limit:
-        mem_limit = num_symbols_mem_limit[num_symbols]
-    elif args.evaluate:
-        mem_limit = 2048
-    else:
-        mem_limit = args.mem_limit
-
     # common job arguments
     bsub_command_elements = [
         "bsub",
-        f"-M {mem_limit}",
-        f"-o {root_directory}/{job_name}/stdout.log",
-        f"-e {root_directory}/{job_name}/stderr.log",
+        f"-M {args.mem_limit}",
+        f"-o {experiment_directory}/stdout.log",
+        f"-e {experiment_directory}/stderr.log",
     ]
 
     if args.gpu:
@@ -159,15 +148,15 @@ def main():
             [
                 "-q gpu",
                 f'-gpu "num={num_gpus}:gmem={gpu_memory}:j_exclusive=yes"',
-                f"-M {mem_limit}",
-                f'-R"select[mem>{mem_limit}] rusage[mem={mem_limit}] span[hosts=1]"',
+                f"-M {args.mem_limit}",
+                f'-R"select[mem>{args.mem_limit}] rusage[mem={args.mem_limit}] span[hosts=1]"',
             ]
         )
     else:
         bsub_command_elements.extend(
             [
                 "-q production",
-                f'-R"select[mem>{mem_limit}] rusage[mem={mem_limit}]"',
+                f'-R"select[mem>{args.mem_limit}] rusage[mem={args.mem_limit}]"',
             ]
         )
 
