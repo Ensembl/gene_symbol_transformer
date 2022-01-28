@@ -82,9 +82,22 @@ def main():
             configuration = yaml.safe_load(file)
         configuration = AttributeDict(configuration)
 
-        job_name = (
-            f"{configuration.experiment_prefix}_{configuration.dataset_id}_{datetime}"
-        )
+        if "num_symbols" in configuration:
+            assert (
+                "min_frequency" not in configuration
+            ), "num_symbols and min_frequency are mutually exclusive, provide only one of them in the configuration"
+            dataset_id = f"{configuration.num_symbols}_num_symbols"
+        elif "min_frequency" in configuration:
+            assert (
+                "num_symbols" not in configuration
+            ), "num_symbols and min_frequency are mutually exclusive, provide only one of them in the configuration"
+            dataset_id = f"{configuration.min_frequency}_min_frequency"
+        else:
+            raise KeyError(
+                'missing configuration value: one of "num_symbols", "min_frequency" is required'
+            )
+
+        job_name = f"{configuration.experiment_prefix}_{dataset_id}_{datetime}"
         root_directory = configuration.save_directory
 
         experiment_directory = pathlib.Path(f"{root_directory}/{job_name}")

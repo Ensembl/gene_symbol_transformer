@@ -104,12 +104,7 @@ def generate_dataloaders(configuration):
     Returns:
         tuple containing the training, validation, and test dataloaders
     """
-    dataset = SequenceDataset(
-        num_symbols=configuration.num_symbols,
-        sequence_length=configuration.sequence_length,
-        padding_side=configuration.padding_side,
-        excluded_genera=configuration.excluded_genera,
-    )
+    dataset = SequenceDataset(configuration)
 
     configuration.symbol_mapper = dataset.symbol_mapper
     configuration.protein_sequence_mapper = dataset.protein_sequence_mapper
@@ -616,7 +611,22 @@ def main():
                 sep="_", timespec="seconds"
             )
 
-        configuration.logging_version = f"{configuration.experiment_prefix}_{configuration.num_symbols}_symbols_{configuration.datetime}"
+        if "num_symbols" in configuration:
+            assert (
+                "min_frequency" not in configuration
+            ), "num_symbols and min_frequency are mutually exclusive, provide only one of them in the configuration"
+            configuration.dataset_id = f"{configuration.num_symbols}_num_symbols"
+        elif "min_frequency" in configuration:
+            assert (
+                "num_symbols" not in configuration
+            ), "num_symbols and min_frequency are mutually exclusive, provide only one of them in the configuration"
+            configuration.dataset_id = f"{configuration.min_frequency}_min_frequency"
+        else:
+            raise KeyError(
+                'missing configuration value: one of "num_symbols", "min_frequency" is required'
+            )
+
+        configuration.logging_version = f"{configuration.experiment_prefix}_{configuration.dataset_id}_{configuration.datetime}"
 
         # generate random seed if it doesn't exist
         # Using the range [1_000_000, 1_001_000] for the random seed. This range contains
