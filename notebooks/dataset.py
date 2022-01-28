@@ -141,6 +141,12 @@ symbol_counts[num_symbols - 1 : num_symbols + 1]
 # %%
 
 # %%
+num_symbols = 115
+symbol_counts[num_symbols - 1 : num_symbols + 1]
+
+# %%
+
+# %%
 num_symbols = 1000
 symbol_counts[num_symbols - 1 : num_symbols + 1]
 
@@ -149,6 +155,24 @@ symbol_counts[num_symbols - 1 : num_symbols + 1]
 # %%
 num_symbols = 1061
 symbol_counts[num_symbols - 1 : num_symbols + 1]
+
+# %%
+
+# %%
+min_frequency = 300
+symbol_counts[symbol_counts >= min_frequency]
+
+# %%
+
+# %%
+min_frequency = 200
+symbol_counts[symbol_counts >= min_frequency]
+
+# %%
+
+# %%
+min_frequency = 100
+symbol_counts[symbol_counts >= min_frequency]
 
 # %%
 
