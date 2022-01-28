@@ -65,7 +65,6 @@ num_connections: 64
 #num_connections: 256
 #num_connections: 512
 
-# L2 regularization parameter
 # L2 regularization
 weight_decay: 0
 #weight_decay: 1.0e-6
