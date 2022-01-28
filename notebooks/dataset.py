@@ -147,78 +147,72 @@ symbol_counts[num_symbols - 1 : num_symbols + 1]
 # %%
 
 # %%
-num_symbols = 1059
+num_symbols = 1061
 symbol_counts[num_symbols - 1 : num_symbols + 1]
 
 # %%
 
 # %%
-num_symbols = 25228
-symbol_counts[num_symbols - 1 : num_symbols + 1]
+frequency = 24
+symbol_counts[symbol_counts >= frequency]
 
 # %%
 
 # %%
-num_symbols = 30241
-symbol_counts[num_symbols - 1 : num_symbols + 1]
+frequency = 11
+symbol_counts[symbol_counts >= frequency]
 
 # %%
 
 # %%
-num_symbols = 30568
-symbol_counts[num_symbols - 1 : num_symbols + 1]
+frequency = 10
+symbol_counts[symbol_counts >= frequency]
 
 # %%
 
 # %%
-num_symbols = 30911
-symbol_counts[num_symbols - 1 : num_symbols + 1]
+frequency = 9
+symbol_counts[symbol_counts >= frequency]
 
 # %%
 
 # %%
-num_symbols = 31235
-symbol_counts[num_symbols - 1 : num_symbols + 1]
+frequency = 8
+symbol_counts[symbol_counts >= frequency]
 
 # %%
 
 # %%
-num_symbols = 31630
-symbol_counts[num_symbols - 1 : num_symbols + 1]
+frequency = 7
+symbol_counts[symbol_counts >= frequency]
 
 # %%
 
 # %%
-num_symbols = 32068
-symbol_counts[num_symbols - 1 : num_symbols + 1]
+frequency = 6
+symbol_counts[symbol_counts >= frequency]
+
+# %%
+frequency = 5
+symbol_counts[symbol_counts >= frequency]
 
 # %%
 
 # %%
-num_symbols = 32563
-symbol_counts[num_symbols - 1 : num_symbols + 1]
+frequency = 4
+symbol_counts[symbol_counts >= frequency]
 
 # %%
 
 # %%
-num_symbols = 33260
-symbol_counts[num_symbols - 1 : num_symbols + 1]
+frequency = 3
+symbol_counts[symbol_counts >= frequency]
 
 # %%
 
 # %%
-num_symbols = 34461
-symbol_counts[num_symbols - 1 : num_symbols + 1]
-
-# %%
-
-# %%
-num_symbols = 37440
-symbol_counts[num_symbols - 1 : num_symbols + 1]
-
-# %%
-
-# %%
+frequency = 2
+symbol_counts[symbol_counts >= frequency]
 
 # %%
 
