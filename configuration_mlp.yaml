@@ -4,12 +4,10 @@
 save_directory: experiments
 
 # experiment naming prefix
-experiment_prefix: experiment
-#experiment_prefix: only_human
-#experiment_prefix: exclude_bos
+experiment_prefix: mlp
 
 # PyTorch random number generator initialization seed
-#random_seed: 5
+random_seed: 5
 #random_seed: 7
 #random_seed: 11
 ################################################################################
@@ -35,7 +33,7 @@ excluded_genera:
   #- Taeniopygia
   # Chinese hamster (genus Cricetulus)
   #- Cricetulus
-  # Macaque	(genus Macaca) (Rhesus macaque)
+  # Macaque (genus Macaca) (Rhesus macaque)
   #- Macaca
 
 # training, validation, test split
@@ -45,8 +43,6 @@ validation_ratio: 0.2
 #validation_ratio: 0.15
 #test_ratio: 0.1
 #validation_ratio: 0.1
-#test_ratio: 0.05
-#validation_ratio: 0.05
 ################################################################################
 
 # features
@@ -70,7 +66,9 @@ num_connections: 64
 #num_connections: 512
 
 # L2 regularization parameter
+# L2 regularization
 weight_decay: 0
+#weight_decay: 1.0e-6
 #weight_decay: 1.0e-5
 
 dropout_probability: 0
@@ -86,16 +84,12 @@ batch_size: 128
 
 num_workers: 0
 #num_workers: 1
-#num_workers: 3
-#num_workers: 7
-#num_workers: 17
-#num_workers: 23
-#num_workers: 31
-#num_workers: 47
+#num_workers: 5
+#num_workers: 13
 
-#learning_rate: 0.001
-learning_rate: 0.0005
-#learning_rate: 0.0001
+#learning_rate: 5.0e-4
+learning_rate: 1.0e-4
+#learning_rate: 5.0e-5
 
 # number of epochs without validation loss improvement before training stops
 patience: 3
@@ -115,8 +109,8 @@ max_epochs: 100
 gpus:
 #gpus: 1
 
-profiler:
-#profiler: simple
+#profiler:
+profiler: simple
 #profiler: pytorch
 
 num_sample_predictions: 10
