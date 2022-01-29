@@ -51,17 +51,15 @@ import pytorch_lightning as pl
 import torch
 import yaml
 
-from torch.utils.data import DataLoader, random_split
-
 # project imports
 from utils import (
     AttributeDict,
     ConciseReprDict,
     GeneSymbolClassifier,
-    SequenceDataset,
     add_log_file_handler,
     assign_symbols,
     data_directory,
+    generate_dataloaders,
     get_assemblies_metadata,
     get_species_taxonomy_id,
     get_taxonomy_id_clade,
@@ -93,81 +91,6 @@ selected_genome_assemblies = {
     "GCA_000146045.2": ("Saccharomyces cerevisiae", "Saccharomyces cerevisiae"),
     "GCA_000003025.6": ("Sus scrofa", "Pig"),
 }
-
-
-def generate_dataloaders(configuration):
-    """
-    Generate training, validation, and test dataloaders from the dataset files.
-
-    Args:
-        configuration (AttributeDict): experiment configuration AttributeDict
-    Returns:
-        tuple containing the training, validation, and test dataloaders
-    """
-    dataset = SequenceDataset(configuration)
-
-    configuration.symbol_mapper = dataset.symbol_mapper
-    configuration.protein_sequence_mapper = dataset.protein_sequence_mapper
-    configuration.clade_mapper = dataset.clade_mapper
-
-    configuration.num_protein_letters = (
-        configuration.protein_sequence_mapper.num_protein_letters
-    )
-    configuration.num_clades = configuration.clade_mapper.num_categories
-
-    logger.info(
-        "gene symbols:\n{}".format(pd.Series(configuration.symbol_mapper.categories))
-    )
-
-    # calculate the training, validation, and test set size
-    dataset_size = len(dataset)
-    configuration.validation_size = int(configuration.validation_ratio * dataset_size)
-    configuration.test_size = int(configuration.test_ratio * dataset_size)
-    configuration.training_size = (
-        dataset_size - configuration.validation_size - configuration.test_size
-    )
-
-    # split dataset into training, validation, and test datasets
-    training_dataset, validation_dataset, test_dataset = random_split(
-        dataset,
-        lengths=(
-            configuration.training_size,
-            configuration.validation_size,
-            configuration.test_size,
-        ),
-        generator=torch.Generator().manual_seed(configuration.random_seed),
-    )
-
-    logger.info(
-        f"dataset split to training ({configuration.training_size}), validation ({configuration.validation_size}), and test ({configuration.test_size}) datasets"
-    )
-
-    # set the batch size equal to the size of the smallest dataset if larger than that
-    configuration.batch_size = min(
-        configuration.batch_size,
-        configuration.training_size,
-        configuration.validation_size,
-        configuration.test_size,
-    )
-
-    training_loader = DataLoader(
-        training_dataset,
-        batch_size=configuration.batch_size,
-        shuffle=True,
-        num_workers=configuration.num_workers,
-    )
-    validation_loader = DataLoader(
-        validation_dataset,
-        batch_size=configuration.batch_size,
-        num_workers=configuration.num_workers,
-    )
-    test_loader = DataLoader(
-        test_dataset,
-        batch_size=configuration.batch_size,
-        num_workers=configuration.num_workers,
-    )
-
-    return (training_loader, validation_loader, test_loader)
 
 
 def evaluate_network(checkpoint_path, complete=False):
