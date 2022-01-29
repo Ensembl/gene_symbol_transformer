@@ -289,8 +289,7 @@ class GeneSymbolClassifier(pl.LightningModule):
         self.input_layer = nn.Linear(
             in_features=input_size, out_features=self.num_connections
         )
-        if self.dropout_probability > 0:
-            self.dropout = nn.Dropout(self.dropout_probability)
+        self.dropout = nn.Dropout(self.dropout_probability)
 
         self.relu = nn.ReLU()
 
@@ -304,13 +303,11 @@ class GeneSymbolClassifier(pl.LightningModule):
 
     def forward(self, x):
         x = self.input_layer(x)
-        if self.dropout_probability > 0:
-            x = self.dropout(x)
+        x = self.dropout(x)
         x = self.relu(x)
 
         x = self.output_layer(x)
-        if self.dropout_probability > 0:
-            x = self.dropout(x)
+        x = self.dropout(x)
         x = self.final_activation(x)
 
         return x
