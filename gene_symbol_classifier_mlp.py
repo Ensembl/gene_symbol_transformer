@@ -620,7 +620,7 @@ def main():
             val_dataloaders=validation_dataloader,
         )
 
-        if args.test:
+        if args.test and configuration.test_size > 0:
             trainer.test(ckpt_path="best", dataloaders=test_dataloader)
 
     # test a classifier
