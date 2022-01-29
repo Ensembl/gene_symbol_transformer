@@ -108,6 +108,7 @@ loss_delta: 0
 #max_epochs: 3
 #max_epochs: 10
 max_epochs: 100
+#max_epochs: 1000
 
 gpus:
 #gpus: 1
