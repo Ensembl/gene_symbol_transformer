@@ -47,6 +47,8 @@ validation_ratio: 0.2
 #validation_ratio: 0.15
 #test_ratio: 0.1
 #validation_ratio: 0.1
+#test_ratio: 0
+#validation_ratio: 0.1
 ################################################################################
 
 # features

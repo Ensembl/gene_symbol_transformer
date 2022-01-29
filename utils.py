@@ -1278,55 +1278,67 @@ def generate_dataloaders(configuration):
         "gene symbols:\n{}".format(pd.Series(configuration.symbol_mapper.categories))
     )
 
-    # calculate the training, validation, and test set size
+    # calculate the training_validation and test set sizes
     dataset_size = len(dataset)
-    configuration.validation_size = int(configuration.validation_ratio * dataset_size)
     configuration.test_size = int(configuration.test_ratio * dataset_size)
+    training_validation_size = dataset_size - configuration.test_size
+
+    if configuration.test_size > 0:
+        # split dataset into training_validation and test datasets
+        training_validation_dataset, test_dataset = random_split(
+            dataset,
+            lengths=(training_validation_size, configuration.test_size),
+            generator=torch.Generator().manual_seed(configuration.random_seed),
+        )
+
+        test_dataloader = DataLoader(
+            test_dataset,
+            batch_size=configuration.batch_size,
+            num_workers=configuration.num_workers,
+            # pin_memory=torch.cuda.is_available(),
+        )
+
+    # configuration.test_size == 0:
+    else:
+        training_validation_dataset = dataset
+        test_dataloader = None
+
+    # calculate the training and validation set sizes
+    configuration.validation_size = int(configuration.validation_ratio * dataset_size)
     configuration.training_size = (
         dataset_size - configuration.validation_size - configuration.test_size
     )
 
-    # split dataset into training, validation, and test datasets
-    training_dataset, validation_dataset, test_dataset = random_split(
-        dataset,
+    # split training_validation into training and validation datasets
+    training_dataset, validation_dataset = random_split(
+        training_validation_dataset,
         lengths=(
             configuration.training_size,
             configuration.validation_size,
-            configuration.test_size,
         ),
         generator=torch.Generator().manual_seed(configuration.random_seed),
+    )
+
+    training_dataloader = DataLoader(
+        training_dataset,
+        batch_size=configuration.batch_size,
+        shuffle=True,
+        num_workers=configuration.num_workers,
+        # pin_memory=torch.cuda.is_available(),
+    )
+
+    validation_dataloader = DataLoader(
+        validation_dataset,
+        batch_size=configuration.batch_size,
+        num_workers=configuration.num_workers,
+        # pin_memory=torch.cuda.is_available(),
     )
 
     logger.info(
         f"dataset split to training ({configuration.training_size}), validation ({configuration.validation_size}), and test ({configuration.test_size}) datasets"
     )
 
-    # set the batch size equal to the size of the smallest dataset if larger than that
-    configuration.batch_size = min(
-        configuration.batch_size,
-        configuration.training_size,
-        configuration.validation_size,
-        configuration.test_size,
-    )
-
-    training_loader = DataLoader(
-        training_dataset,
-        batch_size=configuration.batch_size,
-        shuffle=True,
-        num_workers=configuration.num_workers,
-    )
-    validation_loader = DataLoader(
-        validation_dataset,
-        batch_size=configuration.batch_size,
-        num_workers=configuration.num_workers,
-    )
-    test_loader = DataLoader(
-        test_dataset,
-        batch_size=configuration.batch_size,
-        num_workers=configuration.num_workers,
-    )
-
-    return (training_loader, validation_loader, test_loader)
+    return (training_dataloader, validation_dataloader, test_dataloader)
 
 
 def load_dataset(num_symbols=None, min_frequency=None):
