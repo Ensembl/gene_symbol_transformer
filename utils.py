@@ -316,12 +316,6 @@ class GeneSymbolClassifier(pl.LightningModule):
         logger.info("start network training")
         logger.info(f"configuration:\n{self.hparams}")
 
-    def on_train_start(self):
-        # https://torchmetrics.readthedocs.io/en/stable/pages/overview.html#metrics-and-devices
-        self.train_accuracy = torchmetrics.Accuracy(num_classes=self.num_symbols).to(
-            self.device
-        )
-
     def training_step(self, batch, batch_index):
         features, labels = batch
 
@@ -332,14 +326,10 @@ class GeneSymbolClassifier(pl.LightningModule):
         training_loss = F.nll_loss(output, labels)
         self.log("training_loss", training_loss)
 
-        # get predicted label indexes from output
-        predictions, _ = self.get_prediction_indexes_probabilities(output)
-
-        self.train_accuracy(predictions, labels)
-
         return training_loss
 
     def on_validation_start(self):
+        # https://torchmetrics.readthedocs.io/en/stable/pages/overview.html#metrics-and-devices
         self.validation_accuracy = torchmetrics.Accuracy(num_classes=self.num_symbols).to(
             self.device
         )
