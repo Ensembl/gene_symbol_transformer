@@ -44,7 +44,6 @@ import warnings
 # third party imports
 import pandas as pd
 import pytorch_lightning as pl
-import torch
 import yaml
 
 # project imports

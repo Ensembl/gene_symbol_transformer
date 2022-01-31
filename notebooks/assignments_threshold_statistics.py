@@ -59,16 +59,16 @@ def plot_threshold_statistics(comparison_csv_path, text_title=False):
         num_fuzzy_matches = len(df.loc[df["fuzzy_match"] == "fuzzy_match"])
 
         matching_percentage = (num_exact_matches / num_assignments) * 100
-        fuzzy_percentage = (num_fuzzy_matches / num_assignments) * 100
-        num_total_matches = num_exact_matches + num_fuzzy_matches
-        total_matches_percentage = (num_total_matches / num_assignments) * 100
+        # fuzzy_percentage = (num_fuzzy_matches / num_assignments) * 100
+        # num_total_matches = num_exact_matches + num_fuzzy_matches
+        # total_matches_percentage = (num_total_matches / num_assignments) * 100
 
         thresholds_list.append(threshold)
         num_assignments_list.append(num_assignments)
         matching_percentages_list.append(matching_percentage)
 
     figsize = (16, 9)
-    figure, axis_1 = plt.subplots(figsize=figsize)
+    _figure, axis_1 = plt.subplots(figsize=figsize)
 
     axis_2 = axis_1.twinx()
     axis_1.plot(thresholds_list, matching_percentages_list, "g-")

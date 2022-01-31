@@ -24,7 +24,6 @@ a subset of the full dataset for faster prototyping, and dataset statistics.
 # standard library imports
 import argparse
 import json
-import logging
 import sys
 import time
 
@@ -120,14 +119,13 @@ def generate_datasets():
     generate_dev_datasets(dataset)
 
 
-def generate_dev_datasets(dataset, num_samples=100):
+def generate_dev_datasets(dataset):
     """
     Generate and save subsets of the full dataset for faster loading during development,
     and the datasets as FASTA files.
 
     Args:
         dataset (pandas DataFrame): full dataset dataframe
-        num_samples (int): number of samples to include in the samples FASTA files
     """
     symbol_counts = dataset["symbol"].value_counts()
 
