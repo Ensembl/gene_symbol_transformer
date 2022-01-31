@@ -59,7 +59,7 @@ def plot_threshold_statistics(comparison_csv_path, text_title=False):
         num_assignments_list.append(num_assignments)
 
     figsize = (16, 9)
-    figure, axis_1 = plt.subplots(figsize=figsize)
+    _figure, axis_1 = plt.subplots(figsize=figsize)
 
     axis_2 = axis_1.twinx()
     axis_2.plot(thresholds_list, num_assignments_list, "b-")

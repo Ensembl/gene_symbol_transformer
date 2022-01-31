@@ -15,6 +15,7 @@
 
 # %%
 import pathlib
+import sys
 
 # %%
 import matplotlib.pyplot as plt
@@ -257,8 +258,6 @@ data["clade"].value_counts()
 # %%
 
 # %%
-import sys
-
 sys.path.append("..")
 
 from utils import genebuild_clades
