@@ -69,7 +69,7 @@ console_handler.setFormatter(logging_formatter_time_message)
 logger.addHandler(console_handler)
 
 data_directory = pathlib.Path("data")
-main_release_sequences_directory = data_directory / "protein_sequences"
+main_release_sequences_directory = data_directory / "main_release_protein_sequences"
 rapid_release_sequences_directory = data_directory / "rapid_release_protein_sequences"
 
 dev_datasets_num_symbols = [3, 100, 1000]
