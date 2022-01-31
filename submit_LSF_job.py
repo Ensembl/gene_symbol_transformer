@@ -122,6 +122,9 @@ def main():
         job_name = checkpoint_path.stem
         root_directory = checkpoint_path.parent
 
+        experiment_directory = pathlib.Path(f"{root_directory}/{job_name}")
+        experiment_directory.mkdir(exist_ok=True)
+
         pipeline_command_elements = [
             f"python {args.pipeline}",
             f"--checkpoint {args.checkpoint}",
