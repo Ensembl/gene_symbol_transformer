@@ -14,7 +14,7 @@
 # ---
 
 # %% [markdown]
-# # symbol genome assignments statistics
+# # single genome assignments statistics
 
 # %%
 import pathlib
@@ -27,19 +27,25 @@ from gsc_stats import (
 
 
 # %%
-comparison_csv = ""
-comparison_csv_path = pathlib.Path(comparison_csv)
+symbol_assignments_csv = ""
+symbol_assignments_csv_path = pathlib.Path(symbol_assignments_csv)
 
 # %%
-print(comparison_csv_path.stem)
-plot_threshold_statistics(comparison_csv_path, text_title=True)
+# print(symbol_assignments_csv_path.stem)
+plot_threshold_statistics_plotly_no_ground_truth(
+    symbol_assignments_csv_path, text_title=True
+)
 
 # %%
-print(comparison_csv_path.stem)
-plot_threshold_statistics_no_ground_truth(comparison_csv_path, text_title=True)
+print(symbol_assignments_csv_path.stem)
+plot_threshold_statistics_no_ground_truth(symbol_assignments_csv_path, text_title=True)
 
 # %%
-print(comparison_csv_path.stem)
-plot_threshold_statistics_plotly_no_ground_truth(comparison_csv_path, text_title=True)
+# has_comparisons = True
+has_comparisons = False
+
+if has_comparisons:
+    print(symbol_assignments_csv_path.stem)
+    plot_threshold_statistics(symbol_assignments_csv_path, text_title=True)
 
 # %%
