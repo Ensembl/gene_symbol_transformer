@@ -371,8 +371,8 @@ class GeneSymbolClassifier(pl.LightningModule):
             num_classes=self.num_symbols, average="macro"
         ).to(self.device)
 
-        self.sample_labels = torch.empty(0)
-        self.sample_predictions = torch.empty(0)
+        self.sample_labels = torch.empty(0).to(self.device)
+        self.sample_predictions = torch.empty(0).to(self.device)
 
     def test_step(self, batch, batch_index):
         features, labels = batch
