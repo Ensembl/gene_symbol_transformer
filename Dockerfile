@@ -36,11 +36,11 @@ RUN mkdir --verbose /app/data
 
 # copy pipeline program files
 COPY \
-    gene_symbol_classifier.py \
+    gene_symbol_classifier_mlp.py \
     utils.py \
     /app/
 
 VOLUME /app/checkpoints
 VOLUME /app/data
 
-ENTRYPOINT ["python", "/app/gene_symbol_classifier.py"]
+ENTRYPOINT ["python", "/app/gene_symbol_classifier_mlp.py"]
