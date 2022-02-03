@@ -103,6 +103,28 @@ genebuild_clades = {
     "Viral": "viral",
 }
 
+selected_genome_assemblies = {
+    "GCA_002007445.2": ("Ailuropoda melanoleuca", "Giant panda"),
+    "GCA_900496995.2": ("Aquila chrysaetos chrysaetos", "Golden eagle"),
+    "GCA_009873245.2": ("Balaenoptera musculus", "Blue whale"),
+    "GCA_002263795.2": ("Bos taurus", "Cow"),
+    "GCA_000002285.2": ("Canis lupus familiaris", "Dog"),
+    "GCA_000951615.2": ("Cyprinus carpio", "Common carp"),
+    "GCA_000002035.4": ("Danio rerio", "Zebrafish"),
+    "GCA_000001215.4": ("Drosophila melanogaster", "Drosophila melanogaster"),
+    "GCA_000181335.4": ("Felis catus", "Cat"),
+    "GCA_000002315.5": ("Gallus gallus", "Chicken"),
+    "GCA_000001405.28": ("Homo sapiens", "Human"),
+    "GCA_000001905.1": ("Loxodonta africana", "Elephant"),
+    "GCA_000001635.9": ("Mus musculus", "Mouse"),
+    "GCA_000003625.1": ("Oryctolagus cuniculus", "Rabbit"),
+    "GCA_002742125.1": ("Ovis aries", "Sheep"),
+    "GCA_000001515.5": ("Pan troglodytes", "Chimpanzee"),
+    "GCA_008795835.1": ("Panthera leo", "Lion"),
+    "GCA_000146045.2": ("Saccharomyces cerevisiae", "Saccharomyces cerevisiae"),
+    "GCA_000003025.6": ("Sus scrofa", "Pig"),
+}
+
 get_canonical_translations_sql = """
 -- gene transcripts of canonical translations
 SELECT
@@ -725,6 +747,18 @@ class AttributeDict(dict):
         self[key] = value
 
 
+class ConciseReprDict(dict):
+    """
+    Dictionary with a concise representation.
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def __repr__(self):
+        return f"dictionary with {len(self.items())} items"
+
+
 def assign_symbols(
     network,
     symbols_metadata,
@@ -786,6 +820,152 @@ def assign_symbols(
                 )
 
     logger.info(f"symbol assignments saved at {assignments_csv_path}")
+
+
+def evaluate_network(checkpoint_path, complete=False):
+    """
+    Evaluate a trained network by assigning gene symbols to the protein sequences
+    of genome assemblies in the latest Ensembl release, and comparing them to the existing
+    Xref assignments.
+
+    Args:
+        checkpoint_path (Path): path to the experiment checkpoint
+        complete (bool): Whether or not to run the evaluation for all genome assemblies.
+            Defaults to False, which runs the evaluation only for a selection of
+            the most important species genome assemblies.
+    """
+    evaluation_directory_path = (
+        checkpoint_path.parent / f"{checkpoint_path.stem}_evaluation"
+    )
+
+    network = GeneSymbolClassifier.load_from_checkpoint(checkpoint_path)
+    configuration = network.hparams
+
+    symbols_set = set(symbol.lower() for symbol in configuration.symbol_mapper.categories)
+
+    assemblies = get_assemblies_metadata()
+    comparison_statistics_list = []
+    for assembly in assemblies:
+        if not complete and assembly.assembly_accession not in selected_genome_assemblies:
+            continue
+
+        canonical_fasta_filename = assembly.fasta_filename.replace(
+            "pep.all.fa", "pep.all_canonical.fa"
+        )
+        canonical_fasta_path = main_release_sequences_directory / canonical_fasta_filename
+
+        # assign symbols
+        assignments_csv_path = (
+            evaluation_directory_path / f"{canonical_fasta_path.stem}_symbols.csv"
+        )
+        if not assignments_csv_path.exists():
+            logger.info(f"assigning gene symbols to {canonical_fasta_path}")
+            assign_symbols(
+                network,
+                configuration.symbols_metadata,
+                canonical_fasta_path,
+                scientific_name=assembly.scientific_name,
+                output_directory=evaluation_directory_path,
+            )
+
+        comparisons_csv_path = (
+            evaluation_directory_path / f"{assignments_csv_path.stem}_compare.csv"
+        )
+        if not comparisons_csv_path.exists():
+            comparison_successful = compare_with_database(
+                assignments_csv_path,
+                assembly.core_db,
+                assembly.scientific_name,
+                symbols_set,
+            )
+            if not comparison_successful:
+                continue
+
+        comparison_statistics = get_comparison_statistics(comparisons_csv_path)
+        comparison_statistics["scientific_name"] = assembly.scientific_name
+        comparison_statistics["taxonomy_id"] = assembly.taxonomy_id
+        comparison_statistics["clade"] = assembly.clade
+
+        comparison_statistics_list.append(comparison_statistics)
+
+        message = "{}: {} assignments, {} exact matches ({:.2f}%), {} fuzzy matches ({:.2f}%), {} total matches ({:.2f}%)".format(
+            comparison_statistics["scientific_name"],
+            comparison_statistics["num_assignments"],
+            comparison_statistics["num_exact_matches"],
+            comparison_statistics["matching_percentage"],
+            comparison_statistics["num_fuzzy_matches"],
+            comparison_statistics["fuzzy_percentage"],
+            comparison_statistics["num_total_matches"],
+            comparison_statistics["total_matches_percentage"],
+        )
+        logger.info(message)
+
+    dataframe_columns = [
+        "clade",
+        "scientific_name",
+        "num_assignments",
+        "num_exact_matches",
+        "matching_percentage",
+        "num_fuzzy_matches",
+        "fuzzy_percentage",
+        "num_total_matches",
+        "total_matches_percentage",
+    ]
+    comparison_statistics = pd.DataFrame(
+        comparison_statistics_list,
+        columns=dataframe_columns,
+    )
+
+    clade_groups = comparison_statistics.groupby(["clade"])
+    clade_groups_statistics = []
+    aggregated_statistics = []
+    for clade, group in clade_groups:
+        with pd.option_context("display.float_format", "{:.2f}".format):
+            group_string = group.to_string(index=False)
+
+        num_assignments_sum = group["num_assignments"].sum()
+        num_exact_matches_sum = group["num_exact_matches"].sum()
+        num_fuzzy_matches_sum = group["num_fuzzy_matches"].sum()
+        num_total_matches_sum = num_exact_matches_sum + num_fuzzy_matches_sum
+
+        matching_percentage_weighted_average = (
+            num_exact_matches_sum / num_assignments_sum
+        ) * 100
+        fuzzy_percentage_weighted_average = (
+            num_fuzzy_matches_sum / num_assignments_sum
+        ) * 100
+        total_percentage_weighted_average = (
+            num_total_matches_sum / num_assignments_sum
+        ) * 100
+
+        averages_message = "{} weighted averages: {:.2f}% exact matches, {:.2f}% fuzzy matches, {:.2f}% total matches".format(
+            clade,
+            matching_percentage_weighted_average,
+            fuzzy_percentage_weighted_average,
+            total_percentage_weighted_average,
+        )
+
+        aggregated_statistics.append(
+            {
+                "clade": clade,
+                "exact matches": matching_percentage_weighted_average,
+                "fuzzy matches": fuzzy_percentage_weighted_average,
+                "total matches": total_percentage_weighted_average,
+            }
+        )
+
+        clade_statistics = f"{group_string}\n{averages_message}"
+
+        clade_groups_statistics.append(clade_statistics)
+
+    comparison_statistics_string = "comparison statistics:\n"
+    comparison_statistics_string += "\n\n".join(
+        clade_statistics for clade_statistics in clade_groups_statistics
+    )
+    logger.info(comparison_statistics_string)
+
+    aggregated_statistics = pd.DataFrame(aggregated_statistics)
+    logger.info(f"\n\n{aggregated_statistics.to_string(index=False)}")
 
 
 def read_fasta_in_chunks(fasta_file_path, num_chunk_entries=1024):
@@ -1449,6 +1629,232 @@ def get_species_taxonomy_id(scientific_name):
     return taxonomy_id
 
 
+def is_exact_match(symbol_a, symbol_b):
+    symbol_a = symbol_a.lower()
+    symbol_b = symbol_b.lower()
+
+    if symbol_a == symbol_b:
+        return "exact_match"
+    else:
+        return "no_exact_match"
+
+
+def is_fuzzy_match(symbol_a, symbol_b):
+    symbol_a = symbol_a.lower()
+    symbol_b = symbol_b.lower()
+
+    if symbol_a == symbol_b:
+        return "no_fuzzy_match"
+
+    if (symbol_a in symbol_b) or (symbol_b in symbol_a):
+        return "fuzzy_match"
+    else:
+        return "no_fuzzy_match"
+
+
+def is_known_symbol(symbol, symbols_set):
+    symbol = symbol.lower()
+
+    if symbol in symbols_set:
+        return "known"
+    else:
+        return "unknown"
+
+
+def compare_with_database(
+    assignments_csv,
+    ensembl_database,
+    scientific_name=None,
+    symbols_set=None,
+    EntrezGene=False,
+    Uniprot_gn=False,
+):
+    """
+    Compare classifier assignments with the gene symbols in the genome assembly
+    ensembl_database core database on the public Ensembl MySQL server.
+    """
+    assignments_csv_path = pathlib.Path(assignments_csv)
+
+    canonical_translations = get_xref_canonical_translations(
+        ensembl_database, EntrezGene=EntrezGene, Uniprot_gn=Uniprot_gn
+    )
+
+    if len(canonical_translations) == 0:
+        if scientific_name is None:
+            logger.info("0 canonical translations retrieved, nothing to compare")
+        else:
+            logger.info(
+                f"{scientific_name}: 0 canonical translations retrieved, nothing to compare"
+            )
+        return False
+
+    comparisons = []
+    with open(assignments_csv_path, "r", newline="") as assignments_file:
+        csv_reader = csv.reader(assignments_file, delimiter="\t")
+        _csv_field_names = next(csv_reader)
+
+        for csv_row in csv_reader:
+            csv_stable_id = csv_row[0]
+            classifier_symbol = csv_row[1]
+            probability = csv_row[2]
+
+            translation_stable_id = csv_stable_id.split(".")[0]
+
+            if (
+                translation_stable_id
+                in canonical_translations["translation.stable_id"].values
+            ):
+                xref_symbol = canonical_translations.loc[
+                    canonical_translations["translation.stable_id"]
+                    == translation_stable_id,
+                    "Xref_symbol",
+                ].values[0]
+                comparisons.append(
+                    (csv_stable_id, xref_symbol, classifier_symbol, probability)
+                )
+
+    dataframe_columns = [
+        "csv_stable_id",
+        "xref_symbol",
+        "classifier_symbol",
+        "probability",
+    ]
+    compare_df = pd.DataFrame(comparisons, columns=dataframe_columns)
+
+    compare_df["exact_match"] = compare_df.apply(
+        lambda x: is_exact_match(x["classifier_symbol"], x["xref_symbol"]),
+        axis=1,
+        result_type="reduce",
+    )
+
+    compare_df["fuzzy_match"] = compare_df.apply(
+        lambda x: is_fuzzy_match(x["classifier_symbol"], x["xref_symbol"]),
+        axis=1,
+        result_type="reduce",
+    )
+
+    if symbols_set:
+        compare_df["known_symbol"] = compare_df.apply(
+            lambda x: is_known_symbol(x["xref_symbol"], symbols_set),
+            axis=1,
+            result_type="reduce",
+        )
+
+    comparisons_csv_path = pathlib.Path(
+        f"{assignments_csv_path.parent}/{assignments_csv_path.stem}_compare.csv"
+    )
+    compare_df.to_csv(comparisons_csv_path, sep="\t", index=False)
+
+    return True
+
+
+def get_comparison_statistics(comparisons_csv_path):
+    compare_df = pd.read_csv(comparisons_csv_path, sep="\t", index_col=False)
+
+    num_assignments = len(compare_df)
+
+    if num_assignments > 0:
+        num_exact_matches = len(compare_df[compare_df["exact_match"] == "exact_match"])
+        num_fuzzy_matches = len(compare_df[compare_df["fuzzy_match"] == "fuzzy_match"])
+
+        matching_percentage = (num_exact_matches / num_assignments) * 100
+        fuzzy_percentage = (num_fuzzy_matches / num_assignments) * 100
+        num_total_matches = num_exact_matches + num_fuzzy_matches
+        total_matches_percentage = (num_total_matches / num_assignments) * 100
+
+        comparison_statistics = {
+            "num_assignments": num_assignments,
+            "num_exact_matches": num_exact_matches,
+            "matching_percentage": matching_percentage,
+            "num_fuzzy_matches": num_fuzzy_matches,
+            "fuzzy_percentage": fuzzy_percentage,
+            "num_total_matches": num_total_matches,
+            "total_matches_percentage": total_matches_percentage,
+        }
+    else:
+        comparison_statistics = {
+            "num_assignments": 0,
+            "num_exact_matches": 0,
+            "matching_percentage": 0,
+            "num_fuzzy_matches": 0,
+            "fuzzy_percentage": 0,
+            "num_total_matches": 0,
+            "total_matches_percentage": 0,
+        }
+
+    return comparison_statistics
+
+
+def compare_assignments(
+    assignments_csv, ensembl_database, scientific_name, checkpoint=None
+):
+    """Compare assignments with the ones on the latest Ensembl release."""
+    assignments_csv_path = pathlib.Path(assignments_csv)
+
+    log_file_path = pathlib.Path(
+        f"{assignments_csv_path.parent}/{assignments_csv_path.stem}_compare.log"
+    )
+    add_log_file_handler(logger, log_file_path)
+
+    if checkpoint is None:
+        symbols_set = None
+    else:
+        network = GeneSymbolClassifier.load_from_checkpoint(checkpoint)
+        configuration = network.hparams
+
+        symbols_set = set(
+            symbol.lower() for symbol in configuration.symbol_mapper.categories
+        )
+
+    comparisons_csv_path = pathlib.Path(
+        f"{assignments_csv_path.parent}/{assignments_csv_path.stem}_compare.csv"
+    )
+    if not comparisons_csv_path.exists():
+        compare_with_database(
+            assignments_csv_path, ensembl_database, scientific_name, symbols_set
+        )
+
+    comparison_statistics = get_comparison_statistics(comparisons_csv_path)
+
+    taxonomy_id = get_species_taxonomy_id(scientific_name)
+    clade = get_taxonomy_id_clade(taxonomy_id)
+
+    comparison_statistics["scientific_name"] = scientific_name
+    comparison_statistics["taxonomy_id"] = taxonomy_id
+    comparison_statistics["clade"] = clade
+
+    message = "{} assignments, {} exact matches ({:.2f}%), {} fuzzy matches ({:.2f}%), {} total matches ({:.2f}%)".format(
+        comparison_statistics["num_assignments"],
+        comparison_statistics["num_exact_matches"],
+        comparison_statistics["matching_percentage"],
+        comparison_statistics["num_fuzzy_matches"],
+        comparison_statistics["fuzzy_percentage"],
+        comparison_statistics["num_total_matches"],
+        comparison_statistics["total_matches_percentage"],
+    )
+    logger.info(message)
+
+    dataframe_columns = [
+        "clade",
+        "scientific_name",
+        "num_assignments",
+        "num_exact_matches",
+        "matching_percentage",
+        "num_fuzzy_matches",
+        "fuzzy_percentage",
+        "num_total_matches",
+        "total_matches_percentage",
+    ]
+    comparison_statistics = pd.DataFrame(
+        [comparison_statistics],
+        columns=dataframe_columns,
+    )
+    with pd.option_context("display.float_format", "{:.2f}".format):
+        logger.info(
+            f"comparison statistics:\n{comparison_statistics.to_string(index=False)}"
+        )
+
+
 def log_pytorch_cuda_info():
     """
     Log PyTorch and CUDA info and device to be used.
@@ -1476,18 +1882,6 @@ def add_log_file_handler(
     file_handler.setLevel(logging.DEBUG)
     file_handler.setFormatter(logging_formatter)
     logger.addHandler(file_handler)
-
-
-class ConciseReprDict(dict):
-    """
-    Dictionary with a concise representation.
-    """
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-    def __repr__(self):
-        return f"dictionary with {len(self.items())} items"
 
 
 if __name__ == "__main__":
