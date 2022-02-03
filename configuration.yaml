@@ -17,8 +17,12 @@ random_seed: 5
 num_symbols: 3
 #num_symbols: 100
 #num_symbols: 1000
-#num_symbols: 25228
-#num_symbols: 30241
+
+#min_frequency: 300  # ~ 7 symbols
+#min_frequency: 200  # ~ 4000 symbols
+#min_frequency: 100  # ~ 14000 symbols
+#min_frequency: 24  # ~ 25000 symbols
+#min_frequency: 10  # ~ 30500 symbols
 
 # exclude genera from all pipeline datasets
 excluded_genera:
@@ -43,13 +47,15 @@ validation_ratio: 0.2
 #validation_ratio: 0.15
 #test_ratio: 0.1
 #validation_ratio: 0.1
+#test_ratio: 0
+#validation_ratio: 0.1
 ################################################################################
 
 # features
 ################################################################################
-#sequence_length: 581  # ~ 580.63 : dataset sequences mean length
-sequence_length: 841  # ~ 580.63 + 0.5 * 521.15 : mean + 0.5 * standard_deviation
-#sequence_length: 1102  # ~ 580.63 + 1 * 521.15 : mean + 1 * standard_deviation
+#sequence_length: 581  # ~ 581.36 : dataset sequences mean length
+sequence_length: 844  # ~ 581.36 + 0.5 * 526.05 : mean + 0.5 * standard_deviation
+#sequence_length: 1107  # ~ 581.36 + 1 * 526.05 : mean + 1 * standard_deviation
 
 #padding_side: left
 padding_side: right
@@ -113,6 +119,7 @@ loss_delta: 0
 #max_epochs: 3
 #max_epochs: 10
 max_epochs: 100
+#max_epochs: 1000
 
 gpus:
 #gpus: 1
