@@ -41,9 +41,9 @@ Specify parameters and hyperparameters for your experiment by editing or copying
 First, set up a Python virtual environment for the project and install its dependencies:
 
 ```
-pyenv install 3.9.6
+pyenv install 3.9.10
 
-pyenv virtualenv 3.9.6 gene_symbol_classifier
+pyenv virtualenv 3.9.10 gene_symbol_classifier
 
 poetry install
 ```
