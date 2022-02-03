@@ -54,8 +54,8 @@ validation_ratio: 0.2
 # features
 ################################################################################
 #sequence_length: 581  # ~ 581.36 : dataset sequences mean length
-sequence_length: 844  # ~ 581.36 + 0.5 * 526.05 : mean + 0.5 * standard_deviation
-#sequence_length: 1107  # ~ 581.36 + 1 * 526.05 : mean + 1 * standard_deviation
+#sequence_length: 844  # ~ 581.36 + 0.5 * 526.05 : mean + 0.5 * standard_deviation
+sequence_length: 1107  # ~ 581.36 + 1 * 526.05 : mean + 1 * standard_deviation
 
 #padding_side: left
 padding_side: right
@@ -92,17 +92,17 @@ dropout_probability: 0
 
 # training
 ################################################################################
-batch_size: 64
+batch_size: 32
+#batch_size: 64
 #batch_size: 128
-#batch_size: 256
 
-num_workers: 0
-#num_workers: 1
+#num_workers: 0
+num_workers: 1
 #num_workers: 5
 #num_workers: 13
 
-#learning_rate: 5.0e-4
-learning_rate: 1.0e-4
+learning_rate: 5.0e-4
+#learning_rate: 1.0e-4
 #learning_rate: 5.0e-5
 
 # number of epochs without validation loss improvement before training stops
