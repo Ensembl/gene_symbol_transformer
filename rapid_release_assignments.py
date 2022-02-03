@@ -164,7 +164,9 @@ def fix_assembly_geneset(assembly):
         erroneous_geneset = assembly.geneset
         geneset = geneset_mappings[assembly.assembly_accession]
         assembly.geneset = geneset
-        logger.info(f"assembly {assembly.assembly_accession} geneset fixed from {erroneous_geneset} to {geneset}")
+        logger.info(
+            f"assembly {assembly.assembly_accession} geneset fixed from {erroneous_geneset} to {geneset}"
+        )
 
 
 def get_rapid_release_core_dbs(
