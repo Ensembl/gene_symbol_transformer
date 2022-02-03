@@ -124,8 +124,8 @@ max_epochs: 10
 gpus:
 #gpus: 1
 
-#profiler:
-profiler: simple
+profiler:
+#profiler: simple
 #profiler: pytorch
 
 num_sample_predictions: 10
