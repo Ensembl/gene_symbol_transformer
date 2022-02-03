@@ -1,6 +1,6 @@
 # Gene Symbol Classifier
 
-Machine Learning pipeline for gene symbol assignment to protein coding gene sequences of an Ensembl Genebuild annotation implemented with PyTorch.
+Gene symbol assignment to protein coding gene sequences using Machine Learning.
 
 More information and background for the project:
 https://www.ebi.ac.uk/seqdb/confluence/display/ENSGBD/Gene+symbol+classifier
@@ -61,28 +61,28 @@ Training can be either run directly on a compute node or submitted as an LSF job
 
 train directly on a compute node
 ```
-python gene_symbol_classifier.py --configuration <experiment configuration file path> --train --test
+python <pipeline script> --configuration <experiment configuration file> --train
 
 # e.g.
-python gene_symbol_classifier.py --configuration configuration.yaml --train --test
+python gene_symbol_classifier_mlp.py --configuration configuration_mlp.yaml --train
 ```
 
 submit a training job with bsub
 ```
-python submit_LSF_job.py --configuration <experiment configuration file path>
+python submit_LSF_job.py --pipeline <pipeline script> --configuration <experiment configuration file>
+
 
 # e.g.
-python submit_LSF_job.py --configuration configuration.yaml
+python submit_LSF_job.py --pipeline gene_symbol_classifier_mlp.py --configuration configuration_mlp.yaml
 ```
-
 
 ### testing
 
-Testing of a trained neural network would normally run right after training. In cases when testing didn't complete, it can be issued separately for the saved training checkpoint file.
+Testing for a neural network is automatically run after training, but can also be issued separately for a saved experiment checkpoint file.
 
 load checkpoint and test the trained network
 ```
-python gene_symbol_classifier.py --checkpoint <checkpoint path> --test
+python gene_symbol_classifier_mlp.py --checkpoint <checkpoint path> --test
 ```
 
 submit a testing job with bsub
@@ -96,12 +96,12 @@ A trained network can be evaluated by assigning gene symbols to the canonical tr
 
 evaluate a trained network
 ```
-python gene_symbol_classifier.py --evaluate --checkpoint <checkpoint path>
+python gene_symbol_classifier_mlp.py --evaluate --checkpoint <checkpoint path>
 ```
 
 The gene symbol assignments of a classifier can also be directly compared with the existing gene symbols in an Ensembl release.
 ```
-python gene_symbol_classifier.py --assignments_csv <assignments CSV path> --ensembl_database <Ensembl core database name>
+python gene_symbol_classifier_mlp.py --assignments_csv <assignments CSV path> --ensembl_database <Ensembl core database name>
 ```
 
 ### assign gene symbols to protein sequences
@@ -110,7 +110,7 @@ After training, the network is ready to assign gene symbols to protein sequences
 
 assign symbols to sequences in a FASTA file and save them to a CSV file
 ```
-python gene_symbol_classifier.py --checkpoint <checkpoint path> --sequences_fasta <FASTA file path> --scientific_name <species scientific name>
+python gene_symbol_classifier_mlp.py --checkpoint <checkpoint path> --sequences_fasta <FASTA file path> --scientific_name <species scientific name>
 ```
 
 
