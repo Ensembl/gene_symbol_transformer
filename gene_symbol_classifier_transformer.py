@@ -67,6 +67,290 @@ from utils import (
 )
 
 
+class BinaryClassificationTransformer(pl.LightningModule):
+    def __init__(
+        self,
+        embedding_dimension,
+        num_heads,
+        depth,
+        feedforward_connections,
+        sequence_length,
+        num_tokens,
+        dropout_probability,
+        activation_function,
+    ):
+        super().__init__()
+
+        output_size = 1
+
+        self.token_embedding = nn.Embedding(
+            num_embeddings=num_tokens, embedding_dim=embedding_dimension
+        )
+
+        self.position_embedding = nn.Embedding(
+            num_embeddings=sequence_length, embedding_dim=embedding_dimension
+        )
+
+        transformer_blocks = [
+            TransformerBlock(
+                embedding_dimension=embedding_dimension,
+                num_heads=num_heads,
+                feedforward_connections=feedforward_connections,
+                dropout_probability=dropout_probability,
+                activation_function=activation_function,
+            )
+            for _ in range(depth)
+        ]
+        self.transformer_blocks = nn.Sequential(*transformer_blocks)
+
+        self.final_layer = nn.Linear(embedding_dimension, output_size)
+
+    def forward(self, x):
+        # generate token embeddings
+        token_embeddings = self.token_embedding(x)
+
+        b, t, k = token_embeddings.size()
+
+        # generate position embeddings
+        position_embeddings_init = torch.arange(t, device=self.device)
+        position_embeddings = self.position_embedding(position_embeddings_init)[
+            None, :, :
+        ].expand(b, t, k)
+
+        x = token_embeddings + position_embeddings
+
+        x = self.transformer_blocks(x)
+
+        # average-pool over dimension t
+        x = x.mean(dim=1)
+
+        x = self.final_layer(x)
+
+        x = torch.sigmoid(x)
+
+        return x
+
+
+class SelfAttention(nn.Module):
+    def __init__(self, embedding_dimension, num_heads):
+        super().__init__()
+
+        assert (
+            embedding_dimension % num_heads == 0
+        ), f"embedding dimension must be divisible by number of heads, got {embedding_dimension=}, {num_heads=}"
+
+        self.num_heads = num_heads
+
+        k = embedding_dimension
+
+        self.to_keys = nn.Linear(k, k * num_heads, bias=False)
+        self.to_queries = nn.Linear(k, k * num_heads, bias=False)
+        self.to_values = nn.Linear(k, k * num_heads, bias=False)
+
+        self.unify_heads = nn.Linear(num_heads * k, k)
+
+    def forward(self, x):
+        b, t, k = x.size()
+        h = self.num_heads
+
+        keys = self.to_keys(x).view(b, t, h, k)
+        queries = self.to_queries(x).view(b, t, h, k)
+        values = self.to_values(x).view(b, t, h, k)
+
+        # fold heads into the batch dimension
+        keys = keys.transpose(1, 2).contiguous().view(b * h, t, k)
+        queries = queries.transpose(1, 2).contiguous().view(b * h, t, k)
+        values = values.transpose(1, 2).contiguous().view(b * h, t, k)
+
+        # get dot product of queries and keys
+        dot = torch.bmm(queries, keys.transpose(1, 2))
+        # dot.shape: (b * h, t, t)
+
+        # scale dot product
+        dot = dot / (k ** (1 / 2))
+
+        # get row-wise normalized weights
+        dot = F.softmax(dot, dim=2)
+
+        # apply the self attention to the values
+        out = torch.bmm(dot, values).view(b, h, t, k)
+
+        # swap h, t back
+        out = out.transpose(1, 2).contiguous().view(b, t, h * k)
+
+        return self.unify_heads(out)
+
+
+class TransformerBlock(nn.Module):
+    def __init__(
+        self,
+        embedding_dimension,
+        num_heads,
+        feedforward_connections,
+        activation_function,
+        dropout_probability,
+    ):
+        super().__init__()
+
+        assert (
+            feedforward_connections > embedding_dimension
+        ), f"feed forward subnet number of connections should be larger than the embedding dimension, got {feedforward_connections=}, {embedding_dimension=}"
+
+        activation = {"relu": nn.ReLU, "gelu": nn.GELU}
+
+        k = embedding_dimension
+
+        self.attention = SelfAttention(k, num_heads=num_heads)
+
+        self.layer_normalization_1 = nn.LayerNorm(k)
+        self.layer_normalization_2 = nn.LayerNorm(k)
+
+        self.feed_forward = nn.Sequential(
+            nn.Linear(k, feedforward_connections),
+            activation[activation_function](),
+            nn.Linear(feedforward_connections, k),
+            nn.Dropout(dropout_probability),
+        )
+
+    def forward(self, x):
+        x = self.layer_normalization_1(self.attention(x) + x)
+        x = self.layer_normalization_2(self.feed_forward(x) + x)
+
+        return x
+
+
+class ProteinCodingClassifier(BinaryClassificationTransformer):
+    """
+    Neural network for protein coding or non-coding classification of DNA sequences.
+    """
+
+    def __init__(self, **kwargs):
+        self.save_hyperparameters()
+
+        super().__init__(
+            embedding_dimension=self.hparams.embedding_dimension,
+            num_heads=self.hparams.num_heads,
+            depth=self.hparams.transformer_depth,
+            feedforward_connections=self.hparams.feedforward_connections,
+            sequence_length=self.hparams.sequence_length,
+            num_tokens=self.hparams.num_nucleobase_letters,
+            dropout_probability=self.hparams.dropout_probability,
+            activation_function=self.hparams.activation_function,
+        )
+
+        self.dna_sequence_mapper = self.hparams.dna_sequence_mapper
+
+        self.best_validation_accuracy = 0
+
+    def on_pretrain_routine_end(self):
+        logger.info("start network training")
+        logger.info(f"configuration:\n{self.hparams}")
+
+    def training_step(self, batch, batch_index):
+        features, labels = batch
+
+        # forward pass
+        output = self(features)
+
+        labels = labels.unsqueeze(1)
+        labels = labels.to(torch.float32)
+
+        # loss function
+        training_loss = F.binary_cross_entropy(output, labels)
+        self.log("training_loss", training_loss)
+
+        # clip gradients to prevent the exploding gradient problem
+        if self.hparams.clip_max_norm > 0:
+            nn.utils.clip_grad_norm_(self.parameters(), self.hparams.clip_max_norm)
+
+        return training_loss
+
+    def on_validation_start(self):
+        # https://torchmetrics.readthedocs.io/en/stable/pages/overview.html#metrics-and-devices
+        self.validation_accuracy = torchmetrics.Accuracy(num_classes=2).to(self.device)
+
+    def validation_step(self, batch, batch_index):
+        features, labels = batch
+
+        # forward pass
+        output = self(features)
+
+        labels = labels.unsqueeze(1)
+        labels = labels.to(torch.float32)
+
+        validation_loss = F.binary_cross_entropy(output, labels)
+        self.log("validation_loss", validation_loss)
+
+        predictions = self.get_predictions(output)
+
+        labels = labels.to(torch.int32)
+        self.validation_accuracy(predictions, labels)
+
+    def on_validation_end(self):
+        self.best_validation_accuracy = max(
+            self.best_validation_accuracy,
+            self.validation_accuracy.compute().item(),
+        )
+
+    def on_train_end(self):
+        # NOTE: disabling saving network to TorchScript, seems buggy
+
+        # workaround for a bug when saving network to TorchScript format
+        # self.hparams.dropout_probability = float(self.hparams.dropout_probability)
+
+        # save network to TorchScript format
+        # experiment_directory_path = pathlib.Path(self.hparams.experiment_directory)
+        # torchscript_path = experiment_directory_path / "torchscript_network.pt"
+        # torchscript = self.to_torchscript()
+        # torch.jit.save(torchscript, torchscript_path)
+        pass
+
+    def on_test_start(self):
+        self.test_accuracy = torchmetrics.Accuracy(num_classes=2).to(self.device)
+        self.test_precision = torchmetrics.Precision(num_classes=2).to(self.device)
+        self.test_recall = torchmetrics.Recall(num_classes=2).to(self.device)
+
+    def test_step(self, batch, batch_index):
+        features, labels = batch
+
+        # forward pass
+        output = self(features)
+
+        predictions = self.get_predictions(output)
+
+        labels = labels.unsqueeze(1)
+
+        self.test_accuracy(predictions, labels)
+        self.test_precision(predictions, labels)
+        self.test_recall(predictions, labels)
+
+    def on_test_end(self):
+        # log statistics
+        test_accuracy = self.test_accuracy.compute()
+        precision = self.test_precision.compute()
+        recall = self.test_recall.compute()
+        logger.info(
+            f"test accuracy: {test_accuracy:.4f} | precision: {precision:.4f} | recall: {recall:.4f}"
+        )
+        logger.info(f"best validation accuracy: {self.best_validation_accuracy:.4f}")
+
+    def configure_optimizers(self):
+        # optimization function
+        optimizer = torch.optim.Adam(
+            params=self.parameters(),
+            lr=self.hparams.learning_rate,
+            weight_decay=self.hparams.weight_decay,
+        )
+        return optimizer
+
+    def get_predictions(self, output):
+        threshold_value = 0.5
+        threshold = torch.Tensor([threshold_value]).to(device=self.device)
+
+        predictions = (output > threshold).to(dtype=torch.int32)
+        return predictions
+
+
 class GeneSymbolClassifier(pl.LightningModule):
     """
     A fully connected neural network for gene name classification of protein sequences

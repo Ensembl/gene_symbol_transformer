@@ -85,6 +85,10 @@ weight_decay: 0
 #weight_decay: 1.0e-6
 #weight_decay: 1.0e-5
 
+# max norm for gradient clipping
+clip_max_norm: 0
+#clip_max_norm: 5
+
 dropout_probability: 0
 #dropout_probability: 0.1
 #dropout_probability: 0.2
