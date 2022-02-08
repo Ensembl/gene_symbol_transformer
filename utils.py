@@ -310,7 +310,9 @@ class SequenceDataset(Dataset):
             for genus in configuration.excluded_genera:
                 scientific_name_prefix = f"{genus} "
                 self.dataset = self.dataset[
-                    ~self.dataset["scientific_name"].str.startswith(scientific_name_prefix)
+                    ~self.dataset["scientific_name"].str.startswith(
+                        scientific_name_prefix
+                    )
                 ]
             num_used_samples = len(self.dataset)
 
@@ -431,6 +433,15 @@ class ProteinSequenceMapper:
         one_hot_sequence = one_hot_sequence.type(torch.float32)
 
         return one_hot_sequence
+
+    def sequence_to_label_encoding(self, sequence):
+        label_encoded_sequence = [
+            self.protein_letter_to_index[protein_letter] for protein_letter in sequence
+        ]
+
+        label_encoded_sequence = torch.tensor(label_encoded_sequence, dtype=torch.int32)
+
+        return label_encoded_sequence
 
 
 class AttributeDict(dict):
