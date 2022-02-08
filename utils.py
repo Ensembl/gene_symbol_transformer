@@ -421,7 +421,7 @@ class ProteinSequenceMapper:
 
         self.num_protein_letters = len(self.protein_letters)
 
-    def protein_letters_to_one_hot(self, sequence):
+    def sequence_to_one_hot(self, sequence):
         sequence_indexes = [
             self.protein_letter_to_index[protein_letter] for protein_letter in sequence
         ]
