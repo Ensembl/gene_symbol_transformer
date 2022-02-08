@@ -322,9 +322,7 @@ class GeneSymbolClassifier(pl.LightningModule):
                 truncate_length=self.sequence_length,
             )
 
-            one_hot_sequence = self.protein_sequence_mapper.protein_letters_to_one_hot(
-                sequence
-            )
+            one_hot_sequence = self.protein_sequence_mapper.sequence_to_one_hot(sequence)
             one_hot_clade = self.clade_mapper.label_to_one_hot(clade)
 
             # flatten sequence matrix to a vector
@@ -341,16 +339,25 @@ class GeneSymbolClassifier(pl.LightningModule):
         return features_tensor
 
 
-def get_item_one_hot(self, index):
+def get_item_one_hot_features(self, index):
+    """
+    Modularized Dataset __getitem__ method.
+
+    Generate an one-hot encoding for the protein sequence and clade and creates
+    the feature vector from the flattened one-hot sequence and clade vectors.
+
+    Args:
+        self (Dataset): the Dataset object that will contain __getitem__
+    Returns:
+        tuple containing the features vector and symbol index
+    """
     dataset_row = self.dataset.iloc[index].to_dict()
 
     sequence = dataset_row["sequence"]
     clade = dataset_row["clade"]
     symbol = dataset_row["symbol"]
 
-    one_hot_sequence = self.protein_sequence_mapper.protein_letters_to_one_hot(
-        sequence
-    )
+    one_hot_sequence = self.protein_sequence_mapper.sequence_to_one_hot(sequence)
     # one_hot_sequence.shape: (sequence_length, num_protein_letters)
 
     # flatten sequence matrix to a vector
@@ -366,7 +373,7 @@ def get_item_one_hot(self, index):
 
     symbol_index = self.symbol_mapper.label_to_index(symbol)
 
-    item = one_hot_features, symbol_index
+    item = (one_hot_features, symbol_index)
 
     return item
 
@@ -483,7 +490,7 @@ def main():
             training_dataloader,
             validation_dataloader,
             test_dataloader,
-        ) = generate_dataloaders(configuration, get_item_one_hot)
+        ) = generate_dataloaders(configuration, get_item_one_hot_features)
 
         if configuration.num_symbols < 1000:
             configuration.symbols_metadata = None
@@ -541,7 +548,9 @@ def main():
 
         network = GeneSymbolClassifier.load_from_checkpoint(args.checkpoint)
 
-        _, _, test_dataloader = generate_dataloaders(network.hparams, get_item_one_hot)
+        _, _, test_dataloader = generate_dataloaders(
+            network.hparams, get_item_one_hot_features
+        )
 
         trainer = pl.Trainer()
         trainer.test(network, dataloaders=test_dataloader)
