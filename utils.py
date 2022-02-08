@@ -278,7 +278,9 @@ class SequenceDataset(Dataset):
     Custom Dataset for raw sequences.
     """
 
-    def __init__(self, configuration):
+    def __init__(self, configuration, get_item):
+        self.get_item = get_item
+
         if "num_symbols" in configuration:
             assert (
                 "min_frequency" not in configuration
@@ -300,17 +302,17 @@ class SequenceDataset(Dataset):
         self.num_symbols = configuration.num_symbols
 
         # select the features and labels columns
-        self.data = data[["sequence", "clade", "symbol", "scientific_name"]]
+        self.dataset = data[["sequence", "clade", "symbol", "scientific_name"]]
 
         if configuration.excluded_genera is not None:
-            num_total_samples = len(self.data)
+            num_total_samples = len(self.dataset)
 
             for genus in configuration.excluded_genera:
                 scientific_name_prefix = f"{genus} "
-                self.data = self.data[
-                    ~self.data["scientific_name"].str.startswith(scientific_name_prefix)
+                self.dataset = self.dataset[
+                    ~self.dataset["scientific_name"].str.startswith(scientific_name_prefix)
                 ]
-            num_used_samples = len(self.data)
+            num_used_samples = len(self.dataset)
 
             logger.info(
                 f"excluded genera {configuration.excluded_genera}, using {num_used_samples} out of {num_total_samples} total samples"
@@ -318,17 +320,17 @@ class SequenceDataset(Dataset):
 
         # pad or truncate all sequences to size `sequence_length`
         with SuppressSettingWithCopyWarning():
-            self.data["sequence"] = self.data["sequence"].str.pad(
+            self.dataset["sequence"] = self.dataset["sequence"].str.pad(
                 width=configuration.sequence_length,
                 side=configuration.padding_side,
                 fillchar=" ",
             )
-            self.data["sequence"] = self.data["sequence"].str.slice(
+            self.dataset["sequence"] = self.dataset["sequence"].str.slice(
                 stop=configuration.sequence_length
             )
 
         # generate gene symbols CategoryMapper
-        symbols = sorted(self.data["symbol"].unique().tolist())
+        symbols = sorted(self.dataset["symbol"].unique().tolist())
         self.symbol_mapper = CategoryMapper(symbols)
 
         # generate protein sequences mapper
@@ -339,36 +341,10 @@ class SequenceDataset(Dataset):
         self.clade_mapper = CategoryMapper(clades)
 
     def __len__(self):
-        return len(self.data)
+        return len(self.dataset)
 
     def __getitem__(self, index):
-        data_row = self.data.iloc[index].to_dict()
-
-        sequence = data_row["sequence"]
-        clade = data_row["clade"]
-        symbol = data_row["symbol"]
-
-        one_hot_sequence = self.protein_sequence_mapper.protein_letters_to_one_hot(
-            sequence
-        )
-        # one_hot_sequence.shape: (sequence_length, num_protein_letters)
-
-        # flatten sequence matrix to a vector
-        flat_one_hot_sequence = torch.flatten(one_hot_sequence)
-        # flat_one_hot_sequence.shape: (sequence_length * num_protein_letters,)
-
-        one_hot_clade = self.clade_mapper.label_to_one_hot(clade)
-        # one_hot_clade.shape: (num_clades,)
-
-        # concatenate features to a single vector
-        one_hot_features = torch.cat([flat_one_hot_sequence, one_hot_clade])
-        # one_hot_features.shape: ((sequence_length * num_protein_letters) + num_clades,)
-
-        symbol_index = self.symbol_mapper.label_to_index(symbol)
-
-        item = one_hot_features, symbol_index
-
-        return item
+        return self.get_item(self, index)
 
 
 class CategoryMapper:
@@ -1142,7 +1118,7 @@ class SuppressSettingWithCopyWarning:
         pd.options.mode.chained_assignment = self.original_setting
 
 
-def generate_dataloaders(configuration):
+def generate_dataloaders(configuration, get_item):
     """
     Generate training, validation, and test dataloaders from the dataset files.
 
@@ -1151,7 +1127,7 @@ def generate_dataloaders(configuration):
     Returns:
         tuple containing the training, validation, and test dataloaders
     """
-    dataset = SequenceDataset(configuration)
+    dataset = SequenceDataset(configuration, get_item)
 
     configuration.symbol_mapper = dataset.symbol_mapper
     configuration.protein_sequence_mapper = dataset.protein_sequence_mapper

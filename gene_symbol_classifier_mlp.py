@@ -69,8 +69,8 @@ from utils import (
 
 class GeneSymbolClassifier(pl.LightningModule):
     """
-    A fully connected neural network for gene name classification of protein sequences
-    using the protein letters as features.
+    MLP network for gene symbol classification of protein coding sequences using
+    the raw protein letters as features.
     """
 
     def __init__(self, **kwargs):
@@ -341,6 +341,36 @@ class GeneSymbolClassifier(pl.LightningModule):
         return features_tensor
 
 
+def get_item_one_hot(self, index):
+    dataset_row = self.dataset.iloc[index].to_dict()
+
+    sequence = dataset_row["sequence"]
+    clade = dataset_row["clade"]
+    symbol = dataset_row["symbol"]
+
+    one_hot_sequence = self.protein_sequence_mapper.protein_letters_to_one_hot(
+        sequence
+    )
+    # one_hot_sequence.shape: (sequence_length, num_protein_letters)
+
+    # flatten sequence matrix to a vector
+    flat_one_hot_sequence = torch.flatten(one_hot_sequence)
+    # flat_one_hot_sequence.shape: (sequence_length * num_protein_letters,)
+
+    one_hot_clade = self.clade_mapper.label_to_one_hot(clade)
+    # one_hot_clade.shape: (num_clades,)
+
+    # concatenate features to a single vector
+    one_hot_features = torch.cat([flat_one_hot_sequence, one_hot_clade])
+    # one_hot_features.shape: ((sequence_length * num_protein_letters) + num_clades,)
+
+    symbol_index = self.symbol_mapper.label_to_index(symbol)
+
+    item = one_hot_features, symbol_index
+
+    return item
+
+
 def main():
     """
     main function
@@ -453,7 +483,7 @@ def main():
             training_dataloader,
             validation_dataloader,
             test_dataloader,
-        ) = generate_dataloaders(configuration)
+        ) = generate_dataloaders(configuration, get_item_one_hot)
 
         if configuration.num_symbols < 1000:
             configuration.symbols_metadata = None
@@ -511,7 +541,7 @@ def main():
 
         network = GeneSymbolClassifier.load_from_checkpoint(args.checkpoint)
 
-        _, _, test_dataloader = generate_dataloaders(network.hparams)
+        _, _, test_dataloader = generate_dataloaders(network.hparams, get_item_one_hot)
 
         trainer = pl.Trainer()
         trainer.test(network, dataloaders=test_dataloader)
