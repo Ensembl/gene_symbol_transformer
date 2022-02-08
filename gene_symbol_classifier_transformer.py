@@ -67,9 +67,10 @@ from utils import (
 )
 
 
-class BinaryClassificationTransformer(pl.LightningModule):
+class ClassificationTransformer(pl.LightningModule):
     def __init__(
         self,
+        num_classes,
         embedding_dimension,
         num_heads,
         depth,
@@ -81,7 +82,7 @@ class BinaryClassificationTransformer(pl.LightningModule):
     ):
         super().__init__()
 
-        output_size = 1
+        self.num_classes = num_classes
 
         self.token_embedding = nn.Embedding(
             num_embeddings=num_tokens, embedding_dim=embedding_dimension
@@ -103,7 +104,9 @@ class BinaryClassificationTransformer(pl.LightningModule):
         ]
         self.transformer_blocks = nn.Sequential(*transformer_blocks)
 
-        self.final_layer = nn.Linear(embedding_dimension, output_size)
+        self.fully_connected_layer = nn.Linear(embedding_dimension, num_classes)
+
+        self.final_activation = nn.LogSoftmax(dim=1)
 
     def forward(self, x):
         # generate token embeddings
@@ -124,9 +127,9 @@ class BinaryClassificationTransformer(pl.LightningModule):
         # average-pool over dimension t
         x = x.mean(dim=1)
 
-        x = self.final_layer(x)
+        x = self.fully_connected_layer(x)
 
-        x = torch.sigmoid(x)
+        x = self.final_activation(x)
 
         return x
 
@@ -219,44 +222,53 @@ class TransformerBlock(nn.Module):
         return x
 
 
-class ProteinCodingClassifier(BinaryClassificationTransformer):
+class GeneSymbolClassifier(ClassificationTransformer):
     """
-    Neural network for protein coding or non-coding classification of DNA sequences.
+    Neural network for gene symbol classification of protein coding sequences using
+    the raw protein letters as features.
     """
 
     def __init__(self, **kwargs):
         self.save_hyperparameters()
 
         super().__init__(
+            num_classes=self.hparams.num_symbols,
             embedding_dimension=self.hparams.embedding_dimension,
             num_heads=self.hparams.num_heads,
             depth=self.hparams.transformer_depth,
             feedforward_connections=self.hparams.feedforward_connections,
             sequence_length=self.hparams.sequence_length,
-            num_tokens=self.hparams.num_nucleobase_letters,
+            num_tokens=self.hparams.num_protein_letters,
             dropout_probability=self.hparams.dropout_probability,
             activation_function=self.hparams.activation_function,
         )
 
-        self.dna_sequence_mapper = self.hparams.dna_sequence_mapper
+        self.sequence_length = self.hparams.sequence_length
+        self.padding_side = self.hparams.padding_side
+        self.num_symbols = self.hparams.num_symbols
+
+        self.protein_sequence_mapper = self.hparams.protein_sequence_mapper
+        self.clade_mapper = self.hparams.clade_mapper
+        self.symbol_mapper = self.hparams.symbol_mapper
+
+        self.num_sample_predictions = self.hparams.num_sample_predictions
 
         self.best_validation_accuracy = 0
+
+        self.torchmetrics_accuracy_average = "weighted"
 
     def on_pretrain_routine_end(self):
         logger.info("start network training")
         logger.info(f"configuration:\n{self.hparams}")
 
     def training_step(self, batch, batch_index):
-        features, labels = batch
+        sequence_features, clade_features, labels = batch
 
         # forward pass
-        output = self(features)
-
-        labels = labels.unsqueeze(1)
-        labels = labels.to(torch.float32)
+        output = self(sequence_features)
 
         # loss function
-        training_loss = F.binary_cross_entropy(output, labels)
+        training_loss = F.nll_loss(output, labels)
         self.log("training_loss", training_loss)
 
         # clip gradients to prevent the exploding gradient problem
@@ -267,24 +279,26 @@ class ProteinCodingClassifier(BinaryClassificationTransformer):
 
     def on_validation_start(self):
         # https://torchmetrics.readthedocs.io/en/stable/pages/overview.html#metrics-and-devices
-        self.validation_accuracy = torchmetrics.Accuracy(num_classes=2).to(self.device)
+        self.validation_accuracy = torchmetrics.Accuracy(
+            num_classes=self.num_symbols, average=self.torchmetrics_accuracy_average
+        ).to(self.device)
 
     def validation_step(self, batch, batch_index):
-        features, labels = batch
+        sequence_features, clade_features, labels = batch
 
         # forward pass
-        output = self(features)
+        output = self(sequence_features)
 
-        labels = labels.unsqueeze(1)
-        labels = labels.to(torch.float32)
-
-        validation_loss = F.binary_cross_entropy(output, labels)
+        # loss function
+        validation_loss = F.nll_loss(output, labels)
         self.log("validation_loss", validation_loss)
 
-        predictions = self.get_predictions(output)
+        # get predicted label indexes from output
+        predictions, _ = self.get_prediction_indexes_probabilities(output)
 
-        labels = labels.to(torch.int32)
         self.validation_accuracy(predictions, labels)
+
+        return validation_loss
 
     def on_validation_end(self):
         self.best_validation_accuracy = max(
@@ -306,175 +320,24 @@ class ProteinCodingClassifier(BinaryClassificationTransformer):
         pass
 
     def on_test_start(self):
-        self.test_accuracy = torchmetrics.Accuracy(num_classes=2).to(self.device)
-        self.test_precision = torchmetrics.Precision(num_classes=2).to(self.device)
-        self.test_recall = torchmetrics.Recall(num_classes=2).to(self.device)
-
-    def test_step(self, batch, batch_index):
-        features, labels = batch
-
-        # forward pass
-        output = self(features)
-
-        predictions = self.get_predictions(output)
-
-        labels = labels.unsqueeze(1)
-
-        self.test_accuracy(predictions, labels)
-        self.test_precision(predictions, labels)
-        self.test_recall(predictions, labels)
-
-    def on_test_end(self):
-        # log statistics
-        test_accuracy = self.test_accuracy.compute()
-        precision = self.test_precision.compute()
-        recall = self.test_recall.compute()
-        logger.info(
-            f"test accuracy: {test_accuracy:.4f} | precision: {precision:.4f} | recall: {recall:.4f}"
-        )
-        logger.info(f"best validation accuracy: {self.best_validation_accuracy:.4f}")
-
-    def configure_optimizers(self):
-        # optimization function
-        optimizer = torch.optim.Adam(
-            params=self.parameters(),
-            lr=self.hparams.learning_rate,
-            weight_decay=self.hparams.weight_decay,
-        )
-        return optimizer
-
-    def get_predictions(self, output):
-        threshold_value = 0.5
-        threshold = torch.Tensor([threshold_value]).to(device=self.device)
-
-        predictions = (output > threshold).to(dtype=torch.int32)
-        return predictions
-
-
-class GeneSymbolClassifier(pl.LightningModule):
-    """
-    A fully connected neural network for gene name classification of protein sequences
-    using the protein letters as features.
-    """
-
-    def __init__(self, **kwargs):
-        super().__init__()
-
-        self.save_hyperparameters()
-
-        self.sequence_length = self.hparams.sequence_length
-        self.padding_side = self.hparams.padding_side
-        self.num_protein_letters = self.hparams.num_protein_letters
-        self.num_clades = self.hparams.num_clades
-        self.num_symbols = self.hparams.num_symbols
-        self.num_connections = self.hparams.num_connections
-        self.dropout_probability = self.hparams.dropout_probability
-        self.symbol_mapper = self.hparams.symbol_mapper
-        self.protein_sequence_mapper = self.hparams.protein_sequence_mapper
-        self.clade_mapper = self.hparams.clade_mapper
-
-        self.num_sample_predictions = self.hparams.num_sample_predictions
-
-        input_size = (self.sequence_length * self.num_protein_letters) + self.num_clades
-        output_size = self.num_symbols
-
-        self.input_layer = nn.Linear(
-            in_features=input_size, out_features=self.num_connections
-        )
-        self.dropout = nn.Dropout(self.dropout_probability)
-
-        self.relu = nn.ReLU()
-
-        self.output_layer = nn.Linear(
-            in_features=self.num_connections, out_features=output_size
-        )
-
-        self.final_activation = nn.LogSoftmax(dim=1)
-
-        self.best_validation_accuracy = 0
-
-    def forward(self, x):
-        x = self.input_layer(x)
-        x = self.dropout(x)
-        x = self.relu(x)
-
-        x = self.output_layer(x)
-        x = self.dropout(x)
-        x = self.final_activation(x)
-
-        return x
-
-    def on_pretrain_routine_end(self):
-        logger.info("start network training")
-        logger.info(f"configuration:\n{self.hparams}")
-
-    def training_step(self, batch, batch_index):
-        features, labels = batch
-
-        # forward pass
-        output = self(features)
-
-        # loss function
-        training_loss = F.nll_loss(output, labels)
-        self.log("training_loss", training_loss)
-
-        return training_loss
-
-    def on_validation_start(self):
-        # https://torchmetrics.readthedocs.io/en/stable/pages/overview.html#metrics-and-devices
-        self.validation_accuracy = torchmetrics.Accuracy(num_classes=self.num_symbols).to(
-            self.device
-        )
-
-    def validation_step(self, batch, batch_index):
-        features, labels = batch
-
-        # forward pass
-        output = self(features)
-
-        # loss function
-        validation_loss = F.nll_loss(output, labels)
-        self.log("validation_loss", validation_loss)
-
-        # get predicted label indexes from output
-        predictions, _ = self.get_prediction_indexes_probabilities(output)
-
-        self.validation_accuracy(predictions, labels)
-
-        return validation_loss
-
-    def on_validation_end(self):
-        self.best_validation_accuracy = max(
-            self.best_validation_accuracy,
-            self.validation_accuracy.compute().item(),
-        )
-
-    def on_train_end(self):
-        # NOTE: disabling saving network to TorchScript, seems buggy
-        # save network in TorchScript format
-        # experiment_directory_path = pathlib.Path(self.hparams.experiment_directory)
-        # torchscript_path = experiment_directory_path / "torchscript_network.pt"
-        # torchscript = self.to_torchscript()
-        # torch.jit.save(torchscript, torchscript_path)
-        pass
-
-    def on_test_start(self):
-        self.test_accuracy = torchmetrics.Accuracy().to(self.device)
+        self.test_accuracy = torchmetrics.Accuracy(
+            num_classes=self.num_symbols, average=self.torchmetrics_accuracy_average
+        ).to(self.device)
         self.test_precision = torchmetrics.Precision(
-            num_classes=self.num_symbols, average="macro"
+            num_classes=self.num_symbols, average=self.torchmetrics_accuracy_average
         ).to(self.device)
         self.test_recall = torchmetrics.Recall(
-            num_classes=self.num_symbols, average="macro"
+            num_classes=self.num_symbols, average=self.torchmetrics_accuracy_average
         ).to(self.device)
 
         self.sample_labels = torch.empty(0).to(self.device)
         self.sample_predictions = torch.empty(0).to(self.device)
 
     def test_step(self, batch, batch_index):
-        features, labels = batch
+        sequence_features, clade_features, labels = batch
 
         # forward pass
-        output = self(features)
+        output = self(sequence_features)
 
         # get predicted label indexes from output
         predictions, _ = self.get_prediction_indexes_probabilities(output)
@@ -553,12 +416,14 @@ class GeneSymbolClassifier(pl.LightningModule):
         Get symbol predictions for a list of protein sequences, along with
         the probabilities of predictions.
         """
-        features_tensor = self.generate_features_tensor(sequences, clades)
+        sequence_features, _clade_features = self.generate_features_tensor(
+            sequences, clades
+        )
 
         # run inference
         with torch.no_grad():
             self.eval()
-            output = self.forward(features_tensor)
+            output = self.forward(sequence_features)
 
         prediction_indexes, probabilities = self.get_prediction_indexes_probabilities(
             output
@@ -591,12 +456,13 @@ class GeneSymbolClassifier(pl.LightningModule):
 
     def generate_features_tensor(self, sequences, clades):
         """
-        Convert lists of protein sequences and species clades to an one-hot
-        encoded features tensor.
+        Convert lists of protein sequences and species clades to a label encoded sequence
+        features tensor and an one-hot encoded clade features tensor.
         """
         padding_side_to_align = {"left": ">", "right": "<"}
 
-        one_hot_features_list = []
+        sequence_features_list = []
+        clade_features_list = []
         for sequence, clade in zip(sequences, clades):
             # pad or truncate sequence to be exactly `self.sequence_length` letters long
             sequence = "{string:{align}{string_length}.{truncate_length}}".format(
@@ -606,23 +472,54 @@ class GeneSymbolClassifier(pl.LightningModule):
                 truncate_length=self.sequence_length,
             )
 
-            one_hot_sequence = self.protein_sequence_mapper.protein_letters_to_one_hot(
-                sequence
+            label_encoded_sequence = (
+                self.protein_sequence_mapper.sequence_to_label_encoding(sequence)
             )
             one_hot_clade = self.clade_mapper.label_to_one_hot(clade)
 
-            # flatten sequence matrix to a vector
-            flat_one_hot_sequence = torch.flatten(one_hot_sequence)
+            sequence_features_list.append(label_encoded_sequence)
+            clade_features_list.append(one_hot_clade)
 
-            one_hot_features_vector = torch.cat([flat_one_hot_sequence, one_hot_clade])
+        sequence_features = np.stack(sequence_features_list)
+        clade_features = np.stack(clade_features_list)
 
-            one_hot_features_list.append(one_hot_features_vector)
+        sequence_features_tensor = torch.from_numpy(sequence_features)
+        clade_features_tensor = torch.from_numpy(clade_features)
 
-        one_hot_features = np.stack(one_hot_features_list)
+        return (sequence_features_tensor, clade_features_tensor)
 
-        features_tensor = torch.from_numpy(one_hot_features)
 
-        return features_tensor
+def get_item_sequence_label_clade_one_hot(self, index):
+    """
+    Modularized Dataset __getitem__ method.
+
+    Generate a protein sequence label encoding and a species clade one-hot encoding and
+    use as separate feature vectors.
+
+    Args:
+        self (Dataset): the Dataset object that will contain __getitem__
+    Returns:
+        tuple containing the features vector and symbol index
+    """
+    dataset_row = self.dataset.iloc[index].to_dict()
+
+    sequence = dataset_row["sequence"]
+    clade = dataset_row["clade"]
+    symbol = dataset_row["symbol"]
+
+    label_encoded_sequence = self.protein_sequence_mapper.sequence_to_label_encoding(
+        sequence
+    )
+    # label_encoded_sequence.shape: (sequence_length,)
+
+    one_hot_clade = self.clade_mapper.label_to_one_hot(clade)
+    # one_hot_clade.shape: (num_clades,)
+
+    symbol_index = self.symbol_mapper.label_to_index(symbol)
+
+    item = (label_encoded_sequence, one_hot_clade, symbol_index)
+
+    return item
 
 
 def main():
@@ -737,7 +634,7 @@ def main():
             training_dataloader,
             validation_dataloader,
             test_dataloader,
-        ) = generate_dataloaders(configuration)
+        ) = generate_dataloaders(configuration, get_item_sequence_label_clade_one_hot)
 
         if configuration.num_symbols < 1000:
             configuration.symbols_metadata = None
@@ -795,7 +692,9 @@ def main():
 
         network = GeneSymbolClassifier.load_from_checkpoint(args.checkpoint)
 
-        _, _, test_dataloader = generate_dataloaders(network.hparams)
+        _, _, test_dataloader = generate_dataloaders(
+            network.hparams, get_item_sequence_label_clade_one_hot
+        )
 
         trainer = pl.Trainer()
         trainer.test(network, dataloaders=test_dataloader)
