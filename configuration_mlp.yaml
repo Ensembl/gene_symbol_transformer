@@ -92,9 +92,9 @@ num_workers: 1
 #num_workers: 5
 #num_workers: 13
 
-learning_rate: 5.0e-4
+learning_rate: 3.0e-4
 #learning_rate: 1.0e-4
-#learning_rate: 5.0e-5
+#learning_rate: 3.0e-5
 
 # number of epochs without validation loss improvement before training stops
 patience: 3
