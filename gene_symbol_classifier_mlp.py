@@ -343,7 +343,7 @@ def get_item_one_hot_features(self, index):
     """
     Modularized Dataset __getitem__ method.
 
-    Generate an one-hot encoding for the protein sequence and clade and creates
+    Generate an one-hot encoding for the protein sequence and clade and create
     the feature vector from the flattened one-hot sequence and clade vectors.
 
     Args:
