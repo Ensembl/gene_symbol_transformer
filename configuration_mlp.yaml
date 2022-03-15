@@ -63,7 +63,7 @@ padding_side: right
 
 # network architecture
 ################################################################################
-# number of connections between fully connected network layers
+# number of connections between fully connected layers
 #num_connections: 16
 #num_connections: 32
 num_connections: 64
