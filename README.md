@@ -33,7 +33,7 @@ During training a validation set is being tested and early stopping is used for 
 
 ### experiment setup
 
-Specify parameters and hyperparameters for your experiment by editing or copying the `configuration.yaml` configuration file.
+Specify parameters and hyperparameters for your experiment by editing or copying one of the configuration YAML files.
 
 
 ## create and use a classifier
@@ -64,7 +64,7 @@ train directly on a compute node
 python <pipeline script> --configuration <experiment configuration file> --train
 
 # e.g.
-python gene_symbol_classifier_mlp.py --configuration configuration_mlp.yaml --train
+python mlp_pipeline.py --configuration mlp_configuration.yaml --train
 ```
 
 submit a training job with bsub
@@ -73,7 +73,7 @@ python submit_LSF_job.py --pipeline <pipeline script> --configuration <experimen
 
 
 # e.g.
-python submit_LSF_job.py --pipeline gene_symbol_classifier_mlp.py --configuration configuration_mlp.yaml
+python submit_LSF_job.py --pipeline mlp_pipeline.py --configuration mlp_configuration.yaml
 ```
 
 ### testing
@@ -82,7 +82,7 @@ Testing for a neural network is automatically run after training, but can also b
 
 load checkpoint and test the trained network
 ```
-python gene_symbol_classifier_mlp.py --checkpoint <checkpoint path> --test
+python mlp_pipeline.py --checkpoint <checkpoint path> --test
 ```
 
 submit a testing job with bsub
@@ -96,12 +96,12 @@ A trained network can be evaluated by assigning gene symbols to the canonical tr
 
 evaluate a trained network
 ```
-python gene_symbol_classifier_mlp.py --evaluate --checkpoint <checkpoint path>
+python mlp_pipeline.py --evaluate --checkpoint <checkpoint path>
 ```
 
 The gene symbol assignments of a classifier can also be directly compared with the existing gene symbols in an Ensembl release.
 ```
-python gene_symbol_classifier_mlp.py --assignments_csv <assignments CSV path> --ensembl_database <Ensembl core database name>
+python mlp_pipeline.py --assignments_csv <assignments CSV path> --ensembl_database <Ensembl core database name>
 ```
 
 ### assign gene symbols to protein sequences
@@ -110,7 +110,7 @@ After training, the network is ready to assign gene symbols to protein sequences
 
 assign symbols to sequences in a FASTA file and save them to a CSV file
 ```
-python gene_symbol_classifier_mlp.py --checkpoint <checkpoint path> --sequences_fasta <FASTA file path> --scientific_name <species scientific name>
+python mlp_pipeline.py --checkpoint <checkpoint path> --sequences_fasta <FASTA file path> --scientific_name <species scientific name>
 ```
 
 
