@@ -31,7 +31,7 @@ CREATE TABLE odb10v1_OGs (
   -- 2. level tax_id on which the group was built
   tax_id CHAR(128),
   -- 3. OG name (the most common gene name within the group)
-  og_name VARCHAR(1024),
+  og_name VARCHAR(256),
 
   PRIMARY KEY (og_id)
 );
@@ -85,5 +85,5 @@ CREATE TABLE odb10v1_OG2genes (
 CREATE TABLE odb10v1_all_og_fasta (
   internal_gene_id CHAR(32),
   public_gene_id CHAR(32),
-  sequence VARCHAR(10240)
+  sequence VARCHAR(102400)
 );
