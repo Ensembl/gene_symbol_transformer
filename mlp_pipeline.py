@@ -573,7 +573,8 @@ def main():
     elif args.sequences_fasta and args.scientific_name and args.checkpoint:
         checkpoint_path = pathlib.Path(args.checkpoint)
 
-        log_file_path = f"{checkpoint_path.parent}/experiment.log"
+        sequences_fasta_path = pathlib.Path(args.sequences_fasta)
+        log_file_path = f"{sequences_fasta_path.parent}/{checkpoint_path.stem}.log"
         add_log_file_handler(logger, log_file_path)
 
         network = GeneSymbolClassifier.load_from_checkpoint(args.checkpoint)
