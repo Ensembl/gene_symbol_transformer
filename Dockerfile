@@ -10,7 +10,7 @@ ENV \
 # Poetry installation environment variables
 ENV \
     POETRY_HOME="/opt/poetry" \
-    POETRY_VERSION=1.1.12 \
+    POETRY_VERSION=1.1.13 \
     POETRY_VIRTUALENVS_CREATE=false
 
 # add Poetry bin directory to PATH
@@ -36,11 +36,11 @@ RUN mkdir --verbose /app/data
 
 # copy pipeline program files
 COPY \
-    gene_symbol_classifier_mlp.py \
+    mlp_pipeline.py \
     utils.py \
     /app/
 
 VOLUME /app/checkpoints
 VOLUME /app/data
 
-ENTRYPOINT ["python", "/app/gene_symbol_classifier_mlp.py"]
+ENTRYPOINT ["python", "/app/mlp_pipeline.py"]
