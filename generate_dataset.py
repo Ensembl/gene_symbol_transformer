@@ -330,11 +330,6 @@ def main():
     """
     argument_parser = argparse.ArgumentParser()
     argument_parser.add_argument(
-        "--generate_datasets",
-        action="store_true",
-        help="generate full and dev datasets from genome assemblies in the latest Ensembl release",
-    )
-    argument_parser.add_argument(
         "--save_symbols_metadata",
         action="store_true",
         help="save symbols source and description to a JSON file",
@@ -345,15 +340,11 @@ def main():
     log_file_path = data_directory / "dataset_generation.log"
     add_log_file_handler(logger, log_file_path)
 
-    if args.generate_datasets:
-        generate_datasets()
-    elif args.save_symbols_metadata:
+    if args.save_symbols_metadata:
         dataset = load_dataset()
         save_symbols_metadata(dataset)
     else:
-        print("Error: missing argument.")
-        print(__doc__)
-        argument_parser.print_help()
+        generate_datasets()
 
 
 if __name__ == "__main__":
