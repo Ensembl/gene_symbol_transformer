@@ -120,24 +120,24 @@ The recommended way to use a gene symbol classifier in production is packaged as
 
 build a Docker image
 ```
-docker image build --tag williamebi/gene_symbol_classifier:<gene symbol classifier version> --file Dockerfile .
+docker image build --tag ensemblorg/gene_symbol_classifier:<gene symbol classifier version> --file Dockerfile .
 ```
 
 As the Docker container needs access to the input checkpoint and FASTA sequences files, the directories of these files along with their filenames are required as arguments in order to set up Docker volumes to these directories.
 
 assign gene symbols with a Docker container
 ```
-CHECKPOINTS_DIRECTORY=<checkpoints directory path>; CHECKPOINT=<checkpoint filename>; SEQUENCES_DIRECTORY=<sequences file directory path>; SEQUENCES=<sequences fasta filename>; SCIENTIFIC_NAME=<species scientific name>; docker run --read-only --volume="$CHECKPOINTS_DIRECTORY":/app/checkpoints --volume="$SEQUENCES_DIRECTORY":/app/data williamebi/gene_symbol_classifier:<gene symbol classifier version> --checkpoint "/app/checkpoints/${CHECKPOINT}" --sequences_fasta "/app/data/${SEQUENCES}" --scientific_name "$SCIENTIFIC_NAME"
+CHECKPOINTS_DIRECTORY=<checkpoints directory path>; CHECKPOINT=<checkpoint filename>; SEQUENCES_DIRECTORY=<sequences file directory path>; SEQUENCES=<sequences fasta filename>; SCIENTIFIC_NAME=<species scientific name>; docker run --read-only --volume="$CHECKPOINTS_DIRECTORY":/app/checkpoints --volume="$SEQUENCES_DIRECTORY":/app/data ensemblorg/gene_symbol_classifier:<gene symbol classifier version> --checkpoint "/app/checkpoints/${CHECKPOINT}" --sequences_fasta "/app/data/${SEQUENCES}" --scientific_name "$SCIENTIFIC_NAME"
 ```
 
 upload the Docker image to Docker Hub
 ```
-docker push williamebi/gene_symbol_classifier:<gene symbol classifier version>
+docker push ensemblorg/gene_symbol_classifier:<gene symbol classifier version>
 ```
 
 generate a Singularity image from a Docker image at Docker Hub
 ```
-singularity pull docker://williamebi/gene_symbol_classifier:<gene symbol classifier version>
+singularity pull docker://ensemblorg/gene_symbol_classifier:<gene symbol classifier version>
 ```
 
 assign gene symbols with a Singularity image
