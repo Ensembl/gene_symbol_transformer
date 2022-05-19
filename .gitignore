@@ -1,30 +1,32 @@
-# .gitignore
-
-
 # Vim swap files
 *.swp
 
 # Python byte code files
 *.pyc
 
-# PDF files
-*.pdf
-
-# zip files
-*.zip
-
 # Jupyter Notebook checkpoints
 .ipynb_checkpoints
 
-# virtual environment directory
-.venv
-
-# PNG images
+# binary file formats
+*.pdf
+*.zip
 *.png
+*.mp4
+*.mkv
+*.jpg
+*.jpeg
+*.pickle
+*.docx
+*.7z
+*.webm
+*.sif
+
+# other file formats
+*.html
+*.csv
 
 *.ipynb
 *.yaml
-*.csv
 *.fasta
 *.log
 
@@ -32,7 +34,4 @@
 
 data
 experiments
-more
-configs
-production
 notebooks
