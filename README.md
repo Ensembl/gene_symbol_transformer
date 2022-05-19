@@ -52,7 +52,7 @@ poetry install
 
 The dataset generation encompasses downloading canonical translation protein sequences and metadata from the genome assemblies in Ensembl release 105. It also generates small datasets for fast iteration during development. It can be recreated with the following command:
 ```
-python dataset_generation.py --generate_datasets
+python generate_dataset.py
 ```
 
 ### training
