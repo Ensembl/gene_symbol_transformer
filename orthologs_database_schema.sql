@@ -19,8 +19,8 @@
 
 DROP TABLE IF EXISTS odb10v1_OGs;
 DROP TABLE IF EXISTS odb10v1_genes;
-DROP TABLE IF EXISTS odb10v1_gene_xrefs;
 DROP TABLE IF EXISTS odb10v1_OG2genes;
+DROP TABLE IF EXISTS odb10v1_gene_xrefs;
 DROP TABLE IF EXISTS odb10v1_all_og_fasta;
 
 
@@ -71,6 +71,17 @@ CREATE TABLE odb10v1_genes (
 );
 
 
+-- OGs to genes correspondence
+CREATE TABLE odb10v1_OG2genes (
+  -- max string length: 17
+  -- 1. OG unique id
+  og_id CHAR(32),
+  -- 2. Ortho DB gene id
+  -- max string length: 16
+  gene_id CHAR(16)
+);
+
+
 -- UniProt, ENSEMBL, NCBI, GO and InterPro ids associated with Ortho DB gene
 CREATE TABLE odb10v1_gene_xrefs (
   -- 1. Ortho DB gene id
@@ -82,17 +93,6 @@ CREATE TABLE odb10v1_gene_xrefs (
   -- 3. external DB name, one of {GOterm, InterPro, NCBIproteinGI, UniProt, ENSEMBL, NCBIgid, NCBIgenename}
   -- max string length: 14
   external_db CHAR(16)
-);
-
-
--- OGs to genes correspondence
-CREATE TABLE odb10v1_OG2genes (
-  -- max string length: 17
-  -- 1. OG unique id
-  og_id CHAR(32),
-  -- 2. Ortho DB gene id
-  -- max string length: 16
-  gene_id CHAR(16)
 );
 
 
