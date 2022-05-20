@@ -382,7 +382,8 @@ class CategoryMapper:
         Get the one-hot representation of label.
         """
         one_hot_label = F.one_hot(
-            torch.tensor(self.label_to_index_dict[label]), num_classes=self.num_categories
+            torch.tensor(self.label_to_index_dict[label]),
+            num_classes=self.num_categories,
         )
         one_hot_label = one_hot_label.type(torch.float32)
         return one_hot_label
@@ -508,7 +509,9 @@ def assign_symbols(
                     if fasta_entry is not None
                 ]
 
-            identifiers = [fasta_entry[0].split(" ")[0] for fasta_entry in fasta_entries]
+            identifiers = [
+                fasta_entry[0].split(" ")[0] for fasta_entry in fasta_entries
+            ]
             sequences = [fasta_entry[1] for fasta_entry in fasta_entries]
             clades = [clade for _ in range(len(fasta_entries))]
 
@@ -551,18 +554,25 @@ def evaluate_network(network, checkpoint_path, complete=False):
 
     configuration = network.hparams
 
-    symbols_set = set(symbol.lower() for symbol in configuration.symbol_mapper.categories)
+    symbols_set = set(
+        symbol.lower() for symbol in configuration.symbol_mapper.categories
+    )
 
     assemblies = get_assemblies_metadata()
     comparison_statistics_list = []
     for assembly in assemblies:
-        if not complete and assembly.assembly_accession not in selected_genome_assemblies:
+        if (
+            not complete
+            and assembly.assembly_accession not in selected_genome_assemblies
+        ):
             continue
 
         canonical_fasta_filename = assembly.fasta_filename.replace(
             "pep.all.fa", "pep.all_canonical.fa"
         )
-        canonical_fasta_path = main_release_sequences_directory / canonical_fasta_filename
+        canonical_fasta_path = (
+            main_release_sequences_directory / canonical_fasta_filename
+        )
 
         # assign symbols
         assignments_csv_path = (
@@ -788,7 +798,9 @@ def generate_canonical_protein_sequences_fasta(assembly, ensembl_release):
             archived_fasta_filename,
         )
     else:
-        archived_fasta_url = f"{base_url}{assembly.species}/pep/{archived_fasta_filename}"
+        archived_fasta_url = (
+            f"{base_url}{assembly.species}/pep/{archived_fasta_filename}"
+        )
 
     sequences_directory.mkdir(parents=True, exist_ok=True)
     archived_fasta_path = sequences_directory / archived_fasta_filename
@@ -1050,9 +1062,9 @@ def get_xref_canonical_translations(
     xref_canonical_translations_df["gene.version"] = xref_canonical_translations_df[
         "gene.version"
     ].astype(str)
-    xref_canonical_translations_df["transcript.version"] = xref_canonical_translations_df[
+    xref_canonical_translations_df[
         "transcript.version"
-    ].astype(str)
+    ] = xref_canonical_translations_df["transcript.version"].astype(str)
     xref_canonical_translations_df[
         "translation.version"
     ] = xref_canonical_translations_df["translation.version"].astype(str)
@@ -1494,7 +1506,9 @@ def get_comparison_statistics(comparisons_csv_path):
     return comparison_statistics
 
 
-def compare_assignments(assignments_csv, ensembl_database, scientific_name, network=None):
+def compare_assignments(
+    assignments_csv, ensembl_database, scientific_name, network=None
+):
     """Compare assignments with the ones on the latest Ensembl release."""
     assignments_csv_path = pathlib.Path(assignments_csv)
 

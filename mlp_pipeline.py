@@ -138,9 +138,9 @@ class GeneSymbolClassifier(pl.LightningModule):
 
     def on_validation_start(self):
         # https://torchmetrics.readthedocs.io/en/stable/pages/overview.html#metrics-and-devices
-        self.validation_accuracy = torchmetrics.Accuracy(num_classes=self.num_symbols).to(
-            self.device
-        )
+        self.validation_accuracy = torchmetrics.Accuracy(
+            num_classes=self.num_symbols
+        ).to(self.device)
 
     def validation_step(self, batch, batch_index):
         features, labels = batch
@@ -205,7 +205,9 @@ class GeneSymbolClassifier(pl.LightningModule):
                 permutation = torch.randperm(len(labels))
 
             sample_labels = labels[permutation[0 : self.num_sample_predictions]]
-            sample_predictions = predictions[permutation[0 : self.num_sample_predictions]]
+            sample_predictions = predictions[
+                permutation[0 : self.num_sample_predictions]
+            ]
 
             self.sample_labels = torch.cat((self.sample_labels, sample_labels))
             self.sample_predictions = torch.cat(
@@ -322,7 +324,9 @@ class GeneSymbolClassifier(pl.LightningModule):
                 truncate_length=self.sequence_length,
             )
 
-            one_hot_sequence = self.protein_sequence_mapper.sequence_to_one_hot(sequence)
+            one_hot_sequence = self.protein_sequence_mapper.sequence_to_one_hot(
+                sequence
+            )
             one_hot_clade = self.clade_mapper.label_to_one_hot(clade)
 
             # flatten sequence matrix to a vector
@@ -398,7 +402,9 @@ def main():
     argument_parser.add_argument(
         "--train", action="store_true", help="train a classifier"
     )
-    argument_parser.add_argument("--test", action="store_true", help="test a classifier")
+    argument_parser.add_argument(
+        "--test", action="store_true", help="test a classifier"
+    )
     argument_parser.add_argument(
         "--sequences_fasta",
         help="path of FASTA file with protein sequences to assign symbols to",
@@ -562,7 +568,9 @@ def main():
             checkpoint_path.parent / f"{checkpoint_path.stem}_evaluation"
         )
         evaluation_directory_path.mkdir(exist_ok=True)
-        log_file_path = evaluation_directory_path / f"{checkpoint_path.stem}_evaluate.log"
+        log_file_path = (
+            evaluation_directory_path / f"{checkpoint_path.stem}_evaluate.log"
+        )
         add_log_file_handler(logger, log_file_path)
 
         network = GeneSymbolClassifier.load_from_checkpoint(checkpoint_path)

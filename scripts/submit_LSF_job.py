@@ -56,7 +56,9 @@ def main():
         "--checkpoint",
         help="path to the saved experiment checkpoint",
     )
-    argument_parser.add_argument("--test", action="store_true", help="test a classifier")
+    argument_parser.add_argument(
+        "--test", action="store_true", help="test a classifier"
+    )
     argument_parser.add_argument(
         "--evaluate", action="store_true", help="evaluate a classifier"
     )
