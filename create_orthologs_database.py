@@ -37,8 +37,8 @@ orthodb_directory = data_directory / "OrthoDB_files"
 orthodb_files = {
     "odb10v1_OGs.tab": ["og_id", "tax_id", "og_name"],
     # "odb10v1_genes.tab": [],
-    # "odb10v1_gene_xrefs.tab": [],
     # "odb10v1_OG2genes.tab": [],
+    # "odb10v1_gene_xrefs.tab": [],
 }
 
 
