@@ -27,10 +27,13 @@ DROP TABLE IF EXISTS odb10v1_all_og_fasta;
 -- Ortho DB orthologous groups
 CREATE TABLE odb10v1_OGs (
   -- 1. OG unique id (not stable between releases)
+  -- max string length: 17
   og_id CHAR(32),
   -- 2. level tax_id on which the group was built
-  tax_id CHAR(128),
+  -- max string length: 9
+  tax_id CHAR(16),
   -- 3. OG name (the most common gene name within the group)
+  -- max string length: 203
   og_name VARCHAR(256),
 
   PRIMARY KEY (og_id)
