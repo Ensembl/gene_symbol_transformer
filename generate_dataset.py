@@ -263,10 +263,14 @@ def generate_dataset_statistics(dataset):
     Generate and log dataset statistics.
     """
     dataset_object_size = sys.getsizeof(dataset)
-    logger.info("dataset object memory usage: {}".format(sizeof_fmt(dataset_object_size)))
+    logger.info(
+        "dataset object memory usage: {}".format(sizeof_fmt(dataset_object_size))
+    )
 
     num_canonical_translations = len(dataset)
-    logger.info(f"dataset contains {num_canonical_translations:,} canonical translations")
+    logger.info(
+        f"dataset contains {num_canonical_translations:,} canonical translations"
+    )
 
     # calculate unique symbols occurrence frequency
     symbol_counts = dataset["symbol"].value_counts()

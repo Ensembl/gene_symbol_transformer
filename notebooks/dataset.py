@@ -105,9 +105,9 @@ figure.add_axes(ax)
 # %%
 
 # %%
-temp_counts = data[data["symbol"].isin(symbol_counts.loc[symbol_counts <= 10 + 1].index)][
-    "symbol"
-].value_counts()
+temp_counts = data[
+    data["symbol"].isin(symbol_counts.loc[symbol_counts <= 10 + 1].index)
+]["symbol"].value_counts()
 
 figure = plt.figure()
 ax = temp_counts.hist(figsize=figsize, bins=10, rwidth=0.7, align="left")

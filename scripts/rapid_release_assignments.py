@@ -85,7 +85,9 @@ def get_rapid_release_assemblies_metadata(rapid_ensembl_release):
     The metadata are loaded from the `species_metadata.json` file in the Rapid Release
     FTP root directory.
     """
-    assemblies_metadata_path = data_directory / "rapid_release_assemblies_metadata.pickle"
+    assemblies_metadata_path = (
+        data_directory / "rapid_release_assemblies_metadata.pickle"
+    )
     if assemblies_metadata_path.exists():
         assemblies_metadata_df = pd.read_pickle(assemblies_metadata_path)
         assemblies_metadata = [
