@@ -36,47 +36,54 @@ orthodb_directory = data_directory / "OrthoDB_files"
 
 orthodb_files = {
     "odb10v1_OGs.tab": ["og_id", "tax_id", "og_name"],
-    # "odb10v1_genes.tab": [],
-    # "odb10v1_OG2genes.tab": [],
-    # "odb10v1_gene_xrefs.tab": [],
+    "odb10v1_genes.tab": [
+        "gene_id",
+        "organism_id",
+        "sequence_id",
+        "synonyms",
+        "uniprot_id",
+        "ensembl_ids",
+        "ncbi_gid_or_gene_name",
+        "description",
+    ],
+    "odb10v1_OG2genes.tab": ["og_id", "gene_id"],
+    "odb10v1_gene_xrefs.tab": ["gene_id", "external_id", "external_db"],
 }
 
 
-def initialize_database(database_path):
+def initialize_database(database_file_path, database_schema_path):
     # delete database file if already exists
-    database_path.unlink(missing_ok=True)
+    database_file_path.unlink(missing_ok=True)
 
-    connection = sqlite3.connect(database_path)
+    connection = sqlite3.connect(database_file_path)
     cursor = connection.cursor()
 
     # create database according to the schema
-    database_schema_path = "orthologs_database_schema.sql"
-
-    with open(database_schema_path, "r") as schema_file:
-        database_schema = schema_file.read()
+    with open(database_schema_path, "r") as database_schema_file:
+        database_schema = database_schema_file.read()
 
     cursor.executescript(database_schema)
 
     connection.commit()
     connection.close()
 
-    print(f"{database_path} database initialized")
+    print(f"{database_file_path} database initialized")
 
 
-def populate_database(database_path):
+def populate_database(database_file_path):
     for orthodb_file in orthodb_files:
         csv_file_path = orthodb_directory / orthodb_file
-        populate_table(database_path, csv_file_path)
+        populate_table(database_file_path, csv_file_path)
 
 
-def populate_table(database_path, csv_file_path):
-    connection = sqlite3.connect(database_path)
+def populate_table(database_file_path, csv_file_path):
+    connection = sqlite3.connect(database_file_path)
     cursor = connection.cursor()
 
     table = csv_file_path.stem
     columns = orthodb_files[csv_file_path.name]
 
-    print(f"populating table {table}")
+    print(f"populating table {table} ...", end="")
 
     with open(csv_file_path, "r") as csv_file:
         csv_reader = csv.reader(csv_file, delimiter="\t")
@@ -91,9 +98,9 @@ def populate_table(database_path, csv_file_path):
             cursor.execute(insert_command, row)
 
     connection.commit()
-    print(f"{table} table populated")
-
     connection.close()
+
+    print(" complete")
 
 
 def get_max_column_lengths():
@@ -128,11 +135,13 @@ def main():
         get_max_column_lengths()
     else:
         database_filename = "orthologs.db"
-        database_path = data_directory / database_filename
+        database_schema_path = "orthologs_database_schema.sql"
 
-        initialize_database(database_path)
+        database_file_path = data_directory / database_filename
 
-        populate_database(database_path)
+        initialize_database(database_file_path, database_schema_path)
+
+        populate_database(database_file_path)
 
 
 if __name__ == "__main__":
