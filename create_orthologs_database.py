@@ -20,6 +20,7 @@ Create a SQLite database from the OrthoDB release files.
 
 
 # standard library imports
+import argparse
 import csv
 import pathlib
 import sqlite3
@@ -30,6 +31,15 @@ import sqlite3
 
 
 data_directory = pathlib.Path("data")
+
+orthodb_directory = data_directory / "OrthoDB_files"
+
+orthodb_files = {
+    "odb10v1_OGs.tab": ["og_id", "tax_id", "og_name"],
+    # "odb10v1_genes.tab": [],
+    # "odb10v1_gene_xrefs.tab": [],
+    # "odb10v1_OG2genes.tab": [],
+}
 
 
 def initialize_database(database_path):
@@ -42,8 +52,8 @@ def initialize_database(database_path):
     # create database according to the schema
     database_schema_path = "orthologs_database_schema.sql"
 
-    with open(database_schema_path, "r") as file:
-        database_schema = file.read()
+    with open(database_schema_path, "r") as schema_file:
+        database_schema = schema_file.read()
 
     cursor.executescript(database_schema)
 
@@ -54,17 +64,22 @@ def initialize_database(database_path):
 
 
 def populate_database(database_path):
+    for orthodb_file in orthodb_files:
+        csv_file_path = orthodb_directory / orthodb_file
+        populate_table(database_path, csv_file_path)
+
+
+def populate_table(database_path, csv_file_path):
     connection = sqlite3.connect(database_path)
     cursor = connection.cursor()
 
-    csv_file_path = "data/OrthoDB_files/odb10v1_OGs.tab"
-    table = "odb10v1_OGs"
-    columns = ["og_id", "tax_id", "og_name"]
+    table = csv_file_path.stem
+    columns = orthodb_files[csv_file_path.name]
 
     print(f"populating table {table}")
 
-    with open(csv_file_path, "r") as file:
-        csv_reader = csv.reader(file, delimiter="\t")
+    with open(csv_file_path, "r") as csv_file:
+        csv_reader = csv.reader(csv_file, delimiter="\t")
 
         columns_string = str.join(", ", columns)
         qmark_placeholder = str.join(", ", ["?"] * len(columns))
@@ -81,16 +96,43 @@ def populate_database(database_path):
     connection.close()
 
 
+def get_max_column_lengths():
+    for csv_file_path in csv_file_paths:
+        print(csv_file_path)
+
+        max_lengths = {}
+        with open(csv_file_path, "r") as csv_file:
+            csv_reader = csv.reader(csv_file, delimiter="\t")
+            for row in csv_reader:
+                for index, field in enumerate(row):
+                    max_lengths[index] = max(len(field), max_lengths.get(index, 0))
+
+        print(max_lengths)
+        print()
+
+
 def main():
     """
     main function
     """
-    database_filename = "orthologs.db"
-    database_path = data_directory / database_filename
+    argument_parser = argparse.ArgumentParser()
+    argument_parser.add_argument(
+        "--max_column_lengths",
+        action="store_true",
+        help="get the max length for each column in OrthoDB tab files",
+    )
 
-    initialize_database(database_path)
+    args = argument_parser.parse_args()
 
-    populate_database(database_path)
+    if args.max_column_lengths:
+        get_max_column_lengths()
+    else:
+        database_filename = "orthologs.db"
+        database_path = data_directory / database_filename
+
+        initialize_database(database_path)
+
+        populate_database(database_path)
 
 
 if __name__ == "__main__":
