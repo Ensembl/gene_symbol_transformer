@@ -17,11 +17,11 @@
 -- reference: https://v101.orthodb.org/download/README.txt
 
 
-DROP DATABASE IF EXISTS orthologs;
-
-CREATE DATABASE IF NOT EXISTS orthologs CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-
-USE orthologs;
+DROP TABLE IF EXISTS odb10v1_OGs;
+DROP TABLE IF EXISTS odb10v1_genes;
+DROP TABLE IF EXISTS odb10v1_gene_xrefs;
+DROP TABLE IF EXISTS odb10v1_OG2genes;
+DROP TABLE IF EXISTS odb10v1_all_og_fasta;
 
 
 -- Ortho DB orthologous groups
