@@ -20,17 +20,37 @@ Create a SQLite database from the OrthoDB release files.
 
 
 # standard library imports
+import sqlite3
 
 # third party imports
 
 # project imports
 
 
+def initialize_database():
+    """
+    """
+    database_path = "orthologs.db"
+    connection = sqlite3.connect(database_path)
+
+    cursor = connection.cursor()
+
+    database_schema_path = "orthologs_database_schema.sql"
+    with open(database_schema_path) as file:
+        database_schema = file.read()
+
+    cursor.executescript(database_schema)
+
+    connection.close()
+
+    print(f"{database_path} database initialized")
+
+
 def main():
     """
     main function
     """
-    pass
+    initialize_database()
 
 
 if __name__ == "__main__":
