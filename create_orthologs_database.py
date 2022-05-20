@@ -20,6 +20,8 @@ Create a SQLite database from the OrthoDB release files.
 
 
 # standard library imports
+import csv
+import pathlib
 import sqlite3
 
 # third party imports
@@ -27,30 +29,68 @@ import sqlite3
 # project imports
 
 
-def initialize_database():
-    """
-    """
-    database_path = "orthologs.db"
-    connection = sqlite3.connect(database_path)
+data_directory = pathlib.Path("data")
 
+
+def initialize_database(database_path):
+    # delete database file if already exists
+    database_path.unlink(missing_ok=True)
+
+    connection = sqlite3.connect(database_path)
     cursor = connection.cursor()
 
+    # create database according to the schema
     database_schema_path = "orthologs_database_schema.sql"
-    with open(database_schema_path) as file:
+
+    with open(database_schema_path, "r") as file:
         database_schema = file.read()
 
     cursor.executescript(database_schema)
 
+    connection.commit()
     connection.close()
 
     print(f"{database_path} database initialized")
+
+
+def populate_database(database_path):
+    connection = sqlite3.connect(database_path)
+    cursor = connection.cursor()
+
+    csv_file_path = "data/OrthoDB_files/odb10v1_OGs.tab"
+    table = "odb10v1_OGs"
+    columns = ["og_id", "tax_id", "og_name"]
+
+    print(f"populating table {table}")
+
+    with open(csv_file_path, "r") as file:
+        csv_reader = csv.reader(file, delimiter="\t")
+
+        columns_string = str.join(", ", columns)
+        qmark_placeholder = str.join(", ", ["?"] * len(columns))
+        insert_command = (
+            f"INSERT INTO {table} ({columns_string}) VALUES ({qmark_placeholder});"
+        )
+
+        for row in csv_reader:
+            cursor.execute(insert_command, row)
+
+    connection.commit()
+    print(f"{table} table populated")
+
+    connection.close()
 
 
 def main():
     """
     main function
     """
-    initialize_database()
+    database_filename = "orthologs.db"
+    database_path = data_directory / database_filename
+
+    initialize_database(database_path)
+
+    populate_database(database_path)
 
 
 if __name__ == "__main__":
