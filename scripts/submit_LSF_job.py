@@ -155,13 +155,14 @@ def main():
 
     if args.gpu:
         num_gpus = 1
-        # gpu_memory = 16384  # 16 GiBs
-        # gpu_memory = 32256  # 31.5 GiBs
-        gpu_memory = 32510  # ~32 GiBs, total Tesla V100 memory
+        # gpu_memory = 32768  # 32 GiBs
+        # gpu_memory = 65536  # 64 GiBs
+        gpu_memory = 81000  # ~80 GiBs, NVIDIA A100 memory with safety margin
+        # gpu_memory = 81920  # 80 GiBs, total NVIDIA A100 memory
 
         bsub_command_elements.extend(
             [
-                "-q gpu",
+                "-q gpu-a100",
                 f'-gpu "num={num_gpus}:gmem={gpu_memory}:j_exclusive=yes"',
                 f"-M {args.mem_limit}",
                 f'-R"select[mem>{args.mem_limit}] rusage[mem={args.mem_limit}] span[hosts=1]"',
