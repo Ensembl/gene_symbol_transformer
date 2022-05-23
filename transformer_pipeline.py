@@ -257,7 +257,7 @@ class GeneSymbolClassifier(ClassificationTransformer):
 
         self.torchmetrics_accuracy_average = "weighted"
 
-    def on_pretrain_routine_end(self):
+    def on_fit_start(self):
         logger.info("start network training")
         logger.info(f"configuration:\n{self.hparams}")
 
