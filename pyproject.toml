@@ -7,23 +7,23 @@ license = "Apache-2.0"
 
 [tool.poetry.dependencies]
 python = ">=3.9,<3.10"
-torch = "^1.10.2"
-pandas = "^1.4.0"
+torch = "^1.11.0"
+pandas = "^1.4.2"
 biopython = "^1.79"
 PyYAML = "^5.4.1"
-tensorboard = "^2.8.0"
+tensorboard = "^2.9.0"
 ensembl-rest = "^0.3.3"
 torchmetrics = "^0.5.1"
 PyMySQL = "^1.0.2"
-pytorch-lightning = "^1.5.9"
+pytorch-lightning = "^1.6.3"
 
 [tool.poetry.dev-dependencies]
 pudb = "^2021.2.2"
-jupyterlab = "^3.2.8"
-jupytext = "^1.13.6"
-matplotlib = "^3.5.1"
-plotly = "^5.5.0"
-ipywidgets = "^7.6.5"
+jupyterlab = "^3.4.2"
+jupytext = "^1.13.8"
+matplotlib = "^3.5.2"
+plotly = "^5.8.0"
+ipywidgets = "^7.7.0"
 pretty-errors = "^1.2.25"
 
 [tool.isort]
