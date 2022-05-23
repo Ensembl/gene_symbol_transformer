@@ -30,9 +30,9 @@ set -e
 # curl -sSL https://install.python-poetry.org | python3 -
 
 
-pyenv install 3.9.10
+pyenv install 3.9.12
 
-pyenv virtualenv 3.9.10 gene_symbol_classifier
+pyenv virtualenv 3.9.12 gene_symbol_classifier
 
 pip install --upgrade pip
 
