@@ -99,7 +99,10 @@ CREATE TABLE odb10v1_gene_xrefs (
 -- AA sequence of the longest isoform for all genes participating in OG, fasta formatted
 -- headers with orthodb internal gene id as well as a public id
 CREATE TABLE odb10v1_all_og_fasta (
-  internal_gene_id CHAR(32),
-  public_gene_id CHAR(32),
-  sequence VARCHAR(102400)
+  -- max string length: 16
+  internal_gene_id CHAR(16),
+  -- max string length: 9
+  public_gene_id CHAR(16),
+  -- max string length: 38105
+  sequence VARCHAR(65536)
 );

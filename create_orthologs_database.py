@@ -28,13 +28,14 @@ import sqlite3
 # third party imports
 
 # project imports
+from utils import read_fasta_in_chunks
 
 
 data_directory = pathlib.Path("data")
 
 orthodb_directory = data_directory / "OrthoDB_files"
 
-orthodb_files = {
+orthodb_tab_files = {
     "odb10v1_OGs.tab": ["og_id", "tax_id", "og_name"],
     "odb10v1_genes.tab": [
         "gene_id",
@@ -48,6 +49,10 @@ orthodb_files = {
     ],
     "odb10v1_OG2genes.tab": ["og_id", "gene_id"],
     "odb10v1_gene_xrefs.tab": ["gene_id", "external_id", "external_db"],
+}
+
+orthodb_fasta_files = {
+    "odb10v1_all_og_fasta.tab": ["internal_gene_id", "public_gene_id", "sequence"],
 }
 
 
@@ -71,29 +76,32 @@ def initialize_database(database_file_path, database_schema_path):
 
 
 def populate_database(database_file_path):
-    for orthodb_file in orthodb_files:
-        csv_file_path = orthodb_directory / orthodb_file
-        populate_table(database_file_path, csv_file_path)
+    for orthodb_tab_file in orthodb_tab_files:
+        tab_file_path = orthodb_directory / orthodb_tab_file
+        populate_tab_table(database_file_path, tab_file_path)
+
+    for orthodb_fasta_file in orthodb_fasta_files:
+        fasta_file_path = orthodb_directory / orthodb_fasta_file
+        populate_fasta_table(database_file_path, fasta_file_path)
 
 
-def populate_table(database_file_path, csv_file_path):
+def populate_tab_table(database_file_path, tab_file_path):
     connection = sqlite3.connect(database_file_path)
     cursor = connection.cursor()
 
-    table = csv_file_path.stem
-    columns = orthodb_files[csv_file_path.name]
+    table = tab_file_path.stem
+    columns = orthodb_tab_files[tab_file_path.name]
 
-    print(f"populating table {table} ...", end="")
+    columns_string = str.join(", ", columns)
+    qmark_placeholder = str.join(", ", ["?"] * len(columns))
+    insert_command = (
+        f"INSERT INTO {table} ({columns_string}) VALUES ({qmark_placeholder});"
+    )
 
-    with open(csv_file_path, "r") as csv_file:
-        csv_reader = csv.reader(csv_file, delimiter="\t")
+    print(f"populating table {table} ...", end="", flush=True)
 
-        columns_string = str.join(", ", columns)
-        qmark_placeholder = str.join(", ", ["?"] * len(columns))
-        insert_command = (
-            f"INSERT INTO {table} ({columns_string}) VALUES ({qmark_placeholder});"
-        )
-
+    with open(tab_file_path, "r") as tab_file:
+        csv_reader = csv.reader(tab_file, delimiter="\t")
         for row in csv_reader:
             cursor.execute(insert_command, row)
 
@@ -103,16 +111,82 @@ def populate_table(database_file_path, csv_file_path):
     print(" complete")
 
 
-def get_max_column_lengths():
-    for csv_file_path in csv_file_paths:
-        print(csv_file_path)
+def populate_fasta_table(database_file_path, fasta_file_path):
+    connection = sqlite3.connect(database_file_path)
+    cursor = connection.cursor()
 
-        max_lengths = {}
-        with open(csv_file_path, "r") as csv_file:
-            csv_reader = csv.reader(csv_file, delimiter="\t")
-            for row in csv_reader:
-                for index, field in enumerate(row):
-                    max_lengths[index] = max(len(field), max_lengths.get(index, 0))
+    table = fasta_file_path.stem
+    columns = orthodb_fasta_files[fasta_file_path.name]
+
+    columns_string = str.join(", ", columns)
+    qmark_placeholder = str.join(", ", ["?"] * len(columns))
+    insert_command = (
+        f"INSERT INTO {table} ({columns_string}) VALUES ({qmark_placeholder});"
+    )
+
+    print(f"populating table {table} ...", end="", flush=True)
+
+    for fasta_entries in read_fasta_in_chunks(fasta_file_path):
+        if fasta_entries[-1] is None:
+            fasta_entries = [
+                fasta_entry for fasta_entry in fasta_entries if fasta_entry is not None
+            ]
+
+        for fasta_entry in fasta_entries:
+            description = fasta_entry[0]
+            sequence = fasta_entry[1]
+            values = description.split("\t") + [sequence]
+
+            cursor.execute(insert_command, values)
+
+    connection.commit()
+    connection.close()
+
+    print(" complete")
+
+
+def get_max_column_lengths():
+    for orthodb_tab_file in orthodb_tab_files:
+        tab_file_path = orthodb_directory / orthodb_tab_file
+        print(tab_file_path)
+
+        columns = orthodb_tab_files[tab_file_path.name]
+
+        max_lengths = {column: 0 for column in columns}
+        with open(tab_file_path, "r") as tab_file:
+            csv_dict_reader = csv.DictReader(
+                tab_file, fieldnames=columns, delimiter="\t"
+            )
+            for entry in csv_dict_reader:
+                for column, value in entry.items():
+                    max_lengths[column] = max(len(value), max_lengths.get(column, 0))
+
+        print(max_lengths)
+        print()
+
+    for orthodb_fasta_file in orthodb_fasta_files:
+        fasta_file_path = orthodb_directory / orthodb_fasta_file
+        print(fasta_file_path)
+
+        columns = orthodb_fasta_files[fasta_file_path.name]
+
+        max_lengths = {column: 0 for column in columns}
+        for fasta_entries in read_fasta_in_chunks(fasta_file_path):
+            if fasta_entries[-1] is None:
+                fasta_entries = [
+                    fasta_entry
+                    for fasta_entry in fasta_entries
+                    if fasta_entry is not None
+                ]
+
+            for fasta_entry in fasta_entries:
+                description = fasta_entry[0]
+                sequence = fasta_entry[1]
+                values = description.split("\t") + [sequence]
+                entry = {column: value for column, value in zip(columns, values)}
+
+                for column, value in entry.items():
+                    max_lengths[column] = max(len(value), max_lengths.get(column, 0))
 
         print(max_lengths)
         print()
