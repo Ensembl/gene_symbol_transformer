@@ -25,7 +25,6 @@ JOB_TYPE=standard
 #JOB_TYPE=gpu
 #JOB_TYPE=parallel
 
-#MEM_LIMIT=8192  # 8 GiBs
 MEM_LIMIT=16384  # 16 GiBs
 #MEM_LIMIT=32768  # 32 GiBs
 #MEM_LIMIT=65536  # 64 GiBs
@@ -57,27 +56,25 @@ fi
 NUM_GPUS=1
 #NUM_GPUS=2
 #NUM_GPUS=4
-#NUM_GPUS=6
-#NUM_GPUS=8
 
-#GPU_MEMORY=16384  # 16 GiBs
-#GPU_MEMORY=32256  # 31.5 GiBs
-GPU_MEMORY=32510  # ~32 GiBs, total Tesla V100 memory
+#GPU_MEMORY=32768  # 32 GiBs
+#GPU_MEMORY=65536  # 64 GiBs
+GPU_MEMORY=81000  # ~80 GiBs, NVIDIA A100 memory with safety margin
+#GPU_MEMORY=81920  # 80 GiBs, total NVIDIA A100 memory
 
 
 # https://www.ibm.com/docs/en/spectrum-lsf/10.1.0?topic=jobs-submitting-that-require-gpu-resources
 if [[ "$JOB_TYPE" = "gpu" ]]; then
     # specify gpu node
     GPU_NODE="any"
-    #GPU_NODE=codon-gpu-001
-    #GPU_NODE=codon-gpu-002
+    #GPU_NODE=codon-gpu-015
 
     if [[ "$GPU_NODE" = "any" ]]; then
         echo "starting gpu shell"
-        bsub -q gpu -gpu "num=$NUM_GPUS:gmem=$GPU_MEMORY:j_exclusive=yes" -Is -tty -M $MEM_LIMIT -R"select[mem>$MEM_LIMIT] rusage[mem=$MEM_LIMIT] span[hosts=1]" $SHELL
+        bsub -q gpu-a100 -gpu "num=$NUM_GPUS:gmem=$GPU_MEMORY:j_exclusive=yes" -Is -tty -M $MEM_LIMIT -R"select[mem>$MEM_LIMIT] rusage[mem=$MEM_LIMIT] span[hosts=1]" $SHELL
     else
         echo "starting gpu shell on $GPU_NODE"
-        bsub -q gpu -m $GPU_NODE.ebi.ac.uk -gpu "num=$NUM_GPUS:gmem=$GPU_MEMORY:j_exclusive=yes" -Is -tty -M $MEM_LIMIT -R"select[mem>$MEM_LIMIT] rusage[mem=$MEM_LIMIT] span[hosts=1]" $SHELL
+        bsub -q gpu-a100 -m $GPU_NODE.ebi.ac.uk -gpu "num=$NUM_GPUS:gmem=$GPU_MEMORY:j_exclusive=yes" -Is -tty -M $MEM_LIMIT -R"select[mem>$MEM_LIMIT] rusage[mem=$MEM_LIMIT] span[hosts=1]" $SHELL
     fi
 fi
 ################################################################################
