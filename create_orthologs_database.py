@@ -127,11 +127,6 @@ def populate_fasta_table(database_file_path, fasta_file_path):
     print(f"populating table {table} ...", end="", flush=True)
 
     for fasta_entries in read_fasta_in_chunks(fasta_file_path):
-        if fasta_entries[-1] is None:
-            fasta_entries = [
-                fasta_entry for fasta_entry in fasta_entries if fasta_entry is not None
-            ]
-
         for fasta_entry in fasta_entries:
             description = fasta_entry[0]
             sequence = fasta_entry[1]
@@ -172,13 +167,6 @@ def get_max_column_lengths():
 
         max_lengths = {column: 0 for column in columns}
         for fasta_entries in read_fasta_in_chunks(fasta_file_path):
-            if fasta_entries[-1] is None:
-                fasta_entries = [
-                    fasta_entry
-                    for fasta_entry in fasta_entries
-                    if fasta_entry is not None
-                ]
-
             for fasta_entry in fasta_entries:
                 description = fasta_entry[0]
                 sequence = fasta_entry[1]
