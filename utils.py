@@ -502,13 +502,6 @@ def assign_symbols(
         csv_writer.writerow(field_names)
 
         for fasta_entries in read_fasta_in_chunks(sequences_fasta_path):
-            if fasta_entries[-1] is None:
-                fasta_entries = [
-                    fasta_entry
-                    for fasta_entry in fasta_entries
-                    if fasta_entry is not None
-                ]
-
             identifiers = [
                 fasta_entry[0].split(" ")[0] for fasta_entry in fasta_entries
             ]
@@ -899,11 +892,6 @@ def fasta_to_dict(fasta_file_path):
     fasta_dict = {}
 
     for fasta_entries in read_fasta_in_chunks(fasta_file_path):
-        if fasta_entries[-1] is None:
-            fasta_entries = [
-                fasta_entry for fasta_entry in fasta_entries if fasta_entry is not None
-            ]
-
         for fasta_entry in fasta_entries:
             description = fasta_entry[0]
             first_word = description.split(" ")[0]
