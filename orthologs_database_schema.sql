@@ -78,7 +78,10 @@ CREATE TABLE odb10v1_OG2genes (
   og_id CHAR(32),
   -- 2. Ortho DB gene id
   -- max string length: 16
-  gene_id CHAR(16)
+  gene_id CHAR(16),
+
+  FOREIGN KEY (og_id) REFERENCES odb10v1_OGs(og_id),
+  FOREIGN KEY (gene_id) REFERENCES odb10v1_genes(gene_id)
 );
 
 
@@ -92,7 +95,9 @@ CREATE TABLE odb10v1_gene_xrefs (
   external_id CHAR(64),
   -- 3. external DB name, one of {GOterm, InterPro, NCBIproteinGI, UniProt, ENSEMBL, NCBIgid, NCBIgenename}
   -- max string length: 14
-  external_db CHAR(16)
+  external_db CHAR(16),
+
+  FOREIGN KEY (gene_id) REFERENCES odb10v1_genes(gene_id)
 );
 
 
@@ -104,5 +109,7 @@ CREATE TABLE odb10v1_all_og_fasta (
   -- max string length: 9
   public_gene_id CHAR(16),
   -- max string length: 38105
-  sequence VARCHAR(65536)
+  sequence VARCHAR(65536),
+
+  FOREIGN KEY (internal_gene_id) REFERENCES odb10v1_genes(gene_id)
 );
