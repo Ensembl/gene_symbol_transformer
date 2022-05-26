@@ -1,0 +1,68 @@
+# See the NOTICE file distributed with this work for additional information
+# regarding copyright ownership.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+
+"""
+Testing retrieving data from the orghologs SQLite database.
+"""
+
+
+# standard library imports
+import argparse
+import pathlib
+import sqlite3
+
+# third party imports
+
+# project imports
+
+
+data_directory = pathlib.Path("data")
+
+
+def run_query(database_file_path, query_file_path):
+    with open(query_file_path, "r") as query_file:
+        query = query_file.read()
+
+    connection = sqlite3.connect(database_file_path)
+    cursor = connection.cursor()
+
+    for row in cursor.execute(query):
+        print(row)
+
+    # connection.commit()
+    connection.close()
+
+
+def main():
+    """
+    main function
+    """
+    argument_parser = argparse.ArgumentParser()
+    argument_parser.add_argument("query_file", help="SQL query file path")
+
+    args = argument_parser.parse_args()
+
+    database_filename = "orthologs.db"
+    database_file_path = data_directory / database_filename
+
+    run_query(database_file_path, args.query_file)
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except KeyboardInterrupt:
+        print("Interrupted with CTRL-C, exiting...")
