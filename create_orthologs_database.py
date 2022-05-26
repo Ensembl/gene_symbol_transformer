@@ -28,7 +28,7 @@ import sqlite3
 # third party imports
 
 # project imports
-from utils import read_fasta_in_chunks
+from utils import add_log_file_handler, logger, read_fasta_in_chunks
 
 
 data_directory = pathlib.Path("data")
@@ -60,7 +60,7 @@ def initialize_database(database_file_path, database_schema_path):
     # delete database file if already exists
     database_file_path.unlink(missing_ok=True)
 
-    print(f"initializing database {database_file_path} ...", end="", flush=True)
+    logger.info(f"creating database {database_file_path}")
 
     connection = sqlite3.connect(database_file_path)
     cursor = connection.cursor()
@@ -74,10 +74,11 @@ def initialize_database(database_file_path, database_schema_path):
     connection.commit()
     connection.close()
 
-    print(" complete")
+    logger.info("database initialized")
 
 
 def populate_database(database_file_path):
+    logger.info("populating tables")
     for orthodb_tab_file in orthodb_tab_files:
         tab_file_path = orthodb_directory / orthodb_tab_file
         populate_tab_table(database_file_path, tab_file_path)
@@ -100,8 +101,6 @@ def populate_tab_table(database_file_path, tab_file_path):
         f"INSERT INTO {table} ({columns_string}) VALUES ({qmark_placeholder});"
     )
 
-    print(f"populating table {table} ...", end="", flush=True)
-
     with open(tab_file_path, "r") as tab_file:
         csv_reader = csv.reader(tab_file, delimiter="\t")
         for row in csv_reader:
@@ -110,7 +109,7 @@ def populate_tab_table(database_file_path, tab_file_path):
     connection.commit()
     connection.close()
 
-    print(" complete")
+    logger.info(f"{table} populated")
 
 
 def populate_fasta_table(database_file_path, fasta_file_path):
@@ -126,8 +125,6 @@ def populate_fasta_table(database_file_path, fasta_file_path):
         f"INSERT INTO {table} ({columns_string}) VALUES ({qmark_placeholder});"
     )
 
-    print(f"populating table {table} ...", end="", flush=True)
-
     for fasta_entries in read_fasta_in_chunks(fasta_file_path):
         for fasta_entry in fasta_entries:
             description = fasta_entry[0]
@@ -139,14 +136,14 @@ def populate_fasta_table(database_file_path, fasta_file_path):
     connection.commit()
     connection.close()
 
-    print(" complete")
+    logger.info(f"{table} populated")
 
 
 def generate_indexes(database_file_path, index_generation_file_path):
     connection = sqlite3.connect(database_file_path)
     cursor = connection.cursor()
 
-    print("generating indexes ...", end="", flush=True)
+    logger.info("generating indexes")
 
     with open(index_generation_file_path, "r") as index_generation_file:
         index_generation = index_generation_file.read()
@@ -156,13 +153,29 @@ def generate_indexes(database_file_path, index_generation_file_path):
     connection.commit()
     connection.close()
 
-    print(" complete")
+    logger.info("indexes generation complete")
+
+
+def create_database():
+    log_file_path = data_directory / "database_generation.log"
+    add_log_file_handler(logger, log_file_path)
+
+    database_filename = "orthologs.db"
+    database_file_path = data_directory / database_filename
+
+    database_schema_path = "orthologs_database_schema.sql"
+    initialize_database(database_file_path, database_schema_path)
+
+    populate_database(database_file_path)
+
+    index_generation_file_path = "orthologs_database_indexes.sql"
+    generate_indexes(database_file_path, index_generation_file_path)
 
 
 def get_max_column_lengths():
     for orthodb_tab_file in orthodb_tab_files:
         tab_file_path = orthodb_directory / orthodb_tab_file
-        print(tab_file_path)
+        logger.info(tab_file_path)
 
         columns = orthodb_tab_files[tab_file_path.name]
 
@@ -215,17 +228,7 @@ def main():
     if args.max_column_lengths:
         get_max_column_lengths()
     else:
-        database_filename = "orthologs.db"
-
-        database_file_path = data_directory / database_filename
-
-        database_schema_path = "orthologs_database_schema.sql"
-        initialize_database(database_file_path, database_schema_path)
-
-        populate_database(database_file_path)
-
-        index_generation_file_path = "orthologs_database_indexes.sql"
-        generate_indexes(database_file_path, index_generation_file_path)
+        create_database()
 
 
 if __name__ == "__main__":
