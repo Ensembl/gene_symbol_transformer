@@ -114,11 +114,11 @@ CREATE TABLE odb10v1_gene_xrefs (
 -- headers with orthodb internal gene id as well as a public id
 CREATE TABLE odb10v1_all_og_fasta (
   -- max string length: 16
-  internal_gene_id CHAR(16),
+  gene_id CHAR(16),
   -- max string length: 9
   public_gene_id CHAR(16),
   -- max string length: 38105
   sequence VARCHAR(65536),
 
-  FOREIGN KEY (internal_gene_id) REFERENCES odb10v1_genes(gene_id)
+  FOREIGN KEY (gene_id) REFERENCES odb10v1_genes(gene_id)
 );
