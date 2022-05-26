@@ -52,13 +52,15 @@ orthodb_tab_files = {
 }
 
 orthodb_fasta_files = {
-    "odb10v1_all_og_fasta.tab": ["internal_gene_id", "public_gene_id", "sequence"],
+    "odb10v1_all_og_fasta.tab": ["gene_id", "public_gene_id", "sequence"],
 }
 
 
 def initialize_database(database_file_path, database_schema_path):
     # delete database file if already exists
     database_file_path.unlink(missing_ok=True)
+
+    print(f"initializing database {database_file_path} ...", end="", flush=True)
 
     connection = sqlite3.connect(database_file_path)
     cursor = connection.cursor()
@@ -72,7 +74,7 @@ def initialize_database(database_file_path, database_schema_path):
     connection.commit()
     connection.close()
 
-    print(f"{database_file_path} database initialized")
+    print(" complete")
 
 
 def populate_database(database_file_path):
@@ -140,6 +142,23 @@ def populate_fasta_table(database_file_path, fasta_file_path):
     print(" complete")
 
 
+def generate_indexes(database_file_path, index_generation_file_path):
+    connection = sqlite3.connect(database_file_path)
+    cursor = connection.cursor()
+
+    print("generating indexes ...", end="", flush=True)
+
+    with open(index_generation_file_path, "r") as index_generation_file:
+        index_generation = index_generation_file.read()
+
+    cursor.executescript(index_generation)
+
+    connection.commit()
+    connection.close()
+
+    print(" complete")
+
+
 def get_max_column_lengths():
     for orthodb_tab_file in orthodb_tab_files:
         tab_file_path = orthodb_directory / orthodb_tab_file
@@ -197,13 +216,16 @@ def main():
         get_max_column_lengths()
     else:
         database_filename = "orthologs.db"
-        database_schema_path = "orthologs_database_schema.sql"
 
         database_file_path = data_directory / database_filename
 
+        database_schema_path = "orthologs_database_schema.sql"
         initialize_database(database_file_path, database_schema_path)
 
         populate_database(database_file_path)
+
+        index_generation_file_path = "orthologs_database_indexes.sql"
+        generate_indexes(database_file_path, index_generation_file_path)
 
 
 if __name__ == "__main__":
