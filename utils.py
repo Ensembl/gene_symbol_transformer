@@ -281,22 +281,17 @@ class SequenceDataset(Dataset):
     def __init__(self, configuration, get_item):
         self.get_item = get_item
 
-        if "num_symbols" in configuration:
-            assert (
-                "min_frequency" not in configuration
-            ), "num_symbols and min_frequency are mutually exclusive, provide only one of them in the configuration"
-            configuration.dataset_id = f"{configuration.num_symbols}_num_symbols"
-            data = load_dataset(num_symbols=configuration.num_symbols)
-        elif "min_frequency" in configuration:
-            assert (
-                "num_symbols" not in configuration
-            ), "num_symbols and min_frequency are mutually exclusive, provide only one of them in the configuration"
+        if "min_frequency" in configuration:
             configuration.dataset_id = f"{configuration.min_frequency}_min_frequency"
             data = load_dataset(min_frequency=configuration.min_frequency)
-            configuration.num_symbols = data["symbol"].nunique()
+            if "num_symbols" not in configuration:
+                configuration.num_symbols = data["symbol"].nunique()
+        elif "num_symbols" in configuration:
+            configuration.dataset_id = f"{configuration.num_symbols}_num_symbols"
+            data = load_dataset(num_symbols=configuration.num_symbols)
         else:
             raise KeyError(
-                'missing configuration value: one of "num_symbols", "min_frequency" is required'
+                'missing configuration value: one of "min_frequency", "num_symbols" is required'
             )
 
         self.num_symbols = configuration.num_symbols
