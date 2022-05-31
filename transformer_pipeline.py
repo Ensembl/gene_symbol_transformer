@@ -595,19 +595,19 @@ def main():
                 sep="_", timespec="seconds"
             )
 
-        if "num_symbols" in configuration:
-            assert (
-                "min_frequency" not in configuration
-            ), "num_symbols and min_frequency are mutually exclusive, provide only one of them in the configuration"
-            configuration.dataset_id = f"{configuration.num_symbols}_num_symbols"
-        elif "min_frequency" in configuration:
+        if "min_frequency" in configuration:
             assert (
                 "num_symbols" not in configuration
             ), "num_symbols and min_frequency are mutually exclusive, provide only one of them in the configuration"
             configuration.dataset_id = f"{configuration.min_frequency}_min_frequency"
+        elif "num_symbols" in configuration:
+            assert (
+                "min_frequency" not in configuration
+            ), "num_symbols and min_frequency are mutually exclusive, provide only one of them in the configuration"
+            configuration.dataset_id = f"{configuration.num_symbols}_num_symbols"
         else:
             raise KeyError(
-                'missing configuration value: one of "num_symbols", "min_frequency" is required'
+                'missing configuration value: one of "min_frequency", "num_symbols" is required'
             )
 
         configuration.logging_version = f"{configuration.experiment_prefix}_{configuration.dataset_id}_{configuration.datetime}"
