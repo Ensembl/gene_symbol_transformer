@@ -56,6 +56,22 @@ orthodb_fasta_files = {
 }
 
 
+def create_database():
+    log_file_path = data_directory / "database_generation.log"
+    add_log_file_handler(logger, log_file_path)
+
+    database_filename = "orthologs.db"
+    database_file_path = data_directory / database_filename
+
+    database_schema_path = "orthologs_database_schema.sql"
+    initialize_database(database_file_path, database_schema_path)
+
+    populate_database(database_file_path)
+
+    index_generation_file_path = "orthologs_database_indexes.sql"
+    generate_indexes(database_file_path, index_generation_file_path)
+
+
 def initialize_database(database_file_path, database_schema_path):
     # delete database file if already exists
     database_file_path.unlink(missing_ok=True)
@@ -154,22 +170,6 @@ def generate_indexes(database_file_path, index_generation_file_path):
     connection.close()
 
     logger.info("indexes generation complete")
-
-
-def create_database():
-    log_file_path = data_directory / "database_generation.log"
-    add_log_file_handler(logger, log_file_path)
-
-    database_filename = "orthologs.db"
-    database_file_path = data_directory / database_filename
-
-    database_schema_path = "orthologs_database_schema.sql"
-    initialize_database(database_file_path, database_schema_path)
-
-    populate_database(database_file_path)
-
-    index_generation_file_path = "orthologs_database_indexes.sql"
-    generate_indexes(database_file_path, index_generation_file_path)
 
 
 def get_max_column_lengths():
