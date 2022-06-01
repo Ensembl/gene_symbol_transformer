@@ -25,6 +25,7 @@ import pathlib
 import sqlite3
 
 # third party imports
+import pandas as pd
 
 # project imports
 
@@ -36,11 +37,37 @@ def run_query(database_file_path, query_file_path):
     with open(query_file_path, "r") as query_file:
         query = query_file.read()
 
-    connection = sqlite3.connect(database_file_path)
+    # open database in read-only mode
+    connection = sqlite3.connect(f"file:{database_file_path}?mode=ro", uri=True)
     cursor = connection.cursor()
 
     for row in cursor.execute(query):
         print(row)
+
+    # connection.commit()
+    connection.close()
+
+
+def get_database_statistics(database_file_path):
+    # open database in read-only mode
+    connection = sqlite3.connect(f"file:{database_file_path}?mode=ro", uri=True)
+    cursor = connection.cursor()
+
+    get_tables_list_query = """
+        SELECT name
+        FROM sqlite_master
+        WHERE type='table'
+          AND name like 'odb10v1%'
+        ;
+    """
+
+    for row in cursor.execute(get_tables_list_query):
+        table = row[0]
+        read_table_query = f"SELECT * FROM {table} LIMIT 1000000;"
+        table_df = pd.read_sql_query(read_table_query, connection)
+        print(f"generating descriptive statistics for table {table} ...")
+        table_df_describe = table_df.describe()
+        print(table_df_describe)
 
     # connection.commit()
     connection.close()
@@ -51,14 +78,17 @@ def main():
     main function
     """
     argument_parser = argparse.ArgumentParser()
-    argument_parser.add_argument("query_file", help="SQL query file path")
+    argument_parser.add_argument("query_file", nargs="?", help="SQL query file path")
 
     args = argument_parser.parse_args()
 
     database_filename = "orthologs.db"
     database_file_path = data_directory / database_filename
 
-    run_query(database_file_path, args.query_file)
+    if args.query_file:
+        run_query(database_file_path, args.query_file)
+    else:
+        get_database_statistics(database_file_path)
 
 
 if __name__ == "__main__":
