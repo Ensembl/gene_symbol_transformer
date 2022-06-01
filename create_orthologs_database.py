@@ -71,12 +71,14 @@ def create_database():
     index_generation_file_path = "orthologs_database_indexes.sql"
     generate_indexes(database_file_path, index_generation_file_path)
 
+    optimize_database(database_file_path)
+
 
 def initialize_database(database_file_path, database_schema_path):
     # delete database file if already exists
     database_file_path.unlink(missing_ok=True)
 
-    logger.info(f"creating database {database_file_path}")
+    logger.info(f"creating database {database_file_path} ...")
 
     connection = sqlite3.connect(database_file_path)
     cursor = connection.cursor()
@@ -94,7 +96,7 @@ def initialize_database(database_file_path, database_schema_path):
 
 
 def populate_database(database_file_path):
-    logger.info("populating tables")
+    logger.info("populating tables ...")
     for orthodb_tab_file in orthodb_tab_files:
         tab_file_path = orthodb_directory / orthodb_tab_file
         populate_tab_table(database_file_path, tab_file_path)
@@ -159,7 +161,7 @@ def generate_indexes(database_file_path, index_generation_file_path):
     connection = sqlite3.connect(database_file_path)
     cursor = connection.cursor()
 
-    logger.info("generating indexes")
+    logger.info("generating indexes ...")
 
     with open(index_generation_file_path, "r") as index_generation_file:
         index_generation = index_generation_file.read()
@@ -170,6 +172,23 @@ def generate_indexes(database_file_path, index_generation_file_path):
     connection.close()
 
     logger.info("indexes generation complete")
+
+
+def optimize_database(database_file_path):
+    connection = sqlite3.connect(database_file_path)
+    cursor = connection.cursor()
+
+    logger.info("optimizing database ...")
+
+    # generate statistics for query optimization
+    optimization_queries = "ANALYZE;"
+
+    cursor.executescript(optimization_queries)
+
+    connection.commit()
+    connection.close()
+
+    logger.info("database optimization complete")
 
 
 def get_max_column_lengths():
