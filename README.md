@@ -9,7 +9,7 @@ The network has been trained on a dataset constructed from existing protein codi
 
 ## network architecture
 
-![network architecture](images/network_diagram.png?raw=true "GSC Transformer network diagram")
+![network architecture](images/network_architecture.png?raw=true "GSC Transformer network architecture")
 
 The training pipeline utilizes a Transformer to learn higher-dimensional features of the raw sequences and performs multiclass classification on the ~30,500 gene symbols that are most frequently occurring in the dataset.
 
