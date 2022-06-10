@@ -64,6 +64,8 @@ def get_database_statistics(database_file_path):
     for row in cursor.execute(get_tables_list_query):
         table = row[0]
         read_table_query = f"SELECT * FROM {table} LIMIT 1000000;"
+        # slow and memory intensive command
+        # read_table_query = f"SELECT * FROM {table} ORDER BY RANDOM() LIMIT 1000000;"
         table_df = pd.read_sql_query(read_table_query, connection)
         print(f"generating descriptive statistics for table {table} ...")
         table_df_describe = table_df.describe()
