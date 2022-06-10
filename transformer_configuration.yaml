@@ -65,6 +65,8 @@ padding_side: right
 ################################################################################
 embedding_dimension: 8
 #embedding_dimension: 16
+#embedding_dimension: 32
+#embedding_dimension: 64
 
 num_heads: 2
 #num_heads: 4
@@ -90,8 +92,8 @@ clip_max_norm: 0
 #clip_max_norm: 5
 
 dropout_probability: 0
-#dropout_probability: 0.1
-#dropout_probability: 0.2
+#dropout_probability: 0.3
+#dropout_probability: 0.5
 ################################################################################
 
 # training
@@ -103,7 +105,7 @@ batch_size: 16
 #num_workers: 0
 num_workers: 1
 #num_workers: 5
-#num_workers: 13
+#num_workers: 17
 
 learning_rate: 3.0e-4
 #learning_rate: 1.0e-4
@@ -111,8 +113,8 @@ learning_rate: 3.0e-4
 
 # number of epochs without validation loss improvement before training stops
 patience: 3
-#patience: 5
-#patience: 7
+#patience: 11
+#patience: 31
 
 # minimum validation loss change to consider as improvement
 loss_delta: 0
