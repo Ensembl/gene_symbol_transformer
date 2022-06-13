@@ -248,7 +248,8 @@ class GeneSymbolClassifier(ClassificationTransformer):
         self.num_symbols = self.hparams.num_symbols
 
         self.protein_sequence_mapper = self.hparams.protein_sequence_mapper
-        self.clade_mapper = self.hparams.clade_mapper
+        if self.hparams.clade:
+            self.clade_mapper = self.hparams.clade_mapper
         self.symbol_mapper = self.hparams.symbol_mapper
 
         self.num_sample_predictions = self.hparams.num_sample_predictions
@@ -262,7 +263,10 @@ class GeneSymbolClassifier(ClassificationTransformer):
         logger.info(f"configuration:\n{self.hparams}")
 
     def training_step(self, batch, batch_index):
-        sequence_features, clade_features, labels = batch
+        if self.hparams.clade:
+            sequence_features, clade_features, labels = batch
+        else:
+            sequence_features, labels = batch
 
         # forward pass
         output = self(sequence_features)
@@ -284,7 +288,10 @@ class GeneSymbolClassifier(ClassificationTransformer):
         ).to(self.device)
 
     def validation_step(self, batch, batch_index):
-        sequence_features, clade_features, labels = batch
+        if self.hparams.clade:
+            sequence_features, clade_features, labels = batch
+        else:
+            sequence_features, labels = batch
 
         # forward pass
         output = self(sequence_features)
@@ -334,7 +341,10 @@ class GeneSymbolClassifier(ClassificationTransformer):
         self.sample_predictions = torch.empty(0).to(self.device)
 
     def test_step(self, batch, batch_index):
-        sequence_features, clade_features, labels = batch
+        if self.hparams.clade:
+            sequence_features, clade_features, labels = batch
+        else:
+            sequence_features, labels = batch
 
         # forward pass
         output = self(sequence_features)
@@ -418,9 +428,9 @@ class GeneSymbolClassifier(ClassificationTransformer):
         Get symbol predictions for a list of protein sequences, along with
         the probabilities of predictions.
         """
-        sequence_features, _clade_features = self.generate_features_tensor(
-            sequences, clades
-        )
+        sequence_features = self.generate_sequence_tensor(sequences)
+        if self.hparams.clade:
+            clade_features = self.generate_clade_tensor(clades)
 
         # run inference
         with torch.no_grad():
@@ -456,16 +466,17 @@ class GeneSymbolClassifier(ClassificationTransformer):
         probabilities, _indices = torch.max(predicted_probabilities, dim=1)
         return (predictions, probabilities)
 
-    def generate_features_tensor(self, sequences, clades):
+    def generate_sequence_tensor(self, sequences: list):
         """
-        Convert lists of protein sequences and species clades to a label encoded sequence
-        features tensor and an one-hot encoded clade features tensor.
+        Convert a list of protein sequences to a label encoded sequence features tensor.
+
+        Args:
+            sequences: list of protein sequences
         """
         padding_side_to_align = {"left": ">", "right": "<"}
 
         sequence_features_list = []
-        clade_features_list = []
-        for sequence, clade in zip(sequences, clades):
+        for sequence in sequences:
             # pad or truncate sequence to be exactly `self.sequence_length` letters long
             sequence = "{string:{align}{string_length}.{truncate_length}}".format(
                 string=sequence,
@@ -473,22 +484,29 @@ class GeneSymbolClassifier(ClassificationTransformer):
                 string_length=self.sequence_length,
                 truncate_length=self.sequence_length,
             )
-
             label_encoded_sequence = (
                 self.protein_sequence_mapper.sequence_to_label_encoding(sequence)
             )
-            one_hot_clade = self.clade_mapper.label_to_one_hot(clade)
-
             sequence_features_list.append(label_encoded_sequence)
-            clade_features_list.append(one_hot_clade)
 
-        sequence_features = np.stack(sequence_features_list)
-        clade_features = np.stack(clade_features_list)
+        sequence_features_array = np.stack(sequence_features_list)
+        sequence_features_tensor = torch.from_numpy(sequence_features_array)
 
-        sequence_features_tensor = torch.from_numpy(sequence_features)
-        clade_features_tensor = torch.from_numpy(clade_features)
+        return sequence_features_tensor
 
-        return (sequence_features_tensor, clade_features_tensor)
+    def generate_clade_tensor(self, clades: list):
+        """
+        Convert a list of species clades to an one-hot encoded clade features tensor.
+        Args:
+            clades: list of species clades
+        """
+        clade_features_list = [
+            self.clade_mapper.label_to_one_hot(clade) for clade in clades
+        ]
+        clade_features_array = np.stack(clade_features_list)
+        clade_features_tensor = torch.from_numpy(clade_features_array)
+
+        return clade_features_tensor
 
 
 def get_item_sequence_label_clade_one_hot(self, index):
@@ -506,7 +524,10 @@ def get_item_sequence_label_clade_one_hot(self, index):
     dataset_row = self.dataset.iloc[index].to_dict()
 
     sequence = dataset_row["sequence"]
-    clade = dataset_row["clade"]
+
+    if self.configuration.clade:
+        clade = dataset_row["clade"]
+
     symbol = dataset_row["symbol"]
 
     label_encoded_sequence = self.protein_sequence_mapper.sequence_to_label_encoding(
@@ -514,12 +535,16 @@ def get_item_sequence_label_clade_one_hot(self, index):
     )
     # label_encoded_sequence.shape: (sequence_length,)
 
-    one_hot_clade = self.clade_mapper.label_to_one_hot(clade)
-    # one_hot_clade.shape: (num_clades,)
+    if self.configuration.clade:
+        one_hot_clade = self.clade_mapper.label_to_one_hot(clade)
+        # one_hot_clade.shape: (num_clades,)
 
     symbol_index = self.symbol_mapper.label_to_index(symbol)
 
-    item = (label_encoded_sequence, one_hot_clade, symbol_index)
+    if self.configuration.clade:
+        item = (label_encoded_sequence, one_hot_clade, symbol_index)
+    else:
+        item = (label_encoded_sequence, symbol_index)
 
     return item
 

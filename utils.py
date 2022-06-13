@@ -279,6 +279,7 @@ class SequenceDataset(Dataset):
     """
 
     def __init__(self, configuration, get_item):
+        self.configuration = configuration
         self.get_item = get_item
 
         if "min_frequency" in configuration:
@@ -297,7 +298,10 @@ class SequenceDataset(Dataset):
         self.num_symbols = configuration.num_symbols
 
         # select the features and labels columns
-        self.dataset = data[["sequence", "clade", "symbol", "scientific_name"]]
+        if configuration.clade:
+            self.dataset = data[["sequence", "clade", "symbol", "scientific_name"]]
+        else:
+            self.dataset = data[["sequence", "symbol", "scientific_name"]]
 
         if configuration.excluded_genera is not None:
             num_total_samples = len(self.dataset)
@@ -333,9 +337,10 @@ class SequenceDataset(Dataset):
         # generate protein sequences mapper
         self.protein_sequence_mapper = ProteinSequenceMapper()
 
-        # generate clades CategoryMapper
-        clades = sorted(set(genebuild_clades.values()))
-        self.clade_mapper = CategoryMapper(clades)
+        if configuration.clade:
+            # generate clades CategoryMapper
+            clades = sorted(set(genebuild_clades.values()))
+            self.clade_mapper = CategoryMapper(clades)
 
     def __len__(self):
         return len(self.dataset)
@@ -1137,12 +1142,14 @@ def generate_dataloaders(configuration, get_item):
 
     configuration.symbol_mapper = dataset.symbol_mapper
     configuration.protein_sequence_mapper = dataset.protein_sequence_mapper
-    configuration.clade_mapper = dataset.clade_mapper
+    if configuration.clade:
+        configuration.clade_mapper = dataset.clade_mapper
 
     configuration.num_protein_letters = (
         configuration.protein_sequence_mapper.num_protein_letters
     )
-    configuration.num_clades = configuration.clade_mapper.num_categories
+    if configuration.clade:
+        configuration.num_clades = configuration.clade_mapper.num_categories
 
     logger.info(
         "gene symbols:\n{}".format(pd.Series(configuration.symbol_mapper.categories))
