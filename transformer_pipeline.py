@@ -222,30 +222,53 @@ class TransformerBlock(nn.Module):
         return x
 
 
-class GeneSymbolClassifier(ClassificationTransformer):
+class GeneSymbolClassifier(pl.LightningModule):
     """
     Neural network for gene symbol classification of protein coding sequences using
     the raw protein letters as features.
     """
 
     def __init__(self, **kwargs):
+        super().__init__()
+
         self.save_hyperparameters()
 
-        super().__init__(
-            num_classes=self.hparams.num_symbols,
-            embedding_dimension=self.hparams.embedding_dimension,
-            num_heads=self.hparams.num_heads,
-            depth=self.hparams.transformer_depth,
-            feedforward_connections=self.hparams.feedforward_connections,
-            sequence_length=self.hparams.sequence_length,
-            num_tokens=self.hparams.num_protein_letters,
-            dropout_probability=self.hparams.dropout_probability,
-            activation_function=self.hparams.activation_function,
-        )
-
+        self.num_classes = self.hparams.num_symbols
         self.sequence_length = self.hparams.sequence_length
         self.padding_side = self.hparams.padding_side
         self.num_symbols = self.hparams.num_symbols
+
+        embedding_dimension = self.hparams.embedding_dimension
+        num_heads = self.hparams.num_heads
+        depth = self.hparams.transformer_depth
+        feedforward_connections = self.hparams.feedforward_connections
+        num_tokens = self.hparams.num_protein_letters
+        dropout_probability = self.hparams.dropout_probability
+        activation_function = self.hparams.activation_function
+
+        self.token_embedding = nn.Embedding(
+            num_embeddings=num_tokens, embedding_dim=embedding_dimension
+        )
+
+        self.position_embedding = nn.Embedding(
+            num_embeddings=self.sequence_length, embedding_dim=embedding_dimension
+        )
+
+        transformer_blocks = [
+            TransformerBlock(
+                embedding_dimension=embedding_dimension,
+                num_heads=num_heads,
+                feedforward_connections=feedforward_connections,
+                dropout_probability=dropout_probability,
+                activation_function=activation_function,
+            )
+            for _ in range(depth)
+        ]
+        self.transformer_blocks = nn.Sequential(*transformer_blocks)
+
+        self.fully_connected_layer = nn.Linear(embedding_dimension, self.num_classes)
+
+        self.final_activation = nn.LogSoftmax(dim=1)
 
         self.protein_sequence_mapper = self.hparams.protein_sequence_mapper
         if self.hparams.clade:
@@ -257,6 +280,31 @@ class GeneSymbolClassifier(ClassificationTransformer):
         self.best_validation_accuracy = 0
 
         self.torchmetrics_accuracy_average = "weighted"
+
+    def forward(self, x):
+        # generate token embeddings
+        token_embeddings = self.token_embedding(x)
+
+        b, t, k = token_embeddings.size()
+
+        # generate position embeddings
+        position_embeddings_init = torch.arange(t, device=self.device)
+        position_embeddings = self.position_embedding(position_embeddings_init)[
+            None, :, :
+        ].expand(b, t, k)
+
+        x = token_embeddings + position_embeddings
+
+        x = self.transformer_blocks(x)
+
+        # average-pool over dimension t
+        x = x.mean(dim=1)
+
+        x = self.fully_connected_layer(x)
+
+        x = self.final_activation(x)
+
+        return x
 
     def on_fit_start(self):
         logger.info("start network training")
