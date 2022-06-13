@@ -59,6 +59,9 @@ sequence_length: 581  # ~ 581.36 : dataset sequences mean length
 
 #padding_side: left
 padding_side: right
+
+clade: True
+#clade: False
 ################################################################################
 
 # network architecture
