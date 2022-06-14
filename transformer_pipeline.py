@@ -242,7 +242,6 @@ class GeneSymbolClassifier(pl.LightningModule):
 
         self.save_hyperparameters()
 
-        self.num_classes = self.hparams.num_symbols
         self.sequence_length = self.hparams.sequence_length
         self.padding_side = self.hparams.padding_side
         self.num_symbols = self.hparams.num_symbols
@@ -275,7 +274,9 @@ class GeneSymbolClassifier(pl.LightningModule):
         ]
         self.transformer_blocks = nn.Sequential(*transformer_blocks)
 
-        self.fully_connected_layer = nn.Linear(embedding_dimension, self.num_classes)
+        self.fully_connected_layer = nn.Linear(
+            embedding_dimension + self.hparams.num_clades, self.num_symbols
+        )
 
         self.final_activation = nn.LogSoftmax(dim=1)
 
@@ -290,7 +291,9 @@ class GeneSymbolClassifier(pl.LightningModule):
 
         self.torchmetrics_accuracy_average = "weighted"
 
-    def forward(self, x):
+    def forward(self, sequence_features, clade_features):
+        x = sequence_features
+
         # generate token embeddings
         token_embeddings = self.token_embedding(x)
 
@@ -309,7 +312,10 @@ class GeneSymbolClassifier(pl.LightningModule):
         # average-pool over dimension t
         x = x.mean(dim=1)
 
-        x = self.fully_connected_layer(x)
+        # concatenate the transformer output and clade_features tensors
+        x_ = torch.cat([x, clade_features], dim=1)
+
+        x = self.fully_connected_layer(x_)
 
         x = self.final_activation(x)
 
@@ -322,11 +328,12 @@ class GeneSymbolClassifier(pl.LightningModule):
     def training_step(self, batch, batch_index):
         if self.hparams.clade:
             sequence_features, clade_features, labels = batch
+            # forward pass
+            output = self(sequence_features, clade_features)
         else:
             sequence_features, labels = batch
-
-        # forward pass
-        output = self(sequence_features)
+            # forward pass
+            output = self(sequence_features)
 
         # loss function
         training_loss = F.nll_loss(output, labels)
@@ -347,11 +354,12 @@ class GeneSymbolClassifier(pl.LightningModule):
     def validation_step(self, batch, batch_index):
         if self.hparams.clade:
             sequence_features, clade_features, labels = batch
+            # forward pass
+            output = self(sequence_features, clade_features)
         else:
             sequence_features, labels = batch
-
-        # forward pass
-        output = self(sequence_features)
+            # forward pass
+            output = self(sequence_features)
 
         # loss function
         validation_loss = F.nll_loss(output, labels)
@@ -400,11 +408,12 @@ class GeneSymbolClassifier(pl.LightningModule):
     def test_step(self, batch, batch_index):
         if self.hparams.clade:
             sequence_features, clade_features, labels = batch
+            # forward pass
+            output = self(sequence_features, clade_features)
         else:
             sequence_features, labels = batch
-
-        # forward pass
-        output = self(sequence_features)
+            # forward pass
+            output = self(sequence_features)
 
         # get predicted label indexes from output
         predictions, _ = self.get_prediction_indexes_probabilities(output)
@@ -486,13 +495,17 @@ class GeneSymbolClassifier(pl.LightningModule):
         the probabilities of predictions.
         """
         sequence_features = self.generate_sequence_tensor(sequences)
+
         if self.hparams.clade:
             clade_features = self.generate_clade_tensor(clades)
 
         # run inference
         with torch.no_grad():
             self.eval()
-            output = self.forward(sequence_features)
+            if self.hparams.clade:
+                output = self.forward(sequence_features, clade_features)
+            else:
+                output = self.forward(sequence_features)
 
         prediction_indexes, probabilities = self.get_prediction_indexes_probabilities(
             output
