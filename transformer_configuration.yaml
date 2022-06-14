@@ -83,7 +83,8 @@ activation_function: relu
 #activation_function: gelu
 
 #feedforward_connections: 64
-feedforward_connections: 128
+#feedforward_connections: 128
+feedforward_connections: 256
 
 # L2 regularization
 weight_decay: 0
