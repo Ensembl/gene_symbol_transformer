@@ -99,7 +99,7 @@ def main():
         root_directory = configuration.save_directory
 
         experiment_directory = pathlib.Path(f"{root_directory}/{job_name}")
-        experiment_directory.mkdir(exist_ok=True)
+        experiment_directory.mkdir(parents=True, exist_ok=True)
 
         # copy pipeline script, configuration file, and dependencies
         pipeline_copy = shutil.copy(pipeline_path, experiment_directory)
@@ -121,7 +121,7 @@ def main():
         root_directory = checkpoint_path.parent
 
         experiment_directory = pathlib.Path(f"{root_directory}/{job_name}")
-        experiment_directory.mkdir(exist_ok=True)
+        experiment_directory.mkdir(parents=True, exist_ok=True)
 
         pipeline_command_elements = [
             f"python {args.pipeline}",
