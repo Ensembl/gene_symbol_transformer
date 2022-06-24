@@ -88,8 +88,8 @@ class ClassificationTransformer(pl.LightningModule):
             num_embeddings=num_tokens, embedding_dim=embedding_dimension
         )
 
-        self.position_embedding = nn.Embedding(
-            num_embeddings=sequence_length, embedding_dim=embedding_dimension
+        self.position_embedding = nn.Parameter(
+            torch.zeros(1, sequence_length, embedding_dimension)
         )
 
         transformer_blocks = [
@@ -115,11 +115,8 @@ class ClassificationTransformer(pl.LightningModule):
         b, t, k = token_embeddings.size()
 
         # generate position embeddings
-        position_embeddings_init = torch.arange(t, device=self.device)
-        position_embeddings = self.position_embedding(position_embeddings_init)[
-            None, :, :
-        ].expand(b, t, k)
-
+        # each position maps to a (learnable) vector
+        position_embeddings = self.position_embedding[:, :t, :]
         x = token_embeddings + position_embeddings
 
         x = self.transformer_blocks(x)
