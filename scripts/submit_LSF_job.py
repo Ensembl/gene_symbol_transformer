@@ -45,12 +45,17 @@ def main():
         help="experiment configuration file path",
     )
     argument_parser.add_argument(
-        "--mem_limit", default=16384, type=int, help="LSF job memory limit"
+        "--mem_limit", default=32256, type=int, help="LSF job memory limit"
+    )
+    argument_parser.add_argument(
+        "--gpu_small",
+        action="store_true",
+        help="submit training job to the gpu queue (NVIDIA V100)",
     )
     argument_parser.add_argument(
         "--gpu",
         action="store_true",
-        help="submit training job to the gpu queue",
+        help="submit training job to the gpu-a100 queue (NVIDIA A100)",
     )
     argument_parser.add_argument(
         "--checkpoint",
@@ -153,10 +158,21 @@ def main():
         f"-e {experiment_directory}/stderr.log",
     ]
 
-    if args.gpu:
+    if args.gpu_small:
         num_gpus = 1
-        # gpu_memory = 32768  # 32 GiBs
-        # gpu_memory = 65536  # 64 GiBs
+        gpu_memory = 32256  # 31.5 GiBs, NVIDIA V100 memory with safety margin
+        # gpu_memory = 32510  # ~32 GiBs, total NVIDIA V100 memory
+
+        bsub_command_elements.extend(
+            [
+                "-q gpu",
+                f'-gpu "num={num_gpus}:gmem={gpu_memory}:j_exclusive=yes"',
+                f"-M {args.mem_limit}",
+                f'-R"select[mem>{args.mem_limit}] rusage[mem={args.mem_limit}] span[hosts=1]"',
+            ]
+        )
+    elif args.gpu:
+        num_gpus = 1
         gpu_memory = 81000  # ~80 GiBs, NVIDIA A100 memory with safety margin
         # gpu_memory = 81920  # 80 GiBs, total NVIDIA A100 memory
 
