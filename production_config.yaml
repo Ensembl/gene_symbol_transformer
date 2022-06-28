@@ -1,0 +1,141 @@
+# general
+################################################################################
+# experiment files directory
+save_directory: experiments
+
+# experiment naming prefix
+experiment_prefix: transformer
+
+# PyTorch random number generator initialization seed
+#random_seed: 5
+random_seed: 7
+#random_seed: 11
+################################################################################
+
+# dataset
+################################################################################
+min_frequency: 10  # ~ 30500 symbols (2022-01-29 Ensembl 105: 30688)
+
+# exclude genera from all pipeline datasets
+excluded_genera:
+  # Cow (genus Bos)
+  #- Bos
+  # Horse, Donkey (genus Equus)
+  #- Equus
+  # salmon and trout (both in genera Salmo and Oncorhynchus)
+  #- Salmo
+  #- Oncorhynchus
+  # Zebra finch (genus Taeniopygia)
+  #- Taeniopygia
+  # Chinese hamster (genus Cricetulus)
+  #- Cricetulus
+  # Macaque (genus Macaca) (Rhesus macaque)
+  #- Macaca
+
+# training, validation, test split
+#test_ratio: 0.2
+#validation_ratio: 0.2
+#test_ratio: 0.15
+#validation_ratio: 0.15
+#test_ratio: 0.1
+#validation_ratio: 0.1
+#test_ratio: 0
+#validation_ratio: 0.1
+test_ratio: 0.05
+validation_ratio: 0.05
+#test_ratio: 0
+#validation_ratio: 0.05
+################################################################################
+
+# features
+################################################################################
+#sequence_length: 581  # ~ 581.36 : dataset sequences mean length
+#sequence_length: 844  # ~ 581.36 + 0.5 * 526.05 : mean + 0.5 * standard_deviation
+sequence_length: 1107  # ~ 581.36 + 1 * 526.05 : mean + 1 * standard_deviation
+
+#padding_side: left
+padding_side: right
+
+clade: True
+#clade: False
+################################################################################
+
+# network architecture
+################################################################################
+#embedding_dimension: 8
+embedding_dimension: 16
+#embedding_dimension: 32
+#embedding_dimension: 64
+
+#num_heads: 2
+#num_heads: 4
+num_heads: 8
+
+#transformer_depth: 1
+transformer_depth: 2
+#transformer_depth: 3
+
+#activation_function: relu
+activation_function: gelu
+
+#feedforward_connections: 64
+#feedforward_connections: 128
+feedforward_connections: 256
+#feedforward_connections: 512
+
+# L2 regularization
+weight_decay: 0
+#weight_decay: 1.0e-6
+#weight_decay: 1.0e-5
+
+# max norm for gradient clipping
+clip_max_norm: 0
+#clip_max_norm: 3
+
+dropout_probability: 0
+#dropout_probability: 0.3
+#dropout_probability: 0.5
+################################################################################
+
+# training
+################################################################################
+#batch_size: 8
+#batch_size: 16
+#batch_size: 32
+#batch_size: 64
+batch_size: 128
+
+#num_workers: 0
+#num_workers: 1
+num_workers: 5
+#num_workers: 17
+
+#learning_rate: 3.0e-4
+learning_rate: 1.0e-4
+#learning_rate: 3.0e-5
+
+# number of epochs without validation loss improvement before training stops
+#patience: 3
+#patience: 11
+patience: 31
+
+# minimum validation loss change to consider as improvement
+loss_delta: 0
+#loss_delta: 1.0e-6
+
+# maximum number of training epochs
+#max_epochs: 1
+#max_epochs: 3
+#max_epochs: 10
+#max_epochs: 100
+max_epochs: 1000
+
+#gpus:
+gpus: 1
+
+profiler:
+#profiler: simple
+#profiler: pytorch
+
+num_sample_predictions: 20
+################################################################################
