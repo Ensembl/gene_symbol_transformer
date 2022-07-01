@@ -61,8 +61,11 @@ console_handler.setFormatter(logging_formatter_time_message)
 logger.addHandler(console_handler)
 
 data_directory = pathlib.Path("data")
+data_directory.mkdir(parents=True, exist_ok=True)
 main_release_sequences_directory = data_directory / "main_release_protein_sequences"
+main_release_sequences_directory.mkdir(parents=True, exist_ok=True)
 rapid_release_sequences_directory = data_directory / "rapid_release_protein_sequences"
+rapid_release_sequences_directory.mkdir(parents=True, exist_ok=True)
 
 dev_datasets_num_symbols = [3, 100, 1000]
 
@@ -925,7 +928,6 @@ def get_assemblies_metadata():
 
     # download the `species_EnsemblVertebrates.txt` file
     species_data_url = f"http://ftp.ensembl.org/pub/release-{ensembl_release}/species_EnsemblVertebrates.txt"
-    data_directory.mkdir(exist_ok=True)
     species_data_path = data_directory / "species_EnsemblVertebrates.txt"
     if not species_data_path.exists():
         download_file(species_data_url, species_data_path)

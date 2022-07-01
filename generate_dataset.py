@@ -16,13 +16,12 @@
 
 """
 Generate training dataset of protein sequences for canonical translations from assemblies
-in the latest Ensembl release and useful metadata, development datasets containing
+in the latest Ensembl release and relevant metadata, development datasets containing
 a subset of the full dataset for faster prototyping, and dataset statistics.
 """
 
 
 # standard library imports
-import argparse
 import json
 import sys
 import time
@@ -40,7 +39,6 @@ from utils import (
     get_assemblies_metadata,
     get_ensembl_release,
     get_xref_canonical_translations,
-    load_dataset,
     logger,
     main_release_sequences_directory,
     sizeof_fmt,
@@ -332,23 +330,10 @@ def main():
     """
     main function
     """
-    argument_parser = argparse.ArgumentParser()
-    argument_parser.add_argument(
-        "--save_symbols_metadata",
-        action="store_true",
-        help="save symbols source and description to a JSON file",
-    )
-
-    args = argument_parser.parse_args()
-
     log_file_path = data_directory / "dataset_generation.log"
     add_log_file_handler(logger, log_file_path)
 
-    if args.save_symbols_metadata:
-        dataset = load_dataset()
-        save_symbols_metadata(dataset)
-    else:
-        generate_datasets()
+    generate_datasets()
 
 
 if __name__ == "__main__":
