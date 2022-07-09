@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "gene_symbol_classifier"
 version = "0.12.1"
-description = "Gene symbol assignment to protein coding gene sequences using Machine Learning."
+description = "Transformer model for gene symbol assignment of protein coding gene sequences"
 authors = ["William Stark <william@ebi.ac.uk>"]
 license = "Apache-2.0"
 

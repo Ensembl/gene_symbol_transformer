@@ -1,6 +1,6 @@
 # GSC - Gene Symbol Classifier
 
-A Transformer model for gene symbol assignment for protein coding gene sequences.
+A Transformer model for gene symbol assignment of protein coding gene sequences.
 
 The classification model is built for assigning gene symbols and names to protein coding gene sequences from the Ensembl Genebuild annotation.
 
