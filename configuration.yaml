@@ -5,11 +5,6 @@ save_directory: experiments
 
 # experiment naming prefix
 experiment_prefix: transformer
-
-# PyTorch random number generator initialization seed
-random_seed: 5
-#random_seed: 7
-#random_seed: 11
 ################################################################################
 
 # dataset
@@ -102,6 +97,11 @@ dropout_probability: 0
 
 # training
 ################################################################################
+# random number generator initialization seed
+random_seed: 5
+#random_seed: 7
+#random_seed: 11
+
 batch_size: 16
 #batch_size: 32
 #batch_size: 64
