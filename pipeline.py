@@ -52,9 +52,11 @@ import yaml
 from torch import nn
 
 # project imports
+from transformer import TransformerEncoder
 from utils import (
     AttributeDict,
     ConciseReprDict,
+    MLP,
     add_log_file_handler,
     assign_symbols,
     compare_assignments,
@@ -67,222 +69,53 @@ from utils import (
 )
 
 
-class ClassificationTransformer(pl.LightningModule):
-    def __init__(
-        self,
-        num_classes,
-        embedding_dimension,
-        num_heads,
-        depth,
-        feedforward_connections,
-        sequence_length,
-        num_tokens,
-        dropout_probability,
-        activation_function,
-    ):
-        super().__init__()
-
-        self.num_classes = num_classes
-
-        self.token_embedding = nn.Embedding(
-            num_embeddings=num_tokens, embedding_dim=embedding_dimension
-        )
-
-        self.position_embedding = nn.Parameter(
-            torch.zeros(1, sequence_length, embedding_dimension)
-        )
-
-        transformer_blocks = [
-            TransformerBlock(
-                embedding_dimension=embedding_dimension,
-                num_heads=num_heads,
-                feedforward_connections=feedforward_connections,
-                dropout_probability=dropout_probability,
-                activation_function=activation_function,
-            )
-            for _ in range(depth)
-        ]
-        self.transformer_blocks = nn.Sequential(*transformer_blocks)
-
-        self.fully_connected_layer = nn.Linear(embedding_dimension, num_classes)
-
-        self.final_activation = nn.LogSoftmax(dim=1)
-
-    def forward(self, x):
-        # generate token embeddings
-        token_embeddings = self.token_embedding(x)
-
-        b, t, k = token_embeddings.size()
-
-        # generate position embeddings
-        # each position maps to a (learnable) vector
-        position_embeddings = self.position_embedding[:, :t, :]
-        x = token_embeddings + position_embeddings
-
-        x = self.transformer_blocks(x)
-
-        # average-pool over dimension t
-        x = x.mean(dim=1)
-
-        x = self.fully_connected_layer(x)
-
-        x = self.final_activation(x)
-
-        return x
-
-
-class SelfAttention(nn.Module):
-    def __init__(self, embedding_dimension, num_heads):
-        super().__init__()
-
-        assert (
-            embedding_dimension % num_heads == 0
-        ), f"embedding dimension must be divisible by number of heads, got {embedding_dimension=}, {num_heads=}"
-
-        self.num_heads = num_heads
-
-        k = embedding_dimension
-
-        self.to_keys = nn.Linear(k, k * num_heads, bias=False)
-        self.to_queries = nn.Linear(k, k * num_heads, bias=False)
-        self.to_values = nn.Linear(k, k * num_heads, bias=False)
-
-        self.unify_heads = nn.Linear(num_heads * k, k)
-
-    def forward(self, x):
-        b, t, k = x.size()
-        h = self.num_heads
-
-        keys = self.to_keys(x).view(b, t, h, k)
-        queries = self.to_queries(x).view(b, t, h, k)
-        values = self.to_values(x).view(b, t, h, k)
-
-        # fold heads into the batch dimension
-        keys = keys.transpose(1, 2).contiguous().view(b * h, t, k)
-        queries = queries.transpose(1, 2).contiguous().view(b * h, t, k)
-        values = values.transpose(1, 2).contiguous().view(b * h, t, k)
-
-        # get dot product of queries and keys
-        dot = torch.bmm(queries, keys.transpose(1, 2))
-        # dot.shape: (b * h, t, t)
-
-        # scale dot product
-        dot = dot / (k ** (1 / 2))
-
-        # get row-wise normalized weights
-        dot = F.softmax(dot, dim=2)
-
-        # apply the self attention to the values
-        out = torch.bmm(dot, values).view(b, h, t, k)
-
-        # swap h, t back
-        out = out.transpose(1, 2).contiguous().view(b, t, h * k)
-
-        return self.unify_heads(out)
-
-
-class TransformerBlock(nn.Module):
-    def __init__(
-        self,
-        embedding_dimension,
-        num_heads,
-        feedforward_connections,
-        activation_function,
-        dropout_probability,
-    ):
-        super().__init__()
-
-        assert (
-            feedforward_connections > embedding_dimension
-        ), f"feed forward subnet number of connections should be larger than the embedding dimension, got {feedforward_connections=}, {embedding_dimension=}"
-
-        activation = {"relu": nn.ReLU, "gelu": nn.GELU}
-
-        k = embedding_dimension
-
-        self.attention = SelfAttention(k, num_heads=num_heads)
-
-        self.layer_normalization_1 = nn.LayerNorm(k)
-        self.layer_normalization_2 = nn.LayerNorm(k)
-
-        self.feed_forward = nn.Sequential(
-            nn.Linear(k, feedforward_connections),
-            activation[activation_function](),
-            nn.Linear(feedforward_connections, k),
-            nn.Dropout(dropout_probability),
-        )
-
-    def forward(self, x):
-        # former
-        # x = self.layer_normalization_1(self.attention(x) + x)
-        # x = self.layer_normalization_2(self.feed_forward(x) + x)
-
-        # minGPT
-        # x = x + self.attention(self.layer_normalization_1(x))
-        # x = x + self.feed_forward(self.layer_normalization_2(x))
-
-        # ws
-        x = x + self.layer_normalization_1(self.attention(x))
-        x = x + self.layer_normalization_2(self.feed_forward(x))
-
-        return x
-
-
-class GeneSymbolClassifier(pl.LightningModule):
+class Geneformer(pl.LightningModule):
     """
-    Neural network for gene symbol classification of protein coding sequences using
-    the raw protein letters as features.
+    Neural network for gene symbol classification of protein coding sequences.
     """
 
     def __init__(self, **kwargs):
-        super().__init__()
-
         self.save_hyperparameters()
 
+        super().__init__()
+
+        self.num_protein_letters = self.hparams.num_protein_letters
         self.sequence_length = self.hparams.sequence_length
         self.padding_side = self.hparams.padding_side
         self.num_symbols = self.hparams.num_symbols
         self.clade = self.hparams.clade
+        self.mlp_output_size = self.hparams.mlp_output_size
+        self.activation_function = self.hparams.activation_function
 
-        embedding_dimension = self.hparams.embedding_dimension
-        num_heads = self.hparams.num_heads
-        depth = self.hparams.transformer_depth
-        feedforward_connections = self.hparams.feedforward_connections
-        num_tokens = self.hparams.num_protein_letters
-        dropout_probability = self.hparams.dropout_probability
-        activation_function = self.hparams.activation_function
-
-        self.token_embedding = nn.Embedding(
-            num_embeddings=num_tokens, embedding_dim=embedding_dimension
+        flat_one_hot_sequence_length = self.num_protein_letters * self.sequence_length
+        self.mlp = MLP(
+            input_dim=flat_one_hot_sequence_length,
+            output_dim=self.mlp_output_size,
+            activation=self.activation_function,
         )
 
-        self.position_embedding = nn.Embedding(
-            num_embeddings=self.sequence_length, embedding_dim=embedding_dimension
+        self.sequence_transformer = TransformerEncoder(
+            embedding_dimension=self.hparams.embedding_dimension,
+            num_heads=self.hparams.num_heads,
+            depth=self.hparams.transformer_depth,
+            feedforward_connections=self.hparams.feedforward_connections,
+            sequence_length=self.sequence_length,
+            num_tokens=self.num_protein_letters,
+            dropout_probability=self.hparams.dropout_probability,
+            activation_function=self.activation_function,
         )
 
-        transformer_blocks = [
-            TransformerBlock(
-                embedding_dimension=embedding_dimension,
-                num_heads=num_heads,
-                feedforward_connections=feedforward_connections,
-                dropout_probability=dropout_probability,
-                activation_function=activation_function,
-            )
-            for _ in range(depth)
-        ]
-        self.transformer_blocks = nn.Sequential(*transformer_blocks)
-
-        if self.clade:
-            input_size = embedding_dimension + self.hparams.num_clades
-        else:
-            input_size = embedding_dimension
-        self.fully_connected_layer = nn.Linear(input_size, self.num_symbols)
+        integration_input_size = (
+            self.mlp_output_size + self.sequence_length + self.hparams.num_clades
+        )
+        self.integration_layer = nn.Linear(
+            in_features=integration_input_size, out_features=self.num_symbols
+        )
 
         self.final_activation = nn.LogSoftmax(dim=1)
 
         self.protein_sequence_mapper = self.hparams.protein_sequence_mapper
-        if self.clade:
-            self.clade_mapper = self.hparams.clade_mapper
+        self.clade_mapper = self.hparams.clade_mapper
         self.symbol_mapper = self.hparams.symbol_mapper
 
         self.num_sample_predictions = self.hparams.num_sample_predictions
@@ -291,32 +124,18 @@ class GeneSymbolClassifier(pl.LightningModule):
 
         self.torchmetrics_accuracy_average = "weighted"
 
-    def forward(self, sequence_features, clade_features=None):
-        x = sequence_features
+    def forward(self, features):
+        label_encoded_sequence = features["label_encoded_sequence"]
+        flat_one_hot_sequence = features["flat_one_hot_sequence"]
+        one_hot_clade = features["one_hot_clade"]
 
-        # generate token embeddings
-        token_embeddings = self.token_embedding(x)
+        x_mlp = self.mlp(flat_one_hot_sequence)
+        x_transformer = self.sequence_transformer(label_encoded_sequence)
 
-        b, t, k = token_embeddings.size()
+        # concatenate the mlp and transformer outputs and one_hot_clade tensors
+        x = torch.cat((x_mlp, x_transformer, one_hot_clade), dim=1)
 
-        # generate position embeddings
-        position_embeddings_init = torch.arange(t, device=self.device)
-        position_embeddings = self.position_embedding(position_embeddings_init)[
-            None, :, :
-        ].expand(b, t, k)
-
-        x = token_embeddings + position_embeddings
-
-        x = self.transformer_blocks(x)
-
-        # average-pool over dimension t
-        x = x.mean(dim=1)
-
-        if self.clade:
-            # concatenate the transformer output and clade_features tensors
-            x = torch.cat([x, clade_features], dim=1)
-
-        x = self.fully_connected_layer(x)
+        x = self.integration_layer(x)
 
         x = self.final_activation(x)
 
@@ -327,14 +146,10 @@ class GeneSymbolClassifier(pl.LightningModule):
         logger.info(f"configuration:\n{self.hparams}")
 
     def training_step(self, batch, batch_index):
-        if self.clade:
-            sequence_features, clade_features, labels = batch
-            # forward pass
-            output = self(sequence_features, clade_features)
-        else:
-            sequence_features, labels = batch
-            # forward pass
-            output = self(sequence_features)
+        features, labels = batch
+
+        # forward pass
+        output = self(features)
 
         # loss function
         training_loss = F.nll_loss(output, labels)
@@ -353,14 +168,10 @@ class GeneSymbolClassifier(pl.LightningModule):
         ).to(self.device)
 
     def validation_step(self, batch, batch_index):
-        if self.clade:
-            sequence_features, clade_features, labels = batch
-            # forward pass
-            output = self(sequence_features, clade_features)
-        else:
-            sequence_features, labels = batch
-            # forward pass
-            output = self(sequence_features)
+        features, labels = batch
+
+        # forward pass
+        output = self(features)
 
         # loss function
         validation_loss = F.nll_loss(output, labels)
@@ -407,14 +218,10 @@ class GeneSymbolClassifier(pl.LightningModule):
         self.sample_predictions = torch.empty(0).to(self.device)
 
     def test_step(self, batch, batch_index):
-        if self.clade:
-            sequence_features, clade_features, labels = batch
-            # forward pass
-            output = self(sequence_features, clade_features)
-        else:
-            sequence_features, labels = batch
-            # forward pass
-            output = self(sequence_features)
+        features, labels = batch
+
+        # forward pass
+        output = self(features)
 
         # get predicted label indexes from output
         predictions, _ = self.get_prediction_indexes_probabilities(output)
@@ -499,14 +306,16 @@ class GeneSymbolClassifier(pl.LightningModule):
 
         if self.clade:
             clade_features = self.generate_clade_tensor(clades)
+        else:
+            # TODO
+            # generate a null clade features tensor
+            # clade_features = torch.zeros(len(clades) * num_clades) ?
+            pass
 
         # run inference
         with torch.no_grad():
             self.eval()
-            if self.clade:
-                output = self.forward(sequence_features, clade_features)
-            else:
-                output = self.forward(sequence_features)
+            output = self.forward(sequence_features, clade_features)
 
         prediction_indexes, probabilities = self.get_prediction_indexes_probabilities(
             output
@@ -544,6 +353,7 @@ class GeneSymbolClassifier(pl.LightningModule):
         Args:
             sequences: list of protein sequences
         """
+        # TODO
         padding_side_to_align = {"left": ">", "right": "<"}
 
         sequence_features_list = []
@@ -578,46 +388,6 @@ class GeneSymbolClassifier(pl.LightningModule):
         clade_features_tensor = torch.from_numpy(clade_features_array)
 
         return clade_features_tensor
-
-
-def get_item_sequence_label_clade_one_hot(self, index):
-    """
-    Modularized Dataset __getitem__ method.
-
-    Generate a protein sequence label encoding and a species clade one-hot encoding and
-    use as separate feature vectors.
-
-    Args:
-        self (Dataset): the Dataset object that will contain __getitem__
-    Returns:
-        tuple containing the features vector and symbol index
-    """
-    dataset_row = self.dataset.iloc[index].to_dict()
-
-    sequence = dataset_row["sequence"]
-
-    if self.configuration.clade:
-        clade = dataset_row["clade"]
-
-    symbol = dataset_row["symbol"]
-
-    label_encoded_sequence = self.protein_sequence_mapper.sequence_to_label_encoding(
-        sequence
-    )
-    # label_encoded_sequence.shape: (sequence_length,)
-
-    if self.configuration.clade:
-        one_hot_clade = self.clade_mapper.label_to_one_hot(clade)
-        # one_hot_clade.shape: (num_clades,)
-
-    symbol_index = self.symbol_mapper.label_to_index(symbol)
-
-    if self.configuration.clade:
-        item = (label_encoded_sequence, one_hot_clade, symbol_index)
-    else:
-        item = (label_encoded_sequence, symbol_index)
-
-    return item
 
 
 def main():
@@ -734,7 +504,7 @@ def main():
             training_dataloader,
             validation_dataloader,
             test_dataloader,
-        ) = generate_dataloaders(configuration, get_item_sequence_label_clade_one_hot)
+        ) = generate_dataloaders(configuration)
 
         if configuration.num_symbols < 1000:
             configuration.symbols_metadata = None
@@ -746,7 +516,7 @@ def main():
                 configuration.symbols_metadata = ConciseReprDict(json.load(file))
 
         # instantiate neural network
-        network = GeneSymbolClassifier(**configuration)
+        network = Geneformer(**configuration)
 
         # don't use a per-experiment subdirectory
         logging_name = ""
@@ -790,11 +560,9 @@ def main():
         log_file_path = f"{checkpoint_path.parent}/experiment.log"
         add_log_file_handler(logger, log_file_path)
 
-        network = GeneSymbolClassifier.load_from_checkpoint(args.checkpoint)
+        network = Geneformer.load_from_checkpoint(args.checkpoint)
 
-        _, _, test_dataloader = generate_dataloaders(
-            network.hparams, get_item_sequence_label_clade_one_hot
-        )
+        _, _, test_dataloader = generate_dataloaders(network.hparams)
 
         trainer = pl.Trainer()
         trainer.test(network, dataloaders=test_dataloader)
@@ -811,7 +579,7 @@ def main():
         )
         add_log_file_handler(logger, log_file_path)
 
-        network = GeneSymbolClassifier.load_from_checkpoint(checkpoint_path)
+        network = Geneformer.load_from_checkpoint(checkpoint_path)
 
         evaluate_network(network, checkpoint_path, args.complete)
 
@@ -822,7 +590,7 @@ def main():
         log_file_path = f"{checkpoint_path.parent}/experiment.log"
         add_log_file_handler(logger, log_file_path)
 
-        network = GeneSymbolClassifier.load_from_checkpoint(args.checkpoint)
+        network = Geneformer.load_from_checkpoint(args.checkpoint)
         configuration = network.hparams
 
         logger.info("assigning symbols...")
@@ -835,7 +603,7 @@ def main():
     # compare assignments with the ones on the latest Ensembl release
     elif args.assignments_csv and args.ensembl_database and args.scientific_name:
         if args.checkpoint:
-            network = GeneSymbolClassifier.load_from_checkpoint(args.checkpoint)
+            network = Geneformer.load_from_checkpoint(args.checkpoint)
         else:
             network = None
 

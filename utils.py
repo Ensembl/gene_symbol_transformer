@@ -29,6 +29,7 @@ import sys
 import time
 
 from types import SimpleNamespace
+from typing import List, Optional
 
 # third party imports
 import Bio
@@ -40,6 +41,7 @@ import torch
 import torch.nn.functional as F
 
 from Bio import SeqIO
+from torch import nn
 from torch.utils.data import DataLoader, Dataset, random_split
 
 
@@ -281,9 +283,8 @@ class SequenceDataset(Dataset):
     Custom Dataset for raw sequences.
     """
 
-    def __init__(self, configuration, get_item):
+    def __init__(self, configuration):
         self.configuration = configuration
-        self.get_item = get_item
 
         if "min_frequency" in configuration:
             configuration.dataset_id = f"{configuration.min_frequency}_min_frequency"
@@ -301,10 +302,7 @@ class SequenceDataset(Dataset):
         self.num_symbols = configuration.num_symbols
 
         # select the features and labels columns
-        if configuration.clade:
-            self.dataset = data[["sequence", "clade", "symbol", "scientific_name"]]
-        else:
-            self.dataset = data[["sequence", "symbol", "scientific_name"]]
+        self.dataset = data[["sequence", "clade", "symbol", "scientific_name"]]
 
         if configuration.excluded_genera is not None:
             num_total_samples = len(self.dataset)
@@ -340,16 +338,52 @@ class SequenceDataset(Dataset):
         # generate protein sequences mapper
         self.protein_sequence_mapper = ProteinSequenceMapper()
 
-        if configuration.clade:
-            # generate clades CategoryMapper
-            clades = sorted(set(genebuild_clades.values()))
-            self.clade_mapper = CategoryMapper(clades)
+        # generate clades CategoryMapper
+        clades = sorted(set(genebuild_clades.values()))
+        self.clade_mapper = CategoryMapper(clades)
 
     def __len__(self):
         return len(self.dataset)
 
     def __getitem__(self, index):
-        return self.get_item(self, index)
+        """
+        Generate a dataset item with
+        (sequence label encoding, sequence one-hot encoding, clade one-hot encoding, symbol index)
+        """
+        dataset_row = self.dataset.iloc[index].to_dict()
+
+        sequence = dataset_row["sequence"]
+        clade = dataset_row["clade"]
+        symbol = dataset_row["symbol"]
+
+        label_encoded_sequence = (
+            self.protein_sequence_mapper.sequence_to_label_encoding(sequence)
+        )
+        # label_encoded_sequence.shape: (sequence_length,)
+
+        one_hot_sequence = self.protein_sequence_mapper.sequence_to_one_hot(sequence)
+        # one_hot_sequence.shape: (sequence_length, num_protein_letters)
+
+        # flatten sequence matrix to a vector
+        flat_one_hot_sequence = torch.flatten(one_hot_sequence)
+        # flat_one_hot_sequence.shape: (sequence_length * num_protein_letters,)
+
+        one_hot_clade = self.clade_mapper.label_to_one_hot(clade)
+        # one_hot_clade.shape: (num_clades,)
+
+        symbol_index = self.symbol_mapper.label_to_index(symbol)
+
+        features = {
+            "label_encoded_sequence": label_encoded_sequence,
+            "flat_one_hot_sequence": flat_one_hot_sequence,
+        }
+
+        if self.configuration.clade:
+            features["one_hot_clade"] = one_hot_clade
+
+        item = (features, symbol_index)
+
+        return item
 
 
 class CategoryMapper:
@@ -446,6 +480,41 @@ class ProteinSequenceMapper:
         label_encoded_sequence = torch.tensor(label_encoded_sequence, dtype=torch.int32)
 
         return label_encoded_sequence
+
+
+class MLP(nn.Module):
+    """
+    Parametrizable multi-layer perceptron.
+    """
+
+    def __init__(
+        self,
+        input_dim: int,
+        output_dim: int,
+        hidden_dimensions: Optional[List[int]] = None,
+        activation: str = "relu",
+    ):
+        super().__init__()
+
+        if hidden_dimensions is None:
+            hidden_dimensions = []
+
+        self.layers = nn.ModuleList(
+            nn.Linear(in_dim, out_dim)
+            for in_dim, out_dim in zip(
+                [input_dim] + hidden_dimensions, hidden_dimensions + [output_dim]
+            )
+        )
+
+        self.activation_function = {"relu": F.relu, "gelu": F.gelu}[activation]
+
+    def forward(self, x):
+        for layer in self.layers[:-1]:
+            x = activation_function(layer(x))
+
+        x = self.layers[-1](x)
+
+        return x
 
 
 class AttributeDict(dict):
@@ -1131,7 +1200,7 @@ class SuppressSettingWithCopyWarning:
         pd.options.mode.chained_assignment = self.original_setting
 
 
-def generate_dataloaders(configuration, get_item):
+def generate_dataloaders(configuration):
     """
     Generate training, validation, and test dataloaders from the dataset files.
 
@@ -1140,18 +1209,16 @@ def generate_dataloaders(configuration, get_item):
     Returns:
         tuple containing the training, validation, and test dataloaders
     """
-    dataset = SequenceDataset(configuration, get_item)
+    dataset = SequenceDataset(configuration)
 
     configuration.symbol_mapper = dataset.symbol_mapper
     configuration.protein_sequence_mapper = dataset.protein_sequence_mapper
-    if configuration.clade:
-        configuration.clade_mapper = dataset.clade_mapper
+    configuration.clade_mapper = dataset.clade_mapper
 
     configuration.num_protein_letters = (
         configuration.protein_sequence_mapper.num_protein_letters
     )
-    if configuration.clade:
-        configuration.num_clades = configuration.clade_mapper.num_categories
+    configuration.num_clades = configuration.clade_mapper.num_categories
 
     logger.info(
         "gene symbols:\n{}".format(pd.Series(configuration.symbol_mapper.categories))
