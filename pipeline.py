@@ -84,6 +84,7 @@ class Geneformer(pl.LightningModule):
         self.padding_side = self.hparams.padding_side
         self.num_symbols = self.hparams.num_symbols
         self.clade = self.hparams.clade
+        self.num_clades = self.hparams.num_clades
         self.mlp_output_size = self.hparams.mlp_output_size
         self.activation_function = self.hparams.activation_function
 
@@ -106,7 +107,7 @@ class Geneformer(pl.LightningModule):
         )
 
         integration_input_size = (
-            self.mlp_output_size + self.sequence_length + self.hparams.num_clades
+            self.mlp_output_size + self.sequence_length + self.num_clades
         )
         self.integration_layer = nn.Linear(
             in_features=integration_input_size, out_features=self.num_symbols
@@ -127,13 +128,13 @@ class Geneformer(pl.LightningModule):
     def forward(self, features):
         label_encoded_sequence = features["label_encoded_sequence"]
         flat_one_hot_sequence = features["flat_one_hot_sequence"]
-        one_hot_clade = features["one_hot_clade"]
+        clade_features = features["clade_features"]
 
         x_mlp = self.mlp(flat_one_hot_sequence)
         x_transformer = self.sequence_transformer(label_encoded_sequence)
 
-        # concatenate the mlp and transformer outputs and one_hot_clade tensors
-        x = torch.cat((x_mlp, x_transformer, one_hot_clade), dim=1)
+        # concatenate the mlp and transformer outputs and clade_features tensors
+        x = torch.cat((x_mlp, x_transformer, clade_features), dim=1)
 
         x = self.integration_layer(x)
 
@@ -302,24 +303,26 @@ class Geneformer(pl.LightningModule):
         Get symbol predictions for a list of protein sequences, along with
         the probabilities of predictions.
         """
-        sequence_features = self.generate_sequence_tensor(sequences)
+        for sequence, clade in zip(sequences, clades):
+            features = self.generate_sequence_features(sequence)
 
-        if self.clade:
-            clade_features = self.generate_clade_tensor(clades)
-        else:
-            # TODO
-            # generate a null clade features tensor
-            # clade_features = torch.zeros(len(clades) * num_clades) ?
-            pass
+            if self.clade:
+                clade_features = self.clade_mapper.label_to_one_hot(clade)
+            else:
+                # generate a null clade features tensor
+                clade_features = torch.zeros(self.num_clades)
 
-        # run inference
-        with torch.no_grad():
-            self.eval()
-            output = self.forward(sequence_features, clade_features)
+            features["clade_features"] = clade_features
 
-        prediction_indexes, probabilities = self.get_prediction_indexes_probabilities(
-            output
-        )
+            # run inference
+            with torch.no_grad():
+                self.eval()
+                # forward pass
+                output = self(features)
+
+            prediction_indexes, probabilities = self.get_prediction_indexes_probabilities(
+                output
+            )
 
         predictions = [
             self.symbol_mapper.index_to_label(prediction.item())
@@ -346,48 +349,46 @@ class Geneformer(pl.LightningModule):
         probabilities, _indices = torch.max(predicted_probabilities, dim=1)
         return (predictions, probabilities)
 
-    def generate_sequence_tensor(self, sequences: list):
+    def generate_sequence_features(self, sequence: str):
         """
-        Convert a list of protein sequences to a label encoded sequence features tensor.
+        Generate features for a protein sequence.
 
         Args:
-            sequences: list of protein sequences
+            sequence: a protein sequence
         """
-        # TODO
         padding_side_to_align = {"left": ">", "right": "<"}
 
-        sequence_features_list = []
-        for sequence in sequences:
-            # pad or truncate sequence to be exactly `self.sequence_length` letters long
-            sequence = "{string:{align}{string_length}.{truncate_length}}".format(
-                string=sequence,
-                align=padding_side_to_align[self.padding_side],
-                string_length=self.sequence_length,
-                truncate_length=self.sequence_length,
-            )
-            label_encoded_sequence = (
-                self.protein_sequence_mapper.sequence_to_label_encoding(sequence)
-            )
-            sequence_features_list.append(label_encoded_sequence)
+        # pad or truncate sequence to be exactly `self.sequence_length` letters long
+        sequence = "{string:{align}{string_length}.{truncate_length}}".format(
+            string=sequence,
+            align=padding_side_to_align[self.padding_side],
+            string_length=self.sequence_length,
+            truncate_length=self.sequence_length,
+        )
 
-        sequence_features_array = np.stack(sequence_features_list)
-        sequence_features_tensor = torch.from_numpy(sequence_features_array)
+        sequence_features = self._generate_sequence_features(sequence)
 
-        return sequence_features_tensor
+        return sequence_features
 
-    def generate_clade_tensor(self, clades: list):
-        """
-        Convert a list of species clades to an one-hot encoded clade features tensor.
-        Args:
-            clades: list of species clades
-        """
-        clade_features_list = [
-            self.clade_mapper.label_to_one_hot(clade) for clade in clades
-        ]
-        clade_features_array = np.stack(clade_features_list)
-        clade_features_tensor = torch.from_numpy(clade_features_array)
+    def _generate_sequence_features(self, sequence: str):
+        label_encoded_sequence = (
+            self.protein_sequence_mapper.sequence_to_label_encoding(sequence)
+        )
+        # label_encoded_sequence.shape: (sequence_length,)
 
-        return clade_features_tensor
+        one_hot_sequence = self.protein_sequence_mapper.sequence_to_one_hot(sequence)
+        # one_hot_sequence.shape: (sequence_length, num_protein_letters)
+
+        # flatten sequence matrix to a vector
+        flat_one_hot_sequence = torch.flatten(one_hot_sequence)
+        # flat_one_hot_sequence.shape: (sequence_length * num_protein_letters,)
+
+        sequence_features = {
+            "label_encoded_sequence": label_encoded_sequence,
+            "flat_one_hot_sequence": flat_one_hot_sequence,
+        }
+
+        return sequence_features
 
 
 def main():
