@@ -61,6 +61,10 @@ clade: True
 
 # network architecture
 ################################################################################
+#mlp_output_size: 32
+mlp_output_size: 64
+#mlp_output_size: 128
+
 embedding_dimension: 8
 #embedding_dimension: 16
 #embedding_dimension: 32
@@ -131,10 +135,10 @@ max_epochs: 10
 #max_epochs: 100
 #max_epochs: 1000
 
-gpus:
+gpus: 0
 #gpus: 1
 
-profiler:
+profiler: null
 #profiler: simple
 #profiler: pytorch
 
