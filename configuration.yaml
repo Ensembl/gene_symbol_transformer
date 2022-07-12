@@ -110,8 +110,8 @@ batch_size: 16
 #batch_size: 32
 #batch_size: 64
 
-#num_workers: 0
-num_workers: 1
+num_workers: 0
+#num_workers: 1
 #num_workers: 5
 #num_workers: 17
 

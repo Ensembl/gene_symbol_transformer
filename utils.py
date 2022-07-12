@@ -356,6 +356,25 @@ class SequenceDataset(Dataset):
         clade = dataset_row["clade"]
         symbol = dataset_row["symbol"]
 
+        features = self._generate_sequence_features(sequence)
+
+        if self.configuration.clade:
+            one_hot_clade = self.clade_mapper.label_to_one_hot(clade)
+            # one_hot_clade.shape: (num_clades,)
+            clade_features = one_hot_clade
+        else:
+            # generate a null clade features tensor
+            clade_features = torch.zeros(self.configuration.num_clades)
+
+        symbol_index = self.symbol_mapper.label_to_index(symbol)
+
+        features["clade_features"] = clade_features
+
+        item = (features, symbol_index)
+
+        return item
+
+    def _generate_sequence_features(self, sequence: str):
         label_encoded_sequence = (
             self.protein_sequence_mapper.sequence_to_label_encoding(sequence)
         )
@@ -368,22 +387,12 @@ class SequenceDataset(Dataset):
         flat_one_hot_sequence = torch.flatten(one_hot_sequence)
         # flat_one_hot_sequence.shape: (sequence_length * num_protein_letters,)
 
-        one_hot_clade = self.clade_mapper.label_to_one_hot(clade)
-        # one_hot_clade.shape: (num_clades,)
-
-        symbol_index = self.symbol_mapper.label_to_index(symbol)
-
-        features = {
+        sequence_features = {
             "label_encoded_sequence": label_encoded_sequence,
             "flat_one_hot_sequence": flat_one_hot_sequence,
         }
 
-        if self.configuration.clade:
-            features["one_hot_clade"] = one_hot_clade
-
-        item = (features, symbol_index)
-
-        return item
+        return sequence_features
 
 
 class CategoryMapper:
@@ -607,7 +616,7 @@ def evaluate_network(network, checkpoint_path, complete=False):
     Xref assignments.
 
     Args:
-        network (GeneSymbolClassifier): GeneSymbolClassifier network object
+        network (Geneformer): Geneformer network object
         checkpoint_path (Path): path to the experiment checkpoint
         complete (bool): Whether or not to run the evaluation for all genome assemblies.
             Defaults to False, which runs the evaluation only for a selection of
