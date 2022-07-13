@@ -52,7 +52,7 @@ import yaml
 from torch import nn
 
 # project imports
-from transformer import TransformerEncoder
+from models import TransformerEncoder
 from utils import (
     AttributeDict,
     ConciseReprDict,
@@ -69,7 +69,7 @@ from utils import (
 )
 
 
-class Geneformer(pl.LightningModule):
+class GSC(pl.LightningModule):
     """
     Neural network for gene symbol classification of protein coding sequences.
     """
@@ -517,7 +517,7 @@ def main():
                 configuration.symbols_metadata = ConciseReprDict(json.load(file))
 
         # instantiate neural network
-        network = Geneformer(**configuration)
+        network = GSC(**configuration)
 
         # don't use a per-experiment subdirectory
         logging_name = ""
@@ -561,7 +561,7 @@ def main():
         log_file_path = f"{checkpoint_path.parent}/experiment.log"
         add_log_file_handler(logger, log_file_path)
 
-        network = Geneformer.load_from_checkpoint(args.checkpoint)
+        network = GSC.load_from_checkpoint(args.checkpoint)
 
         _, _, test_dataloader = generate_dataloaders(network.hparams)
 
@@ -580,7 +580,7 @@ def main():
         )
         add_log_file_handler(logger, log_file_path)
 
-        network = Geneformer.load_from_checkpoint(checkpoint_path)
+        network = GSC.load_from_checkpoint(checkpoint_path)
 
         evaluate_network(network, checkpoint_path, args.complete)
 
@@ -591,7 +591,7 @@ def main():
         log_file_path = f"{checkpoint_path.parent}/experiment.log"
         add_log_file_handler(logger, log_file_path)
 
-        network = Geneformer.load_from_checkpoint(args.checkpoint)
+        network = GSC.load_from_checkpoint(args.checkpoint)
         configuration = network.hparams
 
         logger.info("assigning symbols...")
@@ -604,7 +604,7 @@ def main():
     # compare assignments with the ones on the latest Ensembl release
     elif args.assignments_csv and args.ensembl_database and args.scientific_name:
         if args.checkpoint:
-            network = Geneformer.load_from_checkpoint(args.checkpoint)
+            network = GSC.load_from_checkpoint(args.checkpoint)
         else:
             network = None
 
