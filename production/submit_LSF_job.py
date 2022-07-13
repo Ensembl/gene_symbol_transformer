@@ -15,7 +15,7 @@
 
 
 """
-Submit an LSF job to train, test, or evaluate a neural network gene symbol classifier.
+Submit an LSF job to train, test, or evaluate a gene symbol classifier model.
 """
 
 
@@ -39,23 +39,22 @@ def main():
     main function
     """
     argument_parser = argparse.ArgumentParser()
-    argument_parser.add_argument("--pipeline", help="pipeline script path")
+    argument_parser.add_argument("--pipeline", type=str, help="pipeline script path")
     argument_parser.add_argument(
-        "--configuration",
-        help="experiment configuration file path",
+        "--configuration", help="experiment configuration file path"
     )
     argument_parser.add_argument(
-        "--mem_limit", default=32256, type=int, help="LSF job memory limit"
-    )
-    argument_parser.add_argument(
-        "--gpu_small",
-        action="store_true",
-        help="submit training job to the gpu queue (NVIDIA V100)",
+        "--mem_limit", default=32768, type=int, help="LSF job memory limit"
     )
     argument_parser.add_argument(
         "--gpu",
-        action="store_true",
-        help="submit training job to the gpu-a100 queue (NVIDIA A100)",
+        default=None,
+        choices=["A100", "V100", None],
+        type=str,
+        help="GPU nodes queue to submit job",
+    )
+    argument_parser.add_argument(
+        "--num_gpus", default=1, type=int, help="number of GPUs to use"
     )
     argument_parser.add_argument(
         "--checkpoint",
@@ -75,7 +74,7 @@ def main():
 
     args = argument_parser.parse_args()
 
-    # submit new classifier training
+    # submit new training job
     if args.pipeline and args.configuration:
         datetime = dt.datetime.now().isoformat(sep="_", timespec="seconds")
 
@@ -109,6 +108,7 @@ def main():
         # copy pipeline script, configuration file, and dependencies
         pipeline_copy = shutil.copy(pipeline_path, experiment_directory)
         configuration_copy = shutil.copy(args.configuration, experiment_directory)
+        shutil.copy(pipeline_path.parent / "models.py", experiment_directory)
         shutil.copy(pipeline_path.parent / "utils.py", experiment_directory)
 
         pipeline_command_elements = [
@@ -119,7 +119,7 @@ def main():
             "--train",
         ]
 
-    # test or evaluate a classifier
+    # test or evaluate a model
     elif args.pipeline and args.checkpoint:
         checkpoint_path = pathlib.Path(args.checkpoint)
         job_name = checkpoint_path.stem
@@ -153,34 +153,26 @@ def main():
     # common job arguments
     bsub_command_elements = [
         "bsub",
-        f"-M {args.mem_limit}",
         f"-o {experiment_directory}/stdout.log",
         f"-e {experiment_directory}/stderr.log",
     ]
 
-    if args.gpu_small:
-        num_gpus = 1
-        gpu_memory = 32256  # 31.5 GiBs, NVIDIA V100 memory with safety margin
-        # gpu_memory = 32510  # ~32 GiBs, total NVIDIA V100 memory
+    if args.gpu:
+        # run training on an NVIDIA A100 GPU node
+        if args.gpu == "A100":
+            gpu_memory = 81000  # ~80 GiBs, NVIDIA A100 memory with safety margin
+            # gpu_memory = 81920  # 80 GiBs, total NVIDIA A100 memory
+            bsub_command_elements.append("-q gpu-a100")
+
+        # run training on an NVIDIA V100 GPU node
+        elif args.gpu == "V100":
+            gpu_memory = 32256  # 31.5 GiBs, NVIDIA V100 memory with safety margin
+            # gpu_memory = 32510  # ~32 GiBs, total NVIDIA V100 memory
+            bsub_command_elements.append("-q gpu")
 
         bsub_command_elements.extend(
             [
-                "-q gpu",
-                f'-gpu "num={num_gpus}:gmem={gpu_memory}:j_exclusive=yes"',
-                f"-M {args.mem_limit}",
-                f'-R"select[mem>{args.mem_limit}] rusage[mem={args.mem_limit}] span[hosts=1]"',
-            ]
-        )
-    elif args.gpu:
-        num_gpus = 1
-        gpu_memory = 81000  # ~80 GiBs, NVIDIA A100 memory with safety margin
-        # gpu_memory = 81920  # 80 GiBs, total NVIDIA A100 memory
-
-        bsub_command_elements.extend(
-            [
-                "-q gpu-a100",
-                f'-gpu "num={num_gpus}:gmem={gpu_memory}:j_exclusive=yes"',
-                f"-M {args.mem_limit}",
+                f'-gpu "num={args.num_gpus}:gmem={gpu_memory}:j_exclusive=yes"',
                 f'-R"select[mem>{args.mem_limit}] rusage[mem={args.mem_limit}] span[hosts=1]"',
             ]
         )
@@ -192,7 +184,12 @@ def main():
             ]
         )
 
-    bsub_command_elements.append(pipeline_command)
+    bsub_command_elements.extend(
+        [
+            f"-M {args.mem_limit}",
+            pipeline_command,
+        ]
+    )
 
     bsub_command = " ".join(bsub_command_elements)
     print(f"running command:\n{bsub_command}")
