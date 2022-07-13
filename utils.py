@@ -616,7 +616,7 @@ def evaluate_network(network, checkpoint_path, complete=False):
     Xref assignments.
 
     Args:
-        network (Geneformer): Geneformer network object
+        network (GSC): GSC network object
         checkpoint_path (Path): path to the experiment checkpoint
         complete (bool): Whether or not to run the evaluation for all genome assemblies.
             Defaults to False, which runs the evaluation only for a selection of
