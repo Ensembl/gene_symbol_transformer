@@ -29,7 +29,6 @@ import sys
 import time
 
 from types import SimpleNamespace
-from typing import List, Optional
 
 # third party imports
 import Bio
@@ -41,7 +40,6 @@ import torch
 import torch.nn.functional as F
 
 from Bio import SeqIO
-from torch import nn
 from torch.utils.data import DataLoader, Dataset, random_split
 
 
@@ -489,41 +487,6 @@ class ProteinSequenceMapper:
         label_encoded_sequence = torch.tensor(label_encoded_sequence, dtype=torch.int32)
 
         return label_encoded_sequence
-
-
-class MLP(nn.Module):
-    """
-    Parametrizable multi-layer perceptron.
-    """
-
-    def __init__(
-        self,
-        input_dim: int,
-        output_dim: int,
-        hidden_dimensions: Optional[List[int]] = None,
-        activation: str = "relu",
-    ):
-        super().__init__()
-
-        if hidden_dimensions is None:
-            hidden_dimensions = []
-
-        self.layers = nn.ModuleList(
-            nn.Linear(in_dim, out_dim)
-            for in_dim, out_dim in zip(
-                [input_dim] + hidden_dimensions, hidden_dimensions + [output_dim]
-            )
-        )
-
-        self.activation_function = {"relu": F.relu, "gelu": F.gelu}[activation]
-
-    def forward(self, x):
-        for layer in self.layers[:-1]:
-            x = activation_function(layer(x))
-
-        x = self.layers[-1](x)
-
-        return x
 
 
 class AttributeDict(dict):
