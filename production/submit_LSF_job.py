@@ -148,8 +148,6 @@ def main():
         argument_parser.print_help()
         sys.exit()
 
-    pipeline_command = " ".join(pipeline_command_elements)
-
     # common job arguments
     bsub_command_elements = [
         "bsub",
@@ -176,6 +174,8 @@ def main():
                 f'-R"select[mem>{args.mem_limit}] rusage[mem={args.mem_limit}] span[hosts=1]"',
             ]
         )
+        pipeline_command_elements.append(f" --num_gpus {args.num_gpus}")
+
     else:
         bsub_command_elements.extend(
             [
@@ -183,6 +183,8 @@ def main():
                 f'-R"select[mem>{args.mem_limit}] rusage[mem={args.mem_limit}]"',
             ]
         )
+
+    pipeline_command = " ".join(pipeline_command_elements)
 
     bsub_command_elements.extend(
         [
