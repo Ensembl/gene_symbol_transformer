@@ -62,6 +62,10 @@ clade: True
 
 # network architecture
 ################################################################################
+mlp_output_size: 32
+#mlp_output_size: 64
+#mlp_output_size: 128
+
 #embedding_dimension: 8
 embedding_dimension: 16
 #embedding_dimension: 32
@@ -81,7 +85,6 @@ activation_function: gelu
 #feedforward_connections: 64
 #feedforward_connections: 128
 feedforward_connections: 256
-#feedforward_connections: 512
 
 # L2 regularization
 weight_decay: 0
@@ -130,10 +133,7 @@ loss_delta: 0
 #max_epochs: 100
 max_epochs: 1000
 
-#gpus:
-gpus: 1
-
-profiler:
+profiler: null
 #profiler: simple
 #profiler: pytorch
 
