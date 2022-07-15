@@ -135,9 +135,6 @@ max_epochs: 10
 #max_epochs: 100
 #max_epochs: 1000
 
-gpus: 0
-#gpus: 1
-
 profiler: null
 #profiler: simple
 #profiler: pytorch

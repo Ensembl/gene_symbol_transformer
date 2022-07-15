@@ -72,6 +72,7 @@ def main():
         "--configuration",
         help="path to the experiment configuration file",
     )
+    argument_parser.add_argument("--num_gpus", help="number of GPUs to use")
     argument_parser.add_argument(
         "--checkpoint",
         help="experiment checkpoint path",
@@ -122,6 +123,8 @@ def main():
             configuration = yaml.safe_load(file)
 
         configuration = AttributeDict(configuration)
+
+        configuration.num_gpus = args.num_gpus
 
         if args.datetime:
             configuration.datetime = args.datetime
@@ -205,7 +208,7 @@ def main():
         )
 
         trainer = pl.Trainer(
-            gpus=configuration.gpus,
+            gpus=configuration.num_gpus,
             logger=tensorboard_logger,
             max_epochs=configuration.max_epochs,
             log_every_n_steps=1,
