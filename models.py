@@ -505,16 +505,16 @@ class TransformerBlock(nn.Module):
 
     def forward(self, x):
         # former
-        # x = self.layer_normalization_1(self.attention(x) + x)
-        # x = self.layer_normalization_2(self.feed_forward(x) + x)
+        x = self.layer_normalization_1(self.attention(x) + x)
+        x = self.layer_normalization_2(self.feed_forward(x) + x)
 
         # minGPT
         # x = x + self.attention(self.layer_normalization_1(x))
         # x = x + self.feed_forward(self.layer_normalization_2(x))
 
         # ws
-        x = x + self.layer_normalization_1(self.attention(x))
-        x = x + self.layer_normalization_2(self.feed_forward(x))
+        # x = x + self.layer_normalization_1(self.attention(x))
+        # x = x + self.layer_normalization_2(self.feed_forward(x))
 
         return x
 
