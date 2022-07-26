@@ -106,10 +106,11 @@ def main():
         experiment_directory.mkdir(parents=True, exist_ok=True)
 
         # copy pipeline script, configuration file, and dependencies
-        pipeline_copy = shutil.copy(pipeline_path, experiment_directory)
-        configuration_copy = shutil.copy(args.configuration, experiment_directory / "configuration.yaml")
-        shutil.copy(pipeline_path.parent / "models.py", experiment_directory)
-        shutil.copy(pipeline_path.parent / "utils.py", experiment_directory)
+        pipeline_copy = shutil.copy2(pipeline_path, experiment_directory)
+        configuration_copy = shutil.copy2(args.configuration, experiment_directory / "configuration.yaml")
+        pipeline_files = ["models.py", "utils.py"]
+        for pipeline_file in pipeline_files:
+            shutil.copy2(pipeline_path.parent / pipeline_file, experiment_directory)
 
         pipeline_command_elements = [
             f"python {pipeline_copy}",
