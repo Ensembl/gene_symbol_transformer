@@ -107,7 +107,7 @@ def main():
 
         # copy pipeline script, configuration file, and dependencies
         pipeline_copy = shutil.copy(pipeline_path, experiment_directory)
-        configuration_copy = shutil.copy(args.configuration, experiment_directory)
+        configuration_copy = shutil.copy(args.configuration, experiment_directory / "configuration.yaml")
         shutil.copy(pipeline_path.parent / "models.py", experiment_directory)
         shutil.copy(pipeline_path.parent / "utils.py", experiment_directory)
 
