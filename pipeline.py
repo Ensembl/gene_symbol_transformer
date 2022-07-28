@@ -236,7 +236,10 @@ def main():
 
         _, _, test_dataloader = generate_dataloaders(network.hparams)
 
-        trainer = pl.Trainer()
+        if torch.cuda.is_available():
+            num_gpus = 1
+
+        trainer = pl.Trainer(gpus=num_gpus)
         trainer.test(network, dataloaders=test_dataloader)
 
     # evaluate a classifier
