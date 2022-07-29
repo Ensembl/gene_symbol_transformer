@@ -41,6 +41,7 @@ import warnings
 
 # third party imports
 import pytorch_lightning as pl
+import torch
 import yaml
 
 # project imports
@@ -72,7 +73,9 @@ def main():
         "--configuration",
         help="path to the experiment configuration file",
     )
-    argument_parser.add_argument("--num_gpus", help="number of GPUs to use")
+    argument_parser.add_argument(
+        "--num_gpus", default=1, type=int, help="number of GPUs to use"
+    )
     argument_parser.add_argument(
         "--checkpoint",
         help="experiment checkpoint path",
@@ -123,8 +126,6 @@ def main():
             configuration = yaml.safe_load(file)
 
         configuration = AttributeDict(configuration)
-
-        configuration.num_gpus = args.num_gpus
 
         if args.datetime:
             configuration.datetime = args.datetime
@@ -207,8 +208,13 @@ def main():
             verbose=True,
         )
 
+        if torch.cuda.is_available():
+            num_gpus = args.num_gpus
+        else:
+            num_gpus = 0
+
         trainer = pl.Trainer(
-            gpus=configuration.num_gpus,
+            gpus=num_gpus,
             logger=tensorboard_logger,
             max_epochs=configuration.max_epochs,
             log_every_n_steps=1,
@@ -237,7 +243,9 @@ def main():
         _, _, test_dataloader = generate_dataloaders(network.hparams)
 
         if torch.cuda.is_available():
-            num_gpus = 1
+            num_gpus = args.num_gpus
+        else:
+            num_gpus = 0
 
         trainer = pl.Trainer(gpus=num_gpus)
         trainer.test(network, dataloaders=test_dataloader)

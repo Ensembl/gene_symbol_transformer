@@ -107,7 +107,9 @@ def main():
 
         # copy pipeline script, configuration file, and dependencies
         pipeline_copy = shutil.copy2(pipeline_path, experiment_directory)
-        configuration_copy = shutil.copy2(args.configuration, experiment_directory / "configuration.yaml")
+        configuration_copy = shutil.copy2(
+            args.configuration, experiment_directory / "configuration.yaml"
+        )
         pipeline_files = ["models.py", "utils.py"]
         for pipeline_file in pipeline_files:
             shutil.copy2(pipeline_path.parent / pipeline_file, experiment_directory)
@@ -175,7 +177,7 @@ def main():
                 f'-R"select[mem>{args.mem_limit}] rusage[mem={args.mem_limit}] span[hosts=1]"',
             ]
         )
-        pipeline_command_elements.append(f" --num_gpus {args.num_gpus}")
+        pipeline_command_elements.append(f"--num_gpus {args.num_gpus}")
 
     else:
         bsub_command_elements.extend(
