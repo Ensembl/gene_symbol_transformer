@@ -516,8 +516,7 @@ class ConciseReprDict(dict):
 def assign_symbols(
     network,
     sequences_fasta,
-    scientific_name=None,
-    taxonomy_id=None,
+    scientific_name,
     output_directory=None,
 ):
     """
@@ -527,8 +526,7 @@ def assign_symbols(
 
     symbols_metadata = network.hparams.symbols_metadata
 
-    if scientific_name is not None:
-        taxonomy_id = get_species_taxonomy_id(scientific_name)
+    taxonomy_id = get_species_taxonomy_id(scientific_name)
     clade = get_taxonomy_id_clade(taxonomy_id)
     # logger.info(f"got clade {clade} for {scientific_name}")
 
