@@ -45,7 +45,7 @@ import torch
 import yaml
 
 # project imports
-from models import GSC
+from models import GST
 from utils import (
     AttributeDict,
     ConciseReprDict,
@@ -189,7 +189,7 @@ def main():
                 configuration.symbols_metadata = ConciseReprDict(json.load(file))
 
         # instantiate neural network
-        network = GSC(**configuration)
+        network = GST(**configuration)
 
         # don't use a per-experiment subdirectory
         logging_name = ""
@@ -238,7 +238,7 @@ def main():
         log_file_path = f"{checkpoint_path.parent}/experiment.log"
         add_log_file_handler(logger, log_file_path)
 
-        network = GSC.load_from_checkpoint(args.checkpoint)
+        network = GST.load_from_checkpoint(args.checkpoint)
 
         _, _, test_dataloader = generate_dataloaders(network.hparams)
 
@@ -262,7 +262,7 @@ def main():
         )
         add_log_file_handler(logger, log_file_path)
 
-        network = GSC.load_from_checkpoint(checkpoint_path)
+        network = GST.load_from_checkpoint(checkpoint_path)
 
         evaluate_network(network, checkpoint_path, args.complete)
 
@@ -273,7 +273,7 @@ def main():
         log_file_path = f"{checkpoint_path.parent}/experiment.log"
         add_log_file_handler(logger, log_file_path)
 
-        network = GSC.load_from_checkpoint(args.checkpoint)
+        network = GST.load_from_checkpoint(args.checkpoint)
         configuration = network.hparams
 
         logger.info("assigning symbols...")
@@ -286,7 +286,7 @@ def main():
     # compare assignments with the ones on the latest Ensembl release
     elif args.assignments_csv and args.ensembl_database and args.scientific_name:
         if args.checkpoint:
-            network = GSC.load_from_checkpoint(args.checkpoint)
+            network = GST.load_from_checkpoint(args.checkpoint)
         else:
             network = None
 

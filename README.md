@@ -1,4 +1,4 @@
-# GSC - Gene Symbol Classifier
+# GST - Gene Symbol Classifier
 
 A Transformer model for gene symbol assignment of protein coding gene sequences.
 
@@ -9,12 +9,12 @@ The network has been trained on a dataset constructed from existing protein codi
 
 ## network architecture
 
-![network architecture](images/network_architecture.png?raw=true "GSC Transformer network architecture")
+![network architecture](images/network_architecture.png?raw=true "GST Transformer network architecture")
 
 The training pipeline utilizes a Transformer to learn higher-dimensional features of the raw sequences and performs multiclass classification on the ~30,500 gene symbols that are most frequently occurring in the dataset.
 
 
-## run GSC with Docker
+## run GST with Docker
 
 Download a pretrained classifier model to assign gene symbols to gene sequences saved in FASTA file format.
 ```
@@ -31,7 +31,7 @@ docker run --read-only \
 ## production usage information
 
 Read more about the background of the project and details on its production usage on Confluence:
-https://www.ebi.ac.uk/seqdb/confluence/display/ENSGBD/GSC+-+Gene+Symbol+Classifier
+https://www.ebi.ac.uk/seqdb/confluence/display/ENSGBD/GST+-+Gene+Symbol+Transformer
 
 
 ## License

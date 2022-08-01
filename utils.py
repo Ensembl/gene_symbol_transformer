@@ -528,7 +528,7 @@ def assign_symbols(
 
     taxonomy_id = get_species_taxonomy_id(scientific_name)
     clade = get_taxonomy_id_clade(taxonomy_id)
-    # logger.info(f"got clade {clade} for {scientific_name}")
+    logger.debug(f"got clade {clade} for {scientific_name}")
 
     if output_directory is None:
         output_directory = sequences_fasta_path.parent
@@ -577,7 +577,7 @@ def evaluate_network(network, checkpoint_path, complete=False):
     Xref assignments.
 
     Args:
-        network (GSC): GSC network object
+        network (GST): GST network object
         checkpoint_path (Path): path to the experiment checkpoint
         complete (bool): Whether or not to run the evaluation for all genome assemblies.
             Defaults to False, which runs the evaluation only for a selection of

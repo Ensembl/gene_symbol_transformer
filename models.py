@@ -36,8 +36,10 @@ from torch import nn
 from utils import logger, logging_formatter_message
 
 
-class GSC(pl.LightningModule):
+class GST(pl.LightningModule):
     """
+    Gene Symbol Transformer
+
     Neural network for gene symbol classification of protein coding sequences.
     """
 
