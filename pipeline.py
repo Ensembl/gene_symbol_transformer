@@ -179,14 +179,10 @@ def main():
             test_dataloader,
         ) = generate_dataloaders(configuration)
 
-        if configuration.num_symbols < 1000:
-            configuration.symbols_metadata = None
-        else:
-            # load symbols metadata
-            symbols_metadata_filename = "symbols_metadata.json"
-            symbols_metadata_path = data_directory / symbols_metadata_filename
-            with open(symbols_metadata_path) as file:
-                configuration.symbols_metadata = ConciseReprDict(json.load(file))
+        symbols_metadata_filename = "symbols_metadata.json"
+        symbols_metadata_path = data_directory / symbols_metadata_filename
+        with open(symbols_metadata_path) as file:
+            configuration.symbols_metadata = ConciseReprDict(json.load(file))
 
         # instantiate neural network
         network = GST(**configuration)
