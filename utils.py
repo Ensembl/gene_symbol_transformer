@@ -354,7 +354,7 @@ class SequenceDataset(Dataset):
         clade = dataset_row["clade"]
         symbol = dataset_row["symbol"]
 
-        features = self._generate_sequence_features(sequence)
+        features = generate_sequence_features(sequence, self.protein_sequence_mapper)
 
         if self.configuration.clade:
             one_hot_clade = self.clade_mapper.label_to_one_hot(clade)
@@ -372,25 +372,70 @@ class SequenceDataset(Dataset):
 
         return item
 
-    def _generate_sequence_features(self, sequence: str):
-        label_encoded_sequence = (
-            self.protein_sequence_mapper.sequence_to_label_encoding(sequence)
-        )
-        # label_encoded_sequence.shape: (sequence_length,)
 
-        one_hot_sequence = self.protein_sequence_mapper.sequence_to_one_hot(sequence)
-        # one_hot_sequence.shape: (sequence_length, num_protein_letters)
+def generate_sequence_features(
+    sequence: str,
+    protein_sequence_mapper,
+    sequence_length: int = None,
+    padding_side: str = None,
+):
+    """
+    Generate features for a protein sequence.
 
-        # flatten sequence matrix to a vector
-        flat_one_hot_sequence = torch.flatten(one_hot_sequence)
-        # flat_one_hot_sequence.shape: (sequence_length * num_protein_letters,)
+    Args:
+        sequence: a protein sequence
+        protein_sequence_mapper: ProteinSequenceMapper,
+        sequence_length: the length to pad or truncate the sequence
+        padding_side: the side to pad the sequence if shorter than sequence_length,
+            one of ["left", "right"]
+    """
+    if sequence_length and padding_side:
+        sequence = normalize_string_length(sequence, sequence_length, padding_side)
 
-        sequence_features = {
-            "label_encoded_sequence": label_encoded_sequence,
-            "flat_one_hot_sequence": flat_one_hot_sequence,
-        }
+    label_encoded_sequence = (
+        protein_sequence_mapper.sequence_to_label_encoding(sequence)
+    )
+    # label_encoded_sequence.shape: (sequence_length,)
 
-        return sequence_features
+    one_hot_sequence = protein_sequence_mapper.sequence_to_one_hot(sequence)
+    # one_hot_sequence.shape: (sequence_length, num_protein_letters)
+
+    # flatten sequence matrix to a vector
+    flat_one_hot_sequence = torch.flatten(one_hot_sequence)
+    # flat_one_hot_sequence.shape: (sequence_length * num_protein_letters,)
+
+    sequence_features = {
+        "label_encoded_sequence": label_encoded_sequence,
+        "flat_one_hot_sequence": flat_one_hot_sequence,
+    }
+
+    return sequence_features
+
+
+def normalize_string_length(string: str, length: int, padding_side: str):
+    """
+    Normalize a string length by padding or truncating it to be exactly `length`
+    characters long.
+
+    Args:
+        string: a string
+        length: the length to pad or truncate the sequence
+        padding_side: the side to pad the sequence if shorter than length
+    """
+    if len(string) == length:
+        return string
+
+    padding_side_to_align = {"left": ">", "right": "<"}
+
+    # pad or truncate the string to be exactly `length` characters long
+    string = "{string:{align}{string_length}.{truncate_length}}".format(
+        string=string,
+        align=padding_side_to_align[padding_side],
+        string_length=length,
+        truncate_length=length,
+    )
+
+    return string
 
 
 class CategoryMapper:
