@@ -392,8 +392,8 @@ def generate_sequence_features(
     if sequence_length and padding_side:
         sequence = normalize_string_length(sequence, sequence_length, padding_side)
 
-    label_encoded_sequence = (
-        protein_sequence_mapper.sequence_to_label_encoding(sequence)
+    label_encoded_sequence = protein_sequence_mapper.sequence_to_label_encoding(
+        sequence
     )
     # label_encoded_sequence.shape: (sequence_length,)
 

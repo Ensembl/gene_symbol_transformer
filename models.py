@@ -272,6 +272,9 @@ class GST(pl.LightningModule):
         Get symbol predictions and probabilities for a list of protein sequences and
         corresponding clades.
         """
+        predictions_list = []
+        probabilities_list = []
+
         for sequence, clade in zip(sequences, clades):
             features = generate_sequence_features(
                 sequence,
@@ -300,30 +303,31 @@ class GST(pl.LightningModule):
                 probabilities,
             ) = self.get_prediction_indexes_probabilities(output)
 
-        predictions = [
-            self.symbol_mapper.index_to_label(prediction.item())
-            for prediction in prediction_indexes
-        ]
+            predictions_list.extend(
+                [
+                    self.symbol_mapper.index_to_label(prediction.item())
+                    for prediction in prediction_indexes
+                ]
+            )
+
+            probabilities_list.extend(
+                [probability.item() for probability in probabilities]
+            )
 
         predictions_probabilities = [
-            (prediction, probability.item())
-            for prediction, probability in zip(predictions, probabilities)
+            (prediction, probability)
+            for prediction, probability in zip(predictions_list, probabilities_list)
         ]
 
         return predictions_probabilities
 
-    @staticmethod
-    def get_prediction_indexes_probabilities(output):
+    def get_prediction_indexes_probabilities(self, output):
         """
-        Get predicted labels from network's forward pass output, along with
-        the probabilities of predictions.
+        Get best prediction class indexes and probabilities.
         """
         predicted_probabilities = torch.exp(output)
-        # get class indexes from the one-hot encoded labels
-        predictions = torch.argmax(predicted_probabilities, dim=1)
-        # get max probability
-        probabilities, _indices = torch.max(predicted_probabilities, dim=1)
-        return (predictions, probabilities)
+        probabilities, prediction_indexes = torch.max(predicted_probabilities, dim=1)
+        return (prediction_indexes, probabilities)
 
 
 class TransformerEncoder(pl.LightningModule):
