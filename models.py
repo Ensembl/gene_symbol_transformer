@@ -33,7 +33,7 @@ import torchmetrics
 from torch import nn
 
 # project imports
-from utils import logger, logging_formatter_message
+from utils import generate_sequence_features, logger, logging_formatter_message
 
 
 class GST(pl.LightningModule):
@@ -269,19 +269,22 @@ class GST(pl.LightningModule):
 
     def predict_probabilities(self, sequences, clades):
         """
-        Get symbol predictions for a list of protein sequences, along with
-        the probabilities of predictions.
+        Get symbol predictions and probabilities for a list of protein sequences and
+        corresponding clades.
         """
         for sequence, clade in zip(sequences, clades):
-            features = self.generate_sequence_features(sequence)
+            features = generate_sequence_features(
+                sequence,
+                self.protein_sequence_mapper,
+                sequence_length=self.sequence_length,
+                padding_side=self.padding_side,
+            )
 
             if self.clade:
-                clade_features = self.clade_mapper.label_to_one_hot(clade)
+                features["clade_features"] = self.clade_mapper.label_to_one_hot(clade)
             else:
                 # generate a null clade features tensor
-                clade_features = torch.zeros(self.num_clades)
-
-            features["clade_features"] = clade_features
+                features["clade_features"] = torch.zeros(self.num_clades)
 
             for feature in features:
                 features[feature] = torch.unsqueeze(features[feature], 0)
@@ -321,47 +324,6 @@ class GST(pl.LightningModule):
         # get max probability
         probabilities, _indices = torch.max(predicted_probabilities, dim=1)
         return (predictions, probabilities)
-
-    def generate_sequence_features(self, sequence: str):
-        """
-        Generate features for a protein sequence.
-
-        Args:
-            sequence: a protein sequence
-        """
-        padding_side_to_align = {"left": ">", "right": "<"}
-
-        # pad or truncate sequence to be exactly `self.sequence_length` letters long
-        sequence = "{string:{align}{string_length}.{truncate_length}}".format(
-            string=sequence,
-            align=padding_side_to_align[self.padding_side],
-            string_length=self.sequence_length,
-            truncate_length=self.sequence_length,
-        )
-
-        sequence_features = self._generate_sequence_features(sequence)
-
-        return sequence_features
-
-    def _generate_sequence_features(self, sequence: str):
-        label_encoded_sequence = (
-            self.protein_sequence_mapper.sequence_to_label_encoding(sequence)
-        )
-        # label_encoded_sequence.shape: (sequence_length,)
-
-        one_hot_sequence = self.protein_sequence_mapper.sequence_to_one_hot(sequence)
-        # one_hot_sequence.shape: (sequence_length, num_protein_letters)
-
-        # flatten sequence matrix to a vector
-        flat_one_hot_sequence = torch.flatten(one_hot_sequence)
-        # flat_one_hot_sequence.shape: (sequence_length * num_protein_letters,)
-
-        sequence_features = {
-            "label_encoded_sequence": label_encoded_sequence,
-            "flat_one_hot_sequence": flat_one_hot_sequence,
-        }
-
-        return sequence_features
 
 
 class TransformerEncoder(pl.LightningModule):
