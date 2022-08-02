@@ -1,4 +1,4 @@
-# GST - Gene Symbol Classifier
+# GST - Gene Symbol Transformer
 
 A Transformer model for gene symbol assignment of protein coding gene sequences.
 
@@ -16,7 +16,7 @@ The training pipeline utilizes a Transformer to learn higher-dimensional feature
 
 ## run GST with Docker
 
-Download a pretrained classifier model to assign gene symbols to gene sequences saved in FASTA file format.
+Download a pretrained transformer model to assign gene symbols to gene sequences saved in FASTA file format.
 ```
 docker run --read-only \
     --volume="<checkpoints directory path>":/app/checkpoints \
