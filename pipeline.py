@@ -272,7 +272,7 @@ def main():
         network = GST.load_from_checkpoint(args.checkpoint)
         configuration = network.hparams
 
-        logger.info("assigning symbols...")
+        logger.info(f"assigning symbols to {args.sequences_fasta}")
         assign_symbols(
             network,
             args.sequences_fasta,
