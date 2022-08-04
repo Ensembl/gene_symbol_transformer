@@ -270,10 +270,17 @@ def main():
         add_log_file_handler(logger, log_file_path)
 
         network = GST.load_from_checkpoint(args.checkpoint)
-        configuration = network.hparams
+
+        if torch.cuda.is_available():
+            num_gpus = args.num_gpus
+        else:
+            num_gpus = 0
+
+        trainer = pl.Trainer(gpus=num_gpus)
 
         logger.info(f"assigning symbols to {args.sequences_fasta}")
         assign_symbols(
+            trainer,
             network,
             args.sequences_fasta,
             scientific_name=args.scientific_name,

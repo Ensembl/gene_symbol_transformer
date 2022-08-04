@@ -276,9 +276,10 @@ AND external_db.db_name = 'Uniprot_gn';
 """
 
 
-class SequenceDataset(Dataset):
+class TrainingDataset(Dataset):
     """
-    Custom Dataset for raw sequences.
+    Dataset loading the original training dataset including raw sequences, clades, and
+    gene symbols.
     """
 
     def __init__(self, configuration):
@@ -369,6 +370,74 @@ class SequenceDataset(Dataset):
         features["clade_features"] = clade_features
 
         item = (features, symbol_index)
+
+        return item
+
+
+class InferenceDataset(Dataset):
+    """
+    Dataset generated from a FASTA file containing raw sequences and the species scientific name.
+    """
+
+    def __init__(self, sequences_fasta_path, clade, configuration):
+        self.configuration = configuration
+
+        identifiers = []
+        sequences = []
+        clades = []
+
+        # create a DataFrame from the FASTA file
+        for fasta_entries in read_fasta_in_chunks(sequences_fasta_path):
+            identifiers.extend(
+                [fasta_entry[0].split(" ")[0] for fasta_entry in fasta_entries]
+            )
+            sequences.extend([fasta_entry[1] for fasta_entry in fasta_entries])
+            clades.extend([clade for _ in range(len(fasta_entries))])
+
+        self.dataset = pd.DataFrame(
+            {"identifier": identifiers, "sequence": sequences, "clade": clades}
+        )
+
+        # pad or truncate all sequences to size `sequence_length`
+        with SuppressSettingWithCopyWarning():
+            self.dataset["sequence"] = self.dataset["sequence"].str.pad(
+                width=configuration.sequence_length,
+                side=configuration.padding_side,
+                fillchar=" ",
+            )
+            self.dataset["sequence"] = self.dataset["sequence"].str.slice(
+                stop=configuration.sequence_length
+            )
+
+        self.protein_sequence_mapper = configuration.protein_sequence_mapper
+        self.clade_mapper = configuration.clade_mapper
+
+    def __len__(self):
+        return len(self.dataset)
+
+    def __getitem__(self, index):
+        """
+        Generate dataset item.
+        """
+        dataset_row = self.dataset.iloc[index].to_dict()
+
+        identifier = dataset_row["identifier"]
+        sequence = dataset_row["sequence"]
+        clade = dataset_row["clade"]
+
+        features = generate_sequence_features(sequence, self.protein_sequence_mapper)
+
+        if self.configuration.clade:
+            one_hot_clade = self.clade_mapper.label_to_one_hot(clade)
+            # one_hot_clade.shape: (num_clades,)
+            clade_features = one_hot_clade
+        else:
+            # generate a null clade features tensor
+            clade_features = torch.zeros(self.configuration.num_clades)
+
+        features["clade_features"] = clade_features
+
+        item = (features, identifier)
 
         return item
 
@@ -559,6 +628,7 @@ class ConciseReprDict(dict):
 
 
 def assign_symbols(
+    trainer,
     network,
     sequences_fasta,
     scientific_name,
@@ -567,9 +637,10 @@ def assign_symbols(
     """
     Use the trained network to assign symbols to the sequences in the FASTA file.
     """
-    sequences_fasta_path = pathlib.Path(sequences_fasta)
+    configuration = network.hparams
 
-    symbols_metadata = network.hparams.symbols_metadata
+    sequences_fasta_path = pathlib.Path(sequences_fasta)
+    symbols_metadata = configuration.symbols_metadata
 
     taxonomy_id = get_species_taxonomy_id(scientific_name)
     clade = get_taxonomy_id_clade(taxonomy_id)
@@ -581,36 +652,44 @@ def assign_symbols(
         f"{output_directory}/{sequences_fasta_path.stem}_symbols.csv"
     )
 
-    # read the FASTA file in chunks and assign symbols
+    predict_dataset = InferenceDataset(sequences_fasta_path, clade, configuration)
+
+    predict_dataloader = DataLoader(
+        predict_dataset,
+        batch_size=configuration.batch_size,
+        num_workers=configuration.num_workers,
+        # pin_memory=torch.cuda.is_available(),
+    )
+
+    batches_predictions = trainer.predict(network, dataloaders=predict_dataloader)
+
+    predictions = []
+    for batch_predictions in batches_predictions:
+        for prediction in batch_predictions:
+            predictions.append(prediction)
+
     with open(assignments_csv_path, "w+", newline="") as csv_file:
         # generate a csv writer, create the CSV file with a header
         field_names = ["stable_id", "symbol", "probability", "description", "source"]
         csv_writer = csv.writer(csv_file, delimiter="\t", lineterminator="\n")
         csv_writer.writerow(field_names)
 
-        for fasta_entries in read_fasta_in_chunks(sequences_fasta_path):
-            identifiers = [
-                fasta_entry[0].split(" ")[0] for fasta_entry in fasta_entries
-            ]
-            sequences = [fasta_entry[1] for fasta_entry in fasta_entries]
-            clades = [clade for _ in range(len(fasta_entries))]
-
-            assignments_probabilities = network.predict_probabilities(sequences, clades)
-            # save assignments and probabilities to the CSV file
-            for identifier, (assignment, probability) in zip(
-                identifiers, assignments_probabilities
-            ):
-                symbol_description = symbols_metadata[assignment]["description"]
-                symbol_source = symbols_metadata[assignment]["source"]
-                csv_writer.writerow(
-                    [
-                        identifier,
-                        assignment,
-                        probability,
-                        symbol_description,
-                        symbol_source,
-                    ]
-                )
+        # save assignments and probabilities to the CSV file
+        for prediction in predictions:
+            identifier, assignment, probability = prediction
+            # probability = str(round(probability, 4))
+            probability = f"{probability:.4f}"
+            symbol_description = symbols_metadata[assignment]["description"]
+            symbol_source = symbols_metadata[assignment]["source"]
+            csv_writer.writerow(
+                [
+                    identifier,
+                    assignment,
+                    probability,
+                    symbol_description,
+                    symbol_source,
+                ]
+            )
 
     logger.info(f"symbol assignments saved at {assignments_csv_path}")
 
@@ -661,6 +740,7 @@ def evaluate_network(network, checkpoint_path, complete=False):
         if not assignments_csv_path.exists():
             logger.info(f"assigning gene symbols to {canonical_fasta_path}")
             assign_symbols(
+                trainer,
                 network,
                 canonical_fasta_path,
                 scientific_name=assembly.scientific_name,
@@ -1224,7 +1304,7 @@ def generate_dataloaders(configuration):
     Returns:
         tuple containing the training, validation, and test dataloaders
     """
-    dataset = SequenceDataset(configuration)
+    dataset = TrainingDataset(configuration)
 
     configuration.symbol_mapper = dataset.symbol_mapper
     configuration.protein_sequence_mapper = dataset.protein_sequence_mapper

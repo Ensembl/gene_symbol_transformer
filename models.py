@@ -267,59 +267,37 @@ class GST(pl.LightningModule):
         )
         return optimizer
 
-    def predict_probabilities(self, sequences, clades):
+    def predict_step(self, batch, batch_index):
         """
         Get symbol predictions and probabilities for a list of protein sequences and
         corresponding clades.
         """
-        predictions_list = []
-        probabilities_list = []
+        features, identifiers = batch
 
-        for sequence, clade in zip(sequences, clades):
-            features = generate_sequence_features(
-                sequence,
-                self.protein_sequence_mapper,
-                sequence_length=self.sequence_length,
-                padding_side=self.padding_side,
-            )
+        # forward pass
+        output = self(features)
 
-            if self.clade:
-                features["clade_features"] = self.clade_mapper.label_to_one_hot(clade)
-            else:
-                # generate a null clade features tensor
-                features["clade_features"] = torch.zeros(self.num_clades)
+        # run inference
+        # forward pass
+        output = self(features)
 
-            for feature in features:
-                features[feature] = torch.unsqueeze(features[feature], 0)
+        (
+            prediction_indexes,
+            probabilities,
+        ) = self.get_prediction_indexes_probabilities(output)
 
-            # run inference
-            with torch.no_grad():
-                self.eval()
-                # forward pass
-                output = self(features)
-
+        predictions = [
             (
-                prediction_indexes,
-                probabilities,
-            ) = self.get_prediction_indexes_probabilities(output)
-
-            predictions_list.extend(
-                [
-                    self.symbol_mapper.index_to_label(prediction.item())
-                    for prediction in prediction_indexes
-                ]
+                identifier,
+                self.symbol_mapper.index_to_label(prediction.item()),
+                probability.item(),
             )
-
-            probabilities_list.extend(
-                [probability.item() for probability in probabilities]
+            for identifier, prediction, probability in zip(
+                identifiers, prediction_indexes, probabilities
             )
-
-        predictions_probabilities = [
-            (prediction, probability)
-            for prediction, probability in zip(predictions_list, probabilities_list)
         ]
 
-        return predictions_probabilities
+        return predictions
 
     def get_prediction_indexes_probabilities(self, output):
         """
