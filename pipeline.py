@@ -258,9 +258,15 @@ def main():
         )
         add_log_file_handler(logger, log_file_path)
 
+        if torch.cuda.is_available():
+            num_gpus = args.num_gpus
+        else:
+            num_gpus = 0
+        trainer = pl.Trainer(gpus=num_gpus)
+
         network = GST.load_from_checkpoint(checkpoint_path)
 
-        evaluate_network(network, checkpoint_path, args.complete)
+        evaluate_network(trainer, network, checkpoint_path, args.complete)
 
     # assign symbols to sequences
     elif args.sequences_fasta and args.scientific_name and args.checkpoint:
@@ -269,14 +275,13 @@ def main():
         log_file_path = f"{checkpoint_path.parent}/experiment.log"
         add_log_file_handler(logger, log_file_path)
 
-        network = GST.load_from_checkpoint(args.checkpoint)
-
         if torch.cuda.is_available():
             num_gpus = args.num_gpus
         else:
             num_gpus = 0
-
         trainer = pl.Trainer(gpus=num_gpus)
+
+        network = GST.load_from_checkpoint(args.checkpoint)
 
         logger.info(f"assigning symbols to {args.sequences_fasta}")
         assign_symbols(
