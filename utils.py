@@ -740,6 +740,8 @@ def evaluate_network(trainer, network, checkpoint_path, complete=False):
         )
         if not assignments_csv_path.exists():
             logger.info(f"assigning gene symbols to {canonical_fasta_path}")
+
+            start_time = time.time()
             assign_symbols(
                 trainer,
                 network,
@@ -747,6 +749,8 @@ def evaluate_network(trainer, network, checkpoint_path, complete=False):
                 scientific_name=assembly.scientific_name,
                 output_directory=evaluation_directory_path,
             )
+            end_time = time.time()
+            assignment_time = end_time - start_time
 
         comparisons_csv_path = (
             evaluation_directory_path / f"{assignments_csv_path.stem}_compare.csv"
@@ -765,10 +769,11 @@ def evaluate_network(trainer, network, checkpoint_path, complete=False):
         comparison_statistics["scientific_name"] = assembly.scientific_name
         comparison_statistics["taxonomy_id"] = assembly.taxonomy_id
         comparison_statistics["clade"] = assembly.clade
+        comparison_statistics["assignment_time"] = assignment_time
 
         comparison_statistics_list.append(comparison_statistics)
 
-        message = "{}: {} assignments, {} exact matches ({:.2f}%), {} fuzzy matches ({:.2f}%), {} total matches ({:.2f}%)".format(
+        message = "{}: {} assignments, {} exact matches ({:.2f}%), {} fuzzy matches ({:.2f}%), {} total matches ({:.2f}%), {:.1f} sec assignment time".format(
             comparison_statistics["scientific_name"],
             comparison_statistics["num_assignments"],
             comparison_statistics["num_exact_matches"],
@@ -777,6 +782,7 @@ def evaluate_network(trainer, network, checkpoint_path, complete=False):
             comparison_statistics["fuzzy_percentage"],
             comparison_statistics["num_total_matches"],
             comparison_statistics["total_matches_percentage"],
+            comparison_statistics["assignment_time"],
         )
         logger.info(message)
 
@@ -790,6 +796,7 @@ def evaluate_network(trainer, network, checkpoint_path, complete=False):
         "fuzzy_percentage",
         "num_total_matches",
         "total_matches_percentage",
+        "assignment_time",
     ]
     comparison_statistics = pd.DataFrame(
         comparison_statistics_list,
@@ -818,11 +825,14 @@ def evaluate_network(trainer, network, checkpoint_path, complete=False):
             num_total_matches_sum / num_assignments_sum
         ) * 100
 
-        averages_message = "{} weighted averages: {:.2f}% exact matches, {:.2f}% fuzzy matches, {:.2f}% total matches".format(
+        assignment_time_weighted_average = group["assignment_time"].mean()
+
+        averages_message = "{} weighted averages: {:.2f}% exact matches, {:.2f}% fuzzy matches, {:.2f}% total matches, {:.1f} sec assignment time".format(
             clade,
             matching_percentage_weighted_average,
             fuzzy_percentage_weighted_average,
             total_percentage_weighted_average,
+            assignment_time_weighted_average,
         )
 
         aggregated_statistics.append(
@@ -831,6 +841,7 @@ def evaluate_network(trainer, network, checkpoint_path, complete=False):
                 "exact matches": matching_percentage_weighted_average,
                 "fuzzy matches": fuzzy_percentage_weighted_average,
                 "total matches": total_percentage_weighted_average,
+                "assignment time": assignment_time_weighted_average,
             }
         )
 
@@ -845,7 +856,19 @@ def evaluate_network(trainer, network, checkpoint_path, complete=False):
     logger.info(comparison_statistics_string)
 
     aggregated_statistics = pd.DataFrame(aggregated_statistics)
-    logger.info(f"\n\n{aggregated_statistics.to_string(index=False)}")
+    logger.info(
+        "\nweighted clade averages:\n{}".format(
+            aggregated_statistics.to_string(
+                index=False,
+                formatters={
+                    "exact matches": "{:.2f}%".format,
+                    "fuzzy matches": "{:.2f}%".format,
+                    "total matches": "{:.2f}%".format,
+                    "assignment time": "{:.1f}".format,
+                },
+            )
+        )
+    )
 
 
 def read_fasta_in_chunks(fasta_file_path, num_chunk_entries=1024):
