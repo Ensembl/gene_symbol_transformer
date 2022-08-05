@@ -694,13 +694,14 @@ def assign_symbols(
     logger.info(f"symbol assignments saved at {assignments_csv_path}")
 
 
-def evaluate_network(network, checkpoint_path, complete=False):
+def evaluate_network(trainer, network, checkpoint_path, complete=False):
     """
     Evaluate a trained network by assigning gene symbols to the protein sequences
     of genome assemblies in the latest Ensembl release, and comparing them to the existing
     Xref assignments.
 
     Args:
+        trainer (pl.Trainer): PyTorch Lightning Trainer object
         network (GST): GST network object
         checkpoint_path (Path): path to the experiment checkpoint
         complete (bool): Whether or not to run the evaluation for all genome assemblies.
