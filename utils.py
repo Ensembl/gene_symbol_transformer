@@ -863,7 +863,7 @@ def evaluate_network(trainer, network, checkpoint_path, complete=False):
 
     aggregated_statistics = pd.DataFrame(aggregated_statistics)
     logger.info(
-        "\nweighted clade averages:\n{}".format(
+        "\nclade weighted averages:\n{}".format(
             aggregated_statistics.to_string(
                 index=False,
                 formatters={
