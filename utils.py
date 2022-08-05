@@ -637,6 +637,8 @@ def assign_symbols(
     """
     Use the trained network to assign symbols to the sequences in the FASTA file.
     """
+    start_time = time.time()
+
     configuration = network.hparams
 
     sequences_fasta_path = pathlib.Path(sequences_fasta)
@@ -691,7 +693,14 @@ def assign_symbols(
                 ]
             )
 
-    logger.info(f"symbol assignments saved at {assignments_csv_path}")
+    end_time = time.time()
+    assignment_time = end_time - start_time
+
+    logger.info(
+        f"symbol assignments generated in {assignment_time:.1f} seconds, saved at {assignments_csv_path}"
+    )
+
+    return assignment_time
 
 
 def evaluate_network(trainer, network, checkpoint_path, complete=False):
@@ -741,16 +750,13 @@ def evaluate_network(trainer, network, checkpoint_path, complete=False):
         if not assignments_csv_path.exists():
             logger.info(f"assigning gene symbols to {canonical_fasta_path}")
 
-            start_time = time.time()
-            assign_symbols(
+            assignment_time = assign_symbols(
                 trainer,
                 network,
                 canonical_fasta_path,
                 scientific_name=assembly.scientific_name,
                 output_directory=evaluation_directory_path,
             )
-            end_time = time.time()
-            assignment_time = end_time - start_time
 
         comparisons_csv_path = (
             evaluation_directory_path / f"{assignments_csv_path.stem}_compare.csv"
