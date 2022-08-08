@@ -146,6 +146,7 @@ class GST(pl.LightningModule):
         # loss function
         validation_loss = F.nll_loss(output, labels)
         self.log("validation_loss", validation_loss)
+        # self.log("validation_loss", validation_loss, on_step=False, on_epoch=True)
 
         # get predicted label indexes from output
         predictions, _ = self.get_prediction_indexes_probabilities(output)
