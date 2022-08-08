@@ -213,7 +213,7 @@ def main():
             gpus=num_gpus,
             logger=tensorboard_logger,
             max_epochs=configuration.max_epochs,
-            log_every_n_steps=1,
+            # log_every_n_steps=1,
             callbacks=[early_stopping_callback],
             profiler=configuration.profiler,
         )
