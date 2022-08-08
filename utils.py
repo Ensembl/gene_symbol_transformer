@@ -1232,8 +1232,8 @@ def get_xref_canonical_translations(
 
     canonical_translations_list = []
     with connection:
-        for sql_query in sql_queries:
-            with connection.cursor() as cursor:
+        with connection.cursor() as cursor:
+            for sql_query in sql_queries:
                 cursor.execute(sql_query)
                 response = cursor.fetchall()
             canonical_translations_list.extend(response)
