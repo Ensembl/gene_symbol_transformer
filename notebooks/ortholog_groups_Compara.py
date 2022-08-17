@@ -22,18 +22,14 @@ import networkx as nx
 import pandas as pd
 import plotly.express as px
 
-# %%
-# figsize = (12, 8)
-figsize = (16, 9)
-
-# %%
-directory = pathlib.Path("../data/orthologs_Compara")
-
 # %% [markdown]
 # ## data
 
 # %%
-data_file_path = directory / "primates_orthologs.csv"
+directory = pathlib.Path("../data/orthologs_Compara")
+
+# %%
+data_file_path = directory / "primates_orthologs_one2one_w_perc_id.txt"
 data = pd.read_csv(data_file_path, sep="\t")
 
 # %%
