@@ -45,39 +45,11 @@ def save_simplified_orthologs_csv():
     print(f"simplified orthologs CSV saved at {simplified_orthologs_csv_path}")
 
 
-def simplified_orthologs_stats():
-    """
-    Generate simplified orthologs statistics.
-    """
-    data_file_path = data_directory / "primates_orthologs.csv"
-    print(f"loading {data_file_path} ...")
-    data = pd.read_csv(data_file_path, sep="\t")
-
-    print(data.info())
-    print()
-
-    print(data.head())
-    print()
-
-    print(data.sample(10, random_state=5).sort_index())
-    print()
-
-    for column in data:
-        print(column, data[column].nunique())
-    print()
-
-    for column in data:
-        print(data[column].value_counts())
-        print()
-
-
 def main():
     """
     main function
     """
-    # save_simplified_orthologs_csv()
-
-    simplified_orthologs_stats()
+    save_simplified_orthologs_csv()
 
 
 if __name__ == "__main__":
