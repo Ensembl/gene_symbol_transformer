@@ -210,11 +210,14 @@ def main():
         else:
             num_gpus = 0
 
+        # set log_every_n_steps to the number of training batches if smaller than the default value 50
+        log_every_n_steps = min(len(training_dataloader), 50)
+
         trainer = pl.Trainer(
             gpus=num_gpus,
             logger=tensorboard_logger,
             max_epochs=configuration.max_epochs,
-            # log_every_n_steps=1,
+            log_every_n_steps=log_every_n_steps,
             callbacks=[early_stopping_callback],
             profiler=configuration.profiler,
         )
