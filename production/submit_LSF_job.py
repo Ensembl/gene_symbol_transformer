@@ -30,8 +30,7 @@ import sys
 # third party imports
 import yaml
 
-# project imports
-from utils import AttributeDict
+from pytorch_lightning.utilities import AttributeDict
 
 
 def main():

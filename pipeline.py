@@ -44,10 +44,11 @@ import pytorch_lightning as pl
 import torch
 import yaml
 
+from pytorch_lightning.utilities import AttributeDict
+
 # project imports
 from models import GST
 from utils import (
-    AttributeDict,
     ConciseReprDict,
     add_log_file_handler,
     assign_symbols,
