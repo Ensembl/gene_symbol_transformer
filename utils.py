@@ -603,18 +603,6 @@ class ProteinSequenceMapper:
         return label_encoded_sequence
 
 
-class AttributeDict(dict):
-    """
-    Extended dictionary accessible with dot notation.
-    """
-
-    def __getattr__(self, key):
-        return self[key]
-
-    def __setattr__(self, key, value):
-        self[key] = value
-
-
 class ConciseReprDict(dict):
     """
     Dictionary with a concise representation.
