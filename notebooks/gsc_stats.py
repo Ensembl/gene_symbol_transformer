@@ -31,7 +31,7 @@ matplotlib.style.use("seaborn-poster")
 figsize = (16, 9)
 
 
-def plot_threshold_statistics(comparison_csv_path, text_title=False):
+def plot_threshold_statistics(comparison_csv_path, text_title=False, limit_y_axis=False):
     complete_df = pd.read_csv(comparison_csv_path, sep="\t")
 
     thresholds_list = []
@@ -82,8 +82,9 @@ def plot_threshold_statistics(comparison_csv_path, text_title=False):
     axis_1.plot(thresholds_list, matching_percentages_list, "g-")
     axis_2.plot(thresholds_list, num_assignments_list, "b-")
 
-    # axis_1.set_ylim([60, 102])
-    # axis_2.set_ylim([0, None])
+    if limit_y_axis:
+        axis_1.set_ylim([60, 102])
+        axis_2.set_ylim([0, None])
 
     if not text_title:
         axis_1.set(title=comparison_csv_path.stem)
