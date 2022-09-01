@@ -1137,7 +1137,20 @@ def get_assemblies_metadata():
 
         # retrieve additional information for the assembly from the REST API
         # https://ensemblrest.readthedocs.io/en/latest/#ensembl_rest.EnsemblClient.info_genomes_assembly
-        response = ensembl_rest.info_genomes_assembly(assembly.assembly_accession)
+        try:
+            response = ensembl_rest.info_genomes_assembly(assembly.assembly_accession)
+        # handle missing genome assembly accessions in REST
+        except ensembl_rest.HTTPError as ex:
+            error_code = ex.response.status_code
+            error_message = ex.response.json()["error"]
+            if (error_code == 400) and ("not found" in error_message):
+                logger.error(
+                    f"Error: assembly with accession {assembly.assembly_accession} missing from the REST API"
+                )
+                continue
+            else:
+                raise
+
         rest_assembly = SimpleNamespace(**response)
 
         assembly_metadata.assembly_accession = assembly.assembly_accession
