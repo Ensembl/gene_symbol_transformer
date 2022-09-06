@@ -14,6 +14,11 @@
 # limitations under the License.
 
 
+# standard library
+import pathlib
+
+# third party imports
+import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -22,19 +27,104 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
 
-import matplotlib
-
 matplotlib.style.use("seaborn-poster")
-
 
 # figsize = (12, 8)
 figsize = (16, 9)
 
 
-def plot_threshold_statistics(comparison_csv_path, text_title=False, limit_y_axis=False):
+def plot_excluded_clade_statistics(
+    include_comparison_csv_path,
+    exclude_comparison_csv_path,
+    text_title=False,
+    limit_y_axis=False,
+):
+    if not isinstance(include_comparison_csv_path, pathlib.Path):
+        include_comparison_csv_path = pathlib.Path(include_comparison_csv_path)
+    if not isinstance(exclude_comparison_csv_path, pathlib.Path):
+        exclude_comparison_csv_path = pathlib.Path(exclude_comparison_csv_path)
+
+    include_df = pd.read_csv(include_comparison_csv_path, sep="\t")
+    exclude_df = pd.read_csv(exclude_comparison_csv_path, sep="\t")
+
+    # step: 0.01
+    start_a = 0
+    end_a = 0.9
+    num_values_a = 90 + 1
+
+    # step: 0.001
+    start_b = 0.9
+    end_b = 1
+    num_values_b = 100 + 1
+
+    threshold_values = [
+        round(threshold, ndigits=3)
+        for threshold in np.concatenate(
+            [
+                np.linspace(start_a, end_a, num_values_a),
+                np.linspace(start_b, end_b, num_values_b),
+            ]
+        )
+    ]
+
+    num_assignments_include = []
+    num_assignments_exclude = []
+    matching_percentages_include = []
+    matching_percentages_exclude = []
+    for threshold in threshold_values:
+        num_assignments, matching_percentage = get_threshold_stats(
+            include_df, threshold
+        )
+        num_assignments_include.append(num_assignments)
+        matching_percentages_include.append(matching_percentage)
+
+        num_assignments, matching_percentage = get_threshold_stats(
+            exclude_df, threshold
+        )
+        num_assignments_exclude.append(num_assignments)
+        matching_percentages_exclude.append(matching_percentage)
+
+    figure, axis_1 = plt.subplots(figsize=figsize)
+    axis_1.tick_params(axis="both", which="major", labelsize=24)
+
+    axis_2 = axis_1.twinx()
+    axis_2.tick_params(axis="both", which="major", labelsize=24)
+
+    axis_1.plot(
+        threshold_values, matching_percentages_include, color="g", linestyle="-"
+    )
+    axis_2.plot(threshold_values, num_assignments_include, color="b", linestyle="-")
+
+    axis_1.plot(
+        threshold_values,
+        matching_percentages_exclude,
+        color="limegreen",
+        linestyle="--",
+    )
+    axis_2.plot(
+        threshold_values, num_assignments_exclude, color="deepskyblue", linestyle="--"
+    )
+
+    if limit_y_axis:
+        axis_1.set_ylim([60, 102])
+        axis_2.set_ylim([0, None])
+
+    if text_title:
+        axis_1.set(title=include_comparison_csv_path.stem)
+
+    axis_1.set_xlabel("probability threshold", fontsize=32)
+    axis_1.set_ylabel("exact matches %", color="g", fontsize=32)
+    axis_2.set_ylabel("# assignments", color="b", fontsize=32)
+
+    plt.show()
+
+
+def plot_threshold_statistics(
+    comparison_csv_path, text_title=False, limit_y_axis=False
+):
     complete_df = pd.read_csv(comparison_csv_path, sep="\t")
 
-    thresholds_list = []
+    threshold_values = []
     num_assignments_list = []
     matching_percentages_list = []
 
@@ -69,7 +159,7 @@ def plot_threshold_statistics(comparison_csv_path, text_title=False, limit_y_axi
         # num_total_matches = num_exact_matches + num_fuzzy_matches
         # total_matches_percentage = (num_total_matches / num_assignments) * 100
 
-        thresholds_list.append(threshold)
+        threshold_values.append(threshold)
         num_assignments_list.append(num_assignments)
         matching_percentages_list.append(matching_percentage)
 
@@ -79,14 +169,14 @@ def plot_threshold_statistics(comparison_csv_path, text_title=False, limit_y_axi
     axis_2 = axis_1.twinx()
     axis_2.tick_params(axis="both", which="major", labelsize=24)
 
-    axis_1.plot(thresholds_list, matching_percentages_list, "g-")
-    axis_2.plot(thresholds_list, num_assignments_list, "b-")
+    axis_1.plot(threshold_values, matching_percentages_list, "g-")
+    axis_2.plot(threshold_values, num_assignments_list, "b-")
 
     if limit_y_axis:
         axis_1.set_ylim([60, 102])
         axis_2.set_ylim([0, None])
 
-    if not text_title:
+    if text_title:
         axis_1.set(title=comparison_csv_path.stem)
 
     axis_1.set_xlabel("probability threshold", fontsize=32)
@@ -99,7 +189,7 @@ def plot_threshold_statistics(comparison_csv_path, text_title=False, limit_y_axi
 def plot_threshold_statistics_no_ground_truth(comparison_csv_path, text_title=False):
     complete_df = pd.read_csv(comparison_csv_path, sep="\t")
 
-    thresholds_list = []
+    threshold_values = []
     num_assignments_list = []
 
     # step: 0.01
@@ -126,15 +216,15 @@ def plot_threshold_statistics_no_ground_truth(comparison_csv_path, text_title=Fa
         if num_assignments == 0:
             continue
 
-        thresholds_list.append(threshold)
+        threshold_values.append(threshold)
         num_assignments_list.append(num_assignments)
 
     _figure, axis_1 = plt.subplots(figsize=figsize)
 
     axis_2 = axis_1.twinx()
-    axis_2.plot(thresholds_list, num_assignments_list, "b-")
+    axis_2.plot(threshold_values, num_assignments_list, "b-")
 
-    if not text_title:
+    if text_title:
         axis_1.set(title=comparison_csv_path.stem)
 
     axis_1.set(xlabel="probability threshold")
@@ -148,7 +238,7 @@ def plot_threshold_statistics_no_ground_truth(comparison_csv_path, text_title=Fa
 def plot_threshold_statistics_plotly(comparison_csv_path, text_title=False):
     complete_df = pd.read_csv(comparison_csv_path, sep="\t")
 
-    thresholds_list = []
+    threshold_values = []
     num_assignments_list = []
     matching_percentages_list = []
 
@@ -183,7 +273,7 @@ def plot_threshold_statistics_plotly(comparison_csv_path, text_title=False):
         # num_total_matches = num_exact_matches + num_fuzzy_matches
         # total_matches_percentage = (num_total_matches / num_assignments) * 100
 
-        thresholds_list.append(threshold)
+        threshold_values.append(threshold)
         num_assignments_list.append(num_assignments)
         matching_percentages_list.append(matching_percentage)
 
@@ -191,7 +281,7 @@ def plot_threshold_statistics_plotly(comparison_csv_path, text_title=False):
 
     figure.add_trace(
         go.Scatter(
-            x=thresholds_list,
+            x=threshold_values,
             y=matching_percentages_list,
             name="exact matches percentage",
             mode="lines",
@@ -200,7 +290,7 @@ def plot_threshold_statistics_plotly(comparison_csv_path, text_title=False):
     )
     figure.add_trace(
         go.Scatter(
-            x=thresholds_list,
+            x=threshold_values,
             y=num_assignments_list,
             name="number of assignments",
             mode="lines",
@@ -233,7 +323,7 @@ def plot_threshold_statistics_plotly_no_ground_truth(
 ):
     complete_df = pd.read_csv(comparison_csv_path, sep="\t")
 
-    thresholds_list = []
+    threshold_values = []
     num_assignments_list = []
 
     # step: 0.01
@@ -260,14 +350,14 @@ def plot_threshold_statistics_plotly_no_ground_truth(
         if num_assignments == 0:
             continue
 
-        thresholds_list.append(threshold)
+        threshold_values.append(threshold)
         num_assignments_list.append(num_assignments)
 
     figure = make_subplots(specs=[[{"secondary_y": True}]])
 
     figure.add_trace(
         go.Scatter(
-            x=thresholds_list,
+            x=threshold_values,
             y=num_assignments_list,
             name="number of assignments",
             mode="lines",
@@ -292,3 +382,16 @@ def plot_threshold_statistics_plotly_no_ground_truth(
     figure.update_yaxes(title_text="number of assignments", secondary_y=True)
 
     figure.show()
+
+
+def get_threshold_stats(comparison_df, threshold):
+    above_threshold = comparison_df.loc[comparison_df["probability"] >= threshold]
+
+    num_assignments = len(above_threshold)
+    num_exact_matches = len(
+        above_threshold.loc[above_threshold["exact_match"] == "exact_match"]
+    )
+
+    matching_percentage = (num_exact_matches / num_assignments) * 100
+
+    return (num_exact_matches, matching_percentage)
