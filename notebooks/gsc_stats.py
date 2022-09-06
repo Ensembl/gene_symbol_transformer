@@ -90,19 +90,34 @@ def plot_excluded_clade_statistics(
     axis_2 = axis_1.twinx()
     axis_2.tick_params(axis="both", which="major", labelsize=24)
 
-    axis_1.plot(
-        threshold_values, matching_percentages_include, color="g", linestyle="-"
+    line_1 = axis_1.plot(
+        threshold_values,
+        matching_percentages_include,
+        color="g",
+        linestyle="-",
+        label="exact matches, genus included in training set",
     )
-    axis_2.plot(threshold_values, num_assignments_include, color="b", linestyle="-")
+    line_2 = axis_2.plot(
+        threshold_values,
+        num_assignments_include,
+        color="b",
+        linestyle="-",
+        label="# assignments, genus included in training set",
+    )
 
-    axis_1.plot(
+    line_3 = axis_1.plot(
         threshold_values,
         matching_percentages_exclude,
         color="limegreen",
         linestyle="--",
+        label="exact matches, genus excluded from training set",
     )
-    axis_2.plot(
-        threshold_values, num_assignments_exclude, color="deepskyblue", linestyle="--"
+    line_4 = axis_2.plot(
+        threshold_values,
+        num_assignments_exclude,
+        color="deepskyblue",
+        linestyle="--",
+        label="# assignments, genus excluded from training set",
     )
 
     if limit_y_axis:
@@ -115,6 +130,11 @@ def plot_excluded_clade_statistics(
     axis_1.set_xlabel("probability threshold", fontsize=32)
     axis_1.set_ylabel("exact matches %", color="g", fontsize=32)
     axis_2.set_ylabel("# assignments", color="b", fontsize=32)
+
+    lines = line_1 + line_2 + line_3 + line_4
+    labels = [line.get_label() for line in lines]
+    # axis_1.legend(lines, labels, loc="lower left")
+    axis_1.legend(lines, labels)
 
     plt.show()
 
