@@ -28,12 +28,6 @@ docker run --read-only \
 ```
 
 
-## production usage information
-
-Read more about the background of the project and details on its production usage on Confluence:
-https://www.ebi.ac.uk/seqdb/confluence/display/ENSGBD/GST+-+Gene+Symbol+Transformer
-
-
 ## License
 
 [Apache License 2.0](LICENSE)
