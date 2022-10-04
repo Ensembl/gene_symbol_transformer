@@ -11,9 +11,23 @@ for i in $MAMMAL_GIDS
 do
     for j in $MAMMAL_GIDS
     do
-        if (($i < $j)) then
+        if (($i < $j)); then
             echo Dumping orthologs between genome db ids: $i vs. $j
-            cp1 ensembl_compara_108 -e "SELECT gdb1.name as species1, gdb1.assembly as assembly1, gdb2.name as species2, gdb2.assembly as assembly2, gm1.stable_id AS gene1_stable_id, sm1.stable_id AS protein1_stable_id, gm2.stable_id AS gene2_stable_id, sm2.stable_id AS protein2_stable_id, h.description AS homology_type, s1.sequence AS prot_seq1, s2.sequence AS prot_seq2, hm1.perc_id AS perc_id1, hm2.perc_id AS perc_id2
+            cp1 ensembl_compara_108 -e "
+            SELECT
+                gdb1.name as species1,
+                gdb1.assembly as assembly1,
+                gdb2.name as species2,
+                gdb2.assembly as assembly2,
+                gm1.stable_id AS gene1_stable_id,
+                sm1.stable_id AS protein1_stable_id,
+                gm2.stable_id AS gene2_stable_id,
+                sm2.stable_id AS protein2_stable_id,
+                h.description AS homology_type,
+                s1.sequence AS prot_seq1,
+                s2.sequence AS prot_seq2,
+                hm1.perc_id AS perc_id1,
+                hm2.perc_id AS perc_id2
             FROM homology_member hm1
             JOIN homology_member hm2
                 ON hm1.homology_id = hm2.homology_id
@@ -38,7 +52,7 @@ do
             WHERE h.description = 'ortholog_one2one'
                 AND gm1.genome_db_id = $i
                 AND gm2.genome_db_id = $j
-            ; " > mammal_orthologs/orthologs_one2one_${i}_${j}.tsv
+            ;" > mammal_orthologs/orthologs_one2one_${i}_${j}.tsv
         fi
     done
 done

@@ -8,8 +8,18 @@ for i in 124 150 153 197 199 200 201 203 204 205 206 207 209 210 216 217 219 221
 do
     for j in 124 150 153 197 199 200 201 203 204 205 206 207 209 210 216 217 219 221 302 361 465 472 474 476
     do
-        if (($i < $j)) then
-            cp1 ensembl_compara_107 -e "SELECT gm1.stable_id AS gene1_stable_id, sm1.stable_id AS protein1_stable_id, gm2.stable_id AS gene2_stable_id, sm2.stable_id AS protein2_stable_id, h.description AS homology_type, s1.sequence AS prot_seq1, s2.sequence AS prot_seq2, hm1.perc_id AS perc_id1, hm2.perc_id AS perc_id2
+        if (($i < $j)); then
+            cp1 ensembl_compara_108 -e "
+            SELECT
+                gm1.stable_id AS gene1_stable_id,
+                sm1.stable_id AS protein1_stable_id,
+                gm2.stable_id AS gene2_stable_id,
+                sm2.stable_id AS protein2_stable_id,
+                h.description AS homology_type,
+                s1.sequence AS prot_seq1,
+                s2.sequence AS prot_seq2,
+                hm1.perc_id AS perc_id1,
+                hm2.perc_id AS perc_id2
             FROM homology_member hm1
             JOIN homology_member hm2
                 ON hm1.homology_id = hm2.homology_id
@@ -30,7 +40,7 @@ do
             WHERE h.description = 'ortholog_one2one'
                 AND gm1.genome_db_id = $i
                 AND gm2.genome_db_id = $j
-            ORDER BY hm1.homology_id; " >> /homes/ivana/primates_orthologs_one2one.txt
+            ORDER BY hm1.homology_id;" >> /homes/ivana/primates_orthologs_one2one.txt
         fi
     done
 done
