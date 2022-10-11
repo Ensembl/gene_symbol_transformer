@@ -90,34 +90,37 @@ def plot_excluded_clade_statistics(
     axis_2 = axis_1.twinx()
     axis_2.tick_params(axis="both", which="major", labelsize=24)
 
-    line_1 = axis_1.plot(
+    title = "assignments vs probability threshold"
+    figure.suptitle(title, fontsize=32)
+
+    exact_matches_genus_included = axis_1.plot(
         threshold_values,
         matching_percentages_include,
-        color="g",
+        color="green",
         linestyle="-",
-        label="exact matches, genus included in training set",
+        label="exact matches, trained with genus",
     )
-    line_2 = axis_2.plot(
+    num_assignments_genus_included = axis_2.plot(
         threshold_values,
         num_assignments_include,
-        color="b",
+        color="blue",
         linestyle="-",
-        label="# assignments, genus included in training set",
+        label="# assignments, trained with genus",
     )
 
-    line_3 = axis_1.plot(
+    exact_matches_genus_excluded = axis_1.plot(
         threshold_values,
         matching_percentages_exclude,
         color="limegreen",
         linestyle="--",
-        label="exact matches, genus excluded from training set",
+        label="exact matches, genus excluded",
     )
-    line_4 = axis_2.plot(
+    num_assignments_genus_excluded = axis_2.plot(
         threshold_values,
         num_assignments_exclude,
         color="deepskyblue",
         linestyle="--",
-        label="# assignments, genus excluded from training set",
+        label="# assignments, genus excluded",
     )
 
     if limit_y_axis:
@@ -128,10 +131,68 @@ def plot_excluded_clade_statistics(
         axis_1.set(title=include_comparison_csv_path.stem)
 
     axis_1.set_xlabel("probability threshold", fontsize=32)
-    axis_1.set_ylabel("exact matches %", color="g", fontsize=32)
-    axis_2.set_ylabel("# assignments", color="b", fontsize=32)
+    axis_1.set_ylabel("exact matches %", color="green", fontsize=32)
+    axis_2.set_ylabel("# assignments", color="blue", fontsize=32)
 
-    lines = line_1 + line_2 + line_3 + line_4
+    threshold = 0.9
+    # add vertical line at production threshold
+    axis_1.axvline(x=threshold, ymin=0, ymax=0.975, color="black")
+
+    axis_1.annotate(
+        threshold,
+        xy=(threshold, 65),
+        xytext=(threshold - 0.06, 65),
+        fontsize=24,
+    )
+
+    # exact matches with genus included at threshold
+    exact_matches_included = matching_percentages_include[threshold_values.index(0.9)]
+    axis_1.annotate(
+        f"{exact_matches_included:.2f}",
+        xy=(threshold, exact_matches_included),
+        xytext=(threshold + 0.01, exact_matches_included + 0.5),
+        color="green",
+        fontsize=20,
+    )
+
+    # exact matches with genus excluded at threshold
+    exact_matches_excluded = matching_percentages_exclude[threshold_values.index(0.9)]
+    axis_1.annotate(
+        f"{exact_matches_excluded:.2f}",
+        xy=(threshold, exact_matches_excluded),
+        xytext=(threshold + 0.01, exact_matches_excluded - 1.6),
+        color="limegreen",
+        fontsize=20,
+    )
+
+    # number of assignments with genus included at threshold
+    num_assignments_included = num_assignments_include[threshold_values.index(0.9)]
+    axis_2.annotate(
+        num_assignments_included,
+        xy=(threshold, num_assignments_included),
+        xytext=(threshold - 0.09, num_assignments_included - 1100),
+        color="blue",
+        fontsize=20,
+        # arrowprops=dict(arrowstyle="->", linewidth=2),
+    )
+
+    # number of assignments with genus excluded at threshold
+    num_assignments_excluded = num_assignments_exclude[threshold_values.index(0.9)]
+    axis_2.annotate(
+        num_assignments_excluded,
+        xy=(threshold, num_assignments_excluded),
+        xytext=(threshold - 0.09, num_assignments_excluded - 1300),
+        color="deepskyblue",
+        fontsize=20,
+        # arrowprops=dict(arrowstyle="->", linewidth=2),
+    )
+
+    lines = (
+        exact_matches_genus_included
+        + num_assignments_genus_included
+        + exact_matches_genus_excluded
+        + num_assignments_genus_excluded
+    )
     labels = [line.get_label() for line in lines]
     # axis_1.legend(lines, labels, loc="lower left")
     axis_1.legend(lines, labels)
