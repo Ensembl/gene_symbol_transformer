@@ -14,6 +14,13 @@ The network has been trained on a dataset constructed from existing protein codi
 The training pipeline utilizes a Transformer to learn higher-dimensional features of the raw sequences and performs multiclass classification on the ~30,500 gene symbols that are most frequently occurring in the dataset.
 
 
+## performance
+
+![assignments vs probability threshold](images/assignments_vs_probability_threshold.png?raw=true "numbe of assignments probability threshold")
+
+The Transformer network exhibits high accuracy in assigning gene symbols. The highest probability gene symbol prediction can be used as a cutoff threshold for the gene symbols to be included in the final assignments, to take into account the network's confidence of the prediction. A probability of value `0.9` is used as the cutoff threshold for assigning gene symbols in production.
+
+
 ## run GST with Docker
 
 Download a pretrained transformer model to assign gene symbols to gene sequences saved in FASTA file format.
