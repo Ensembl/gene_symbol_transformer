@@ -4,15 +4,14 @@
 # ibsub -m 32Gb primates_orthologs_one2one.sh
 
 
-MAMMAL_GIDS=`cp1 ensembl_compara_108 -N -e "SELECT genome_db_id FROM species_set_header JOIN species_set USING(species_set_id) WHERE species_set_id = 83236;"`;
+MAMMAL_GIDS=`cp1 ensembl_compara_108 -N -e "SELECT genome_db_id FROM species_set_header JOIN species_set USING(species_set_id) WHERE species_set_id = 83236;"`
+
 mkdir -p mammal_orthologs
 
-for i in $MAMMAL_GIDS
-do
-    for j in $MAMMAL_GIDS
-    do
+for i in $MAMMAL_GIDS; do
+    for j in $MAMMAL_GIDS; do
         if (($i < $j)); then
-            echo Dumping orthologs between genome db ids: $i vs. $j
+            echo "Dumping orthologs between genome db ids: $i vs. $j"
             cp1 ensembl_compara_108 -e "
             SELECT
                 gdb1.name as species1,
@@ -50,10 +49,10 @@ do
             JOIN sequence s2
                 ON sm2.sequence_id = s2.sequence_id
             WHERE h.description = 'ortholog_one2one'
+                AND gm1.biotype_group = 'coding'
                 AND gm1.genome_db_id = $i
                 AND gm2.genome_db_id = $j
             ;" > mammal_orthologs/orthologs_one2one_${i}_${j}.tsv
         fi
     done
 done
-
