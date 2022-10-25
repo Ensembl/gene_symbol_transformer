@@ -29,27 +29,31 @@ import pandas as pd
 from utils import data_directory
 
 
-def save_orthologs_ids_csv():
+def save_ortholog_ids_csv():
     """
     Save a CSV containing just the gene and protein IDs from the original orthologs files.
     """
+    # TODO
+    # update for mammal orthologs
+
     orthologs_directory = data_directory / "orthologs_Compara" / "mammal_orthologs"
 
-    print(f"loading {original_data_file_path} ...")
-    data = pd.read_csv(original_data_file_path, sep="\t")
-
     columns = [
-        "gene1_stable_id",
-        "protein1_stable_id",
-        "gene2_stable_id",
-        "protein2_stable_id",
+        "species1", "assembly1", "species2", "assembly2", "gene1_stable_id", "protein1_stable_id", "gene2_stable_id", "protein2_stable_id"
     ]
-    data = data[columns]
+    # ortholog_ids = pd.DataFrame(columns=columns)
+    orthologs_pair_list = []
+    for orthologs_tsv_file in sorted(orthologs_directory.glob("*")):
+        print(f"processing {orthologs_tsv_file}")
+        orthologs_pair = pd.read_csv(orthologs_tsv_file, sep="\t", usecols=columns)
+        orthologs_pair_list.append(orthologs_pair)
 
-    light_orthologs_csv_path = original_data_file_path.parent / "primates_orthologs.csv"
-    print(f"saving {light_orthologs_csv_path} ...")
-    data.to_csv(light_orthologs_csv_path, sep="\t", index=False)
-    print(f"light orthologs CSV saved at {light_orthologs_csv_path}")
+    ortholog_ids = pd.concat(orthologs_pair_list, ignore_index=True)
+
+    ortholog_ids_csv_path = data_directory / "orthologs_Compara" / "ortholog_ids.csv"
+    print(f"saving {ortholog_ids_csv_path} ...")
+    data.to_csv(ortholog_ids_csv_path, sep="\t", index=False)
+    print(f"ortholog IDs CSV saved at {ortholog_ids_csv_path}")
 
 
 def generate_ortholog_groups():
@@ -64,9 +68,11 @@ def generate_ortholog_groups():
     orthologs_directory = data_directory / "orthologs_Compara" / "mammal_orthologs"
 
     orthologs = Orthologs()
-    for orthologs_tsv_file in orthologs_directory.glob("*"):
+    for orthologs_tsv_file in sorted(orthologs_directory.glob("*")):
         print(f"updating orthologs with {orthologs_tsv_file}")
         orthologs.update_graph(orthologs_tsv_file)
+        # TODO
+        # work in progress, remove when complete
         break
 
     orthologs.generate_groups()
@@ -121,11 +127,11 @@ def main():
     """
     main function
     """
-    # save_orthologs_ids_csv()
+    save_ortholog_ids_csv()
 
     # generate_ortholog_groups()
 
-    save_ortholog_groups()
+    # save_ortholog_groups()
 
 
 if __name__ == "__main__":
