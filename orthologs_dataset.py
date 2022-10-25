@@ -29,13 +29,12 @@ import pandas as pd
 from utils import data_directory
 
 
-def save_light_orthologs_csv():
+def save_orthologs_ids_csv():
     """
-    Save a CSV containing just the gene and protein IDs from the original data file.
+    Save a CSV containing just the gene and protein IDs from the original orthologs files.
     """
-    original_data_file_path = (
-        data_directory / "primates_orthologs_one2one_w_perc_id.txt"
-    )
+    orthologs_directory = data_directory / "orthologs_Compara" / "mammal_orthologs"
+
     print(f"loading {original_data_file_path} ...")
     data = pd.read_csv(original_data_file_path, sep="\t")
 
@@ -62,23 +61,44 @@ def generate_ortholog_groups():
     The elements of these subgraphs are members of disjoint sets, which are
     the desired ortholog groups.
     """
-    # data_file_path = data_directory / "primates_orthologs_one2one_w_perc_id.txt"
-    # data_file_path = data_directory / "primates_orthologs.csv"
-    data_file_path = data_directory / "primates_orthologs_dev.csv"
-    print(f"loading {data_file_path} ...")
-    data = pd.read_csv(data_file_path, sep="\t")
+    orthologs_directory = data_directory / "orthologs_Compara" / "mammal_orthologs"
 
-    graph = nx.Graph(list(zip(data["gene1_stable_id"], data["gene2_stable_id"])))
+    orthologs = Orthologs()
+    for orthologs_tsv_file in orthologs_directory.glob("*"):
+        print(f"updating orthologs with {orthologs_tsv_file}")
+        orthologs.update_graph(orthologs_tsv_file)
+        break
 
-    # orthologs disjoint sets
-    ortholog_groups = [tuple(c) for c in nx.connected_components(graph)]
-
-    # sort ortholog groups internally and then globally on first and then second ortholog
-    ortholog_groups = [tuple(sorted(og)) for og in ortholog_groups]
-
-    ortholog_groups = sorted(ortholog_groups, key=lambda x: (x[0], x[1]))
+    orthologs.generate_groups()
+    ortholog_groups = orthologs.groups
+    # print(f"{ortholog_groups=}")
+    print(f"{len(ortholog_groups)=}")
 
     return ortholog_groups
+
+
+class Orthologs:
+    def __init__(self):
+        self.graph = nx.Graph()
+
+    def update_graph(self, orthologs_tsv_file):
+        """
+        Update the orthologs graph with the orthologs from orthologs_tsv_file.
+        """
+        orthologs = pd.read_csv(orthologs_tsv_file, sep="\t")
+
+        self.graph.add_edges_from(
+            zip(orthologs["gene1_stable_id"], orthologs["gene2_stable_id"])
+        )
+
+    def generate_groups(self):
+        # orthologs disjoint sets
+        groups = [tuple(c) for c in nx.connected_components(self.graph)]
+
+        # sort ortholog groups internally and then globally on first and then second ortholog
+        groups = [tuple(sorted(og)) for og in groups]
+
+        self.groups = sorted(groups, key=lambda x: (x[0], x[1]))
 
 
 def save_ortholog_groups():
@@ -101,7 +121,7 @@ def main():
     """
     main function
     """
-    # save_light_orthologs_csv()
+    # save_orthologs_ids_csv()
 
     # generate_ortholog_groups()
 
