@@ -275,9 +275,6 @@ class GST(pl.LightningModule):
         """
         features, identifiers = batch
 
-        # forward pass
-        output = self(features)
-
         # run inference
         # forward pass
         output = self(features)

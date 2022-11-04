@@ -31,7 +31,7 @@ with `--assignments_csv` and the Ensembl database name with `--ensembl_database`
 """
 
 
-# standard library imports
+# standard library
 import argparse
 import datetime as dt
 import json
@@ -39,14 +39,14 @@ import pathlib
 import random
 import warnings
 
-# third party imports
+# third party
 import pytorch_lightning as pl
 import torch
 import yaml
 
 from pytorch_lightning.utilities import AttributeDict
 
-# project imports
+# project
 from models import GST
 from utils import (
     ConciseReprDict,
@@ -77,10 +77,7 @@ def main():
     argument_parser.add_argument(
         "--num_gpus", default=1, type=int, help="number of GPUs to use"
     )
-    argument_parser.add_argument(
-        "--checkpoint",
-        help="experiment checkpoint path",
-    )
+    argument_parser.add_argument("--checkpoint", help="experiment checkpoint path")
     argument_parser.add_argument(
         "--train", action="store_true", help="train a classifier"
     )
@@ -117,12 +114,12 @@ def main():
     # filter warning about number of dataloader workers
     warnings.filterwarnings(
         "ignore",
-        ".*does not have many workers which may be a bottleneck. Consider increasing the value of the `num_workers` argument.*",
+        ".*does not have many workers which may be a bottleneck. Consider increasing.*",
     )
 
     # train a new classifier
     if args.train and args.configuration:
-        # read the experiment configuration YAML file to a dictionary
+        # read the experiment configuration YAML file to an AttributeDict
         with open(args.configuration) as file:
             configuration = yaml.safe_load(file)
 
@@ -165,10 +162,10 @@ def main():
         configuration.experiment_directory = (
             f"{configuration.save_directory}/{configuration.logging_version}"
         )
-        log_directory_path = pathlib.Path(configuration.experiment_directory)
-        log_directory_path.mkdir(parents=True, exist_ok=True)
+        experiment_directory_path = pathlib.Path(configuration.experiment_directory)
+        experiment_directory_path.mkdir(parents=True, exist_ok=True)
 
-        log_file_path = log_directory_path / "experiment.log"
+        log_file_path = experiment_directory_path / "experiment.log"
         add_log_file_handler(logger, log_file_path)
 
         log_pytorch_cuda_info()
