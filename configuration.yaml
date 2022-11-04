@@ -5,11 +5,6 @@ save_directory: experiments
 
 # experiment naming prefix
 experiment_prefix: transformer
-
-# PyTorch random number generator initialization seed
-random_seed: 5
-#random_seed: 7
-#random_seed: 11
 ################################################################################
 
 # dataset
@@ -59,10 +54,17 @@ sequence_length: 581  # ~ 581.36 : dataset sequences mean length
 
 #padding_side: left
 padding_side: right
+
+clade: True
+#clade: False
 ################################################################################
 
 # network architecture
 ################################################################################
+#mlp_output_size: 32
+mlp_output_size: 64
+#mlp_output_size: 128
+
 embedding_dimension: 8
 #embedding_dimension: 16
 #embedding_dimension: 32
@@ -80,7 +82,8 @@ activation_function: relu
 #activation_function: gelu
 
 #feedforward_connections: 64
-feedforward_connections: 128
+#feedforward_connections: 128
+feedforward_connections: 256
 
 # L2 regularization
 weight_decay: 0
@@ -98,12 +101,17 @@ dropout_probability: 0
 
 # training
 ################################################################################
+# random number generator initialization seed
+random_seed: 5
+#random_seed: 7
+#random_seed: 11
+
 batch_size: 16
 #batch_size: 32
 #batch_size: 64
 
-#num_workers: 0
-num_workers: 1
+num_workers: 0
+#num_workers: 1
 #num_workers: 5
 #num_workers: 17
 
@@ -127,10 +135,7 @@ max_epochs: 10
 #max_epochs: 100
 #max_epochs: 1000
 
-gpus:
-#gpus: 1
-
-profiler:
+profiler: null
 #profiler: simple
 #profiler: pytorch
 
