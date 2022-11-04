@@ -61,8 +61,11 @@ console_handler.setFormatter(logging_formatter_time_message)
 logger.addHandler(console_handler)
 
 data_directory = pathlib.Path("data")
+data_directory.mkdir(parents=True, exist_ok=True)
 main_release_sequences_directory = data_directory / "main_release_protein_sequences"
+main_release_sequences_directory.mkdir(parents=True, exist_ok=True)
 rapid_release_sequences_directory = data_directory / "rapid_release_protein_sequences"
+rapid_release_sequences_directory.mkdir(parents=True, exist_ok=True)
 
 dev_datasets_num_symbols = [3, 100, 1000]
 
@@ -104,7 +107,12 @@ selected_genome_assemblies = {
     "GCA_900496995.2": ("Aquila chrysaetos chrysaetos", "Golden eagle"),
     "GCA_009873245.2": ("Balaenoptera musculus", "Blue whale"),
     "GCA_002263795.2": ("Bos taurus", "Cow"),
+    "GCA_005887515.1": ("Bos grunniens", "Domestic yak"),
+    "GCA_000298355.1": ("Bos mutus", "Wild yak"),
     "GCA_000002285.2": ("Canis lupus familiaris", "Dog"),
+    "GCA_900186095.1": ("Cricetulus griseus", "Chinese hamster CHOK1GS"),
+    "GCA_000223135.1": ("Cricetulus griseus", "Chinese hamster CriGri"),
+    "GCA_003668045.1": ("Cricetulus griseus", "Chinese hamster PICR"),
     "GCA_000951615.2": ("Cyprinus carpio", "Common carp"),
     "GCA_000002035.4": ("Danio rerio", "Zebrafish"),
     "GCA_000001215.4": ("Drosophila melanogaster", "Drosophila melanogaster"),
@@ -118,6 +126,11 @@ selected_genome_assemblies = {
     "GCA_000001515.5": ("Pan troglodytes", "Chimpanzee"),
     "GCA_008795835.1": ("Panthera leo", "Lion"),
     "GCA_000146045.2": ("Saccharomyces cerevisiae", "Saccharomyces cerevisiae"),
+    "GCA_905237065.2": ("Salmo salar", "Atlantic salmon"),
+    "GCA_901001165.1": ("Salmo trutta", "Brown trout"),
+    "GCA_002872995.1": ("Oncorhynchus tshawytscha", "Chinook salmon"),
+    "GCA_002021735.2": ("Oncorhynchus kisutch", "Coho salmon"),
+    "GCA_013265735.3": ("Oncorhynchus mykiss", "Rainbow trout"),
     "GCA_000003025.6": ("Sus scrofa", "Pig"),
 }
 
@@ -273,13 +286,14 @@ AND external_db.db_name = 'Uniprot_gn';
 """
 
 
-class SequenceDataset(Dataset):
+class TrainingDataset(Dataset):
     """
-    Custom Dataset for raw sequences.
+    Dataset loading the original training dataset including raw sequences, clades, and
+    gene symbols.
     """
 
-    def __init__(self, configuration, get_item):
-        self.get_item = get_item
+    def __init__(self, configuration):
+        self.configuration = configuration
 
         if "min_frequency" in configuration:
             configuration.dataset_id = f"{configuration.min_frequency}_min_frequency"
@@ -341,7 +355,166 @@ class SequenceDataset(Dataset):
         return len(self.dataset)
 
     def __getitem__(self, index):
-        return self.get_item(self, index)
+        """
+        Generate a dataset item with
+        (sequence label encoding, sequence one-hot encoding, clade one-hot encoding, symbol index)
+        """
+        dataset_row = self.dataset.iloc[index].to_dict()
+
+        sequence = dataset_row["sequence"]
+        clade = dataset_row["clade"]
+        symbol = dataset_row["symbol"]
+
+        features = generate_sequence_features(sequence, self.protein_sequence_mapper)
+
+        if self.configuration.clade:
+            one_hot_clade = self.clade_mapper.label_to_one_hot(clade)
+            # one_hot_clade.shape: (num_clades,)
+            clade_features = one_hot_clade
+        else:
+            # generate a null clade features tensor
+            clade_features = torch.zeros(self.configuration.num_clades)
+
+        symbol_index = self.symbol_mapper.label_to_index(symbol)
+
+        features["clade_features"] = clade_features
+
+        item = (features, symbol_index)
+
+        return item
+
+
+class InferenceDataset(Dataset):
+    """
+    Dataset generated from a FASTA file containing raw sequences and the species scientific name.
+    """
+
+    def __init__(self, sequences_fasta_path, clade, configuration):
+        self.configuration = configuration
+
+        identifiers = []
+        sequences = []
+        clades = []
+
+        # create a DataFrame from the FASTA file
+        for fasta_entries in read_fasta_in_chunks(sequences_fasta_path):
+            identifiers.extend(
+                [fasta_entry[0].split(" ")[0] for fasta_entry in fasta_entries]
+            )
+            sequences.extend([fasta_entry[1] for fasta_entry in fasta_entries])
+            clades.extend([clade for _ in range(len(fasta_entries))])
+
+        self.dataset = pd.DataFrame(
+            {"identifier": identifiers, "sequence": sequences, "clade": clades}
+        )
+
+        # pad or truncate all sequences to size `sequence_length`
+        with SuppressSettingWithCopyWarning():
+            self.dataset["sequence"] = self.dataset["sequence"].str.pad(
+                width=configuration.sequence_length,
+                side=configuration.padding_side,
+                fillchar=" ",
+            )
+            self.dataset["sequence"] = self.dataset["sequence"].str.slice(
+                stop=configuration.sequence_length
+            )
+
+        self.protein_sequence_mapper = configuration.protein_sequence_mapper
+        self.clade_mapper = configuration.clade_mapper
+
+    def __len__(self):
+        return len(self.dataset)
+
+    def __getitem__(self, index):
+        """
+        Generate dataset item.
+        """
+        dataset_row = self.dataset.iloc[index].to_dict()
+
+        identifier = dataset_row["identifier"]
+        sequence = dataset_row["sequence"]
+        clade = dataset_row["clade"]
+
+        features = generate_sequence_features(sequence, self.protein_sequence_mapper)
+
+        if self.configuration.clade:
+            one_hot_clade = self.clade_mapper.label_to_one_hot(clade)
+            # one_hot_clade.shape: (num_clades,)
+            clade_features = one_hot_clade
+        else:
+            # generate a null clade features tensor
+            clade_features = torch.zeros(self.configuration.num_clades)
+
+        features["clade_features"] = clade_features
+
+        item = (features, identifier)
+
+        return item
+
+
+def generate_sequence_features(
+    sequence: str,
+    protein_sequence_mapper,
+    sequence_length: int = None,
+    padding_side: str = None,
+):
+    """
+    Generate features for a protein sequence.
+
+    Args:
+        sequence: a protein sequence
+        protein_sequence_mapper: ProteinSequenceMapper,
+        sequence_length: the length to pad or truncate the sequence
+        padding_side: the side to pad the sequence if shorter than sequence_length,
+            one of ["left", "right"]
+    """
+    if sequence_length and padding_side:
+        sequence = normalize_string_length(sequence, sequence_length, padding_side)
+
+    label_encoded_sequence = protein_sequence_mapper.sequence_to_label_encoding(
+        sequence
+    )
+    # label_encoded_sequence.shape: (sequence_length,)
+
+    one_hot_sequence = protein_sequence_mapper.sequence_to_one_hot(sequence)
+    # one_hot_sequence.shape: (sequence_length, num_protein_letters)
+
+    # flatten sequence matrix to a vector
+    flat_one_hot_sequence = torch.flatten(one_hot_sequence)
+    # flat_one_hot_sequence.shape: (sequence_length * num_protein_letters,)
+
+    sequence_features = {
+        "label_encoded_sequence": label_encoded_sequence,
+        "flat_one_hot_sequence": flat_one_hot_sequence,
+    }
+
+    return sequence_features
+
+
+def normalize_string_length(string: str, length: int, padding_side: str):
+    """
+    Normalize a string length by padding or truncating it to be exactly `length`
+    characters long.
+
+    Args:
+        string: a string
+        length: the length to pad or truncate the sequence
+        padding_side: the side to pad the sequence if shorter than length
+    """
+    if len(string) == length:
+        return string
+
+    padding_side_to_align = {"left": ">", "right": "<"}
+
+    # pad or truncate the string to be exactly `length` characters long
+    string = "{string:{align}{string_length}.{truncate_length}}".format(
+        string=string,
+        align=padding_side_to_align[padding_side],
+        string_length=length,
+        truncate_length=length,
+    )
+
+    return string
 
 
 class CategoryMapper:
@@ -440,18 +613,6 @@ class ProteinSequenceMapper:
         return label_encoded_sequence
 
 
-class AttributeDict(dict):
-    """
-    Extended dictionary accessible with dot notation.
-    """
-
-    def __getattr__(self, key):
-        return self[key]
-
-    def __setattr__(self, key, value):
-        self[key] = value
-
-
 class ConciseReprDict(dict):
     """
     Dictionary with a concise representation.
@@ -465,23 +626,25 @@ class ConciseReprDict(dict):
 
 
 def assign_symbols(
+    trainer,
     network,
     sequences_fasta,
-    scientific_name=None,
-    taxonomy_id=None,
+    scientific_name,
     output_directory=None,
 ):
     """
     Use the trained network to assign symbols to the sequences in the FASTA file.
     """
+    start_time = time.time()
+
+    configuration = network.hparams
+
     sequences_fasta_path = pathlib.Path(sequences_fasta)
+    symbols_metadata = configuration.symbols_metadata
 
-    symbols_metadata = network.hparams.symbols_metadata
-
-    if scientific_name is not None:
-        taxonomy_id = get_species_taxonomy_id(scientific_name)
+    taxonomy_id = get_species_taxonomy_id(scientific_name)
     clade = get_taxonomy_id_clade(taxonomy_id)
-    # logger.info(f"got clade {clade} for {scientific_name}")
+    logger.debug(f"got clade {clade} for {scientific_name}")
 
     if output_directory is None:
         output_directory = sequences_fasta_path.parent
@@ -489,48 +652,64 @@ def assign_symbols(
         f"{output_directory}/{sequences_fasta_path.stem}_symbols.csv"
     )
 
-    # read the FASTA file in chunks and assign symbols
+    predict_dataset = InferenceDataset(sequences_fasta_path, clade, configuration)
+
+    predict_dataloader = DataLoader(
+        predict_dataset,
+        batch_size=configuration.batch_size,
+        num_workers=configuration.num_workers,
+        # pin_memory=torch.cuda.is_available(),
+    )
+
+    batches_predictions = trainer.predict(network, dataloaders=predict_dataloader)
+
+    predictions = []
+    for batch_predictions in batches_predictions:
+        for prediction in batch_predictions:
+            predictions.append(prediction)
+
     with open(assignments_csv_path, "w+", newline="") as csv_file:
         # generate a csv writer, create the CSV file with a header
         field_names = ["stable_id", "symbol", "probability", "description", "source"]
         csv_writer = csv.writer(csv_file, delimiter="\t", lineterminator="\n")
         csv_writer.writerow(field_names)
 
-        for fasta_entries in read_fasta_in_chunks(sequences_fasta_path):
-            identifiers = [
-                fasta_entry[0].split(" ")[0] for fasta_entry in fasta_entries
-            ]
-            sequences = [fasta_entry[1] for fasta_entry in fasta_entries]
-            clades = [clade for _ in range(len(fasta_entries))]
+        # save assignments and probabilities to the CSV file
+        for prediction in predictions:
+            identifier, assignment, probability = prediction
+            # probability = str(round(probability, 4))
+            probability = f"{probability:.4f}"
+            symbol_description = symbols_metadata[assignment]["description"]
+            symbol_source = symbols_metadata[assignment]["source"]
+            csv_writer.writerow(
+                [
+                    identifier,
+                    assignment,
+                    probability,
+                    symbol_description,
+                    symbol_source,
+                ]
+            )
 
-            assignments_probabilities = network.predict_probabilities(sequences, clades)
-            # save assignments and probabilities to the CSV file
-            for identifier, (assignment, probability) in zip(
-                identifiers, assignments_probabilities
-            ):
-                symbol_description = symbols_metadata[assignment]["description"]
-                symbol_source = symbols_metadata[assignment]["source"]
-                csv_writer.writerow(
-                    [
-                        identifier,
-                        assignment,
-                        probability,
-                        symbol_description,
-                        symbol_source,
-                    ]
-                )
+    end_time = time.time()
+    assignment_time = end_time - start_time
 
-    logger.info(f"symbol assignments saved at {assignments_csv_path}")
+    logger.info(
+        f"symbol assignments generated in {assignment_time:.1f} seconds, saved at {assignments_csv_path}"
+    )
+
+    return assignment_time
 
 
-def evaluate_network(network, checkpoint_path, complete=False):
+def evaluate_network(trainer, network, checkpoint_path, complete=False):
     """
     Evaluate a trained network by assigning gene symbols to the protein sequences
     of genome assemblies in the latest Ensembl release, and comparing them to the existing
     Xref assignments.
 
     Args:
-        network (GeneSymbolClassifier): GeneSymbolClassifier network object
+        trainer (pl.Trainer): PyTorch Lightning Trainer object
+        network (GST): GST network object
         checkpoint_path (Path): path to the experiment checkpoint
         complete (bool): Whether or not to run the evaluation for all genome assemblies.
             Defaults to False, which runs the evaluation only for a selection of
@@ -568,7 +747,9 @@ def evaluate_network(network, checkpoint_path, complete=False):
         )
         if not assignments_csv_path.exists():
             logger.info(f"assigning gene symbols to {canonical_fasta_path}")
-            assign_symbols(
+
+            assignment_time = assign_symbols(
+                trainer,
                 network,
                 canonical_fasta_path,
                 scientific_name=assembly.scientific_name,
@@ -592,10 +773,11 @@ def evaluate_network(network, checkpoint_path, complete=False):
         comparison_statistics["scientific_name"] = assembly.scientific_name
         comparison_statistics["taxonomy_id"] = assembly.taxonomy_id
         comparison_statistics["clade"] = assembly.clade
+        comparison_statistics["assignment_time"] = assignment_time
 
         comparison_statistics_list.append(comparison_statistics)
 
-        message = "{}: {} assignments, {} exact matches ({:.2f}%), {} fuzzy matches ({:.2f}%), {} total matches ({:.2f}%)".format(
+        message = "{}: {} assignments, {} exact matches ({:.2f}%), {} fuzzy matches ({:.2f}%), {} total matches ({:.2f}%), {:.1f} sec assignment time".format(
             comparison_statistics["scientific_name"],
             comparison_statistics["num_assignments"],
             comparison_statistics["num_exact_matches"],
@@ -604,6 +786,7 @@ def evaluate_network(network, checkpoint_path, complete=False):
             comparison_statistics["fuzzy_percentage"],
             comparison_statistics["num_total_matches"],
             comparison_statistics["total_matches_percentage"],
+            comparison_statistics["assignment_time"],
         )
         logger.info(message)
 
@@ -617,6 +800,7 @@ def evaluate_network(network, checkpoint_path, complete=False):
         "fuzzy_percentage",
         "num_total_matches",
         "total_matches_percentage",
+        "assignment_time",
     ]
     comparison_statistics = pd.DataFrame(
         comparison_statistics_list,
@@ -645,11 +829,14 @@ def evaluate_network(network, checkpoint_path, complete=False):
             num_total_matches_sum / num_assignments_sum
         ) * 100
 
-        averages_message = "{} weighted averages: {:.2f}% exact matches, {:.2f}% fuzzy matches, {:.2f}% total matches".format(
+        assignment_time_weighted_average = group["assignment_time"].mean()
+
+        averages_message = "{} weighted averages: {:.2f}% exact matches, {:.2f}% fuzzy matches, {:.2f}% total matches, {:.1f} sec assignment time".format(
             clade,
             matching_percentage_weighted_average,
             fuzzy_percentage_weighted_average,
             total_percentage_weighted_average,
+            assignment_time_weighted_average,
         )
 
         aggregated_statistics.append(
@@ -658,6 +845,7 @@ def evaluate_network(network, checkpoint_path, complete=False):
                 "exact matches": matching_percentage_weighted_average,
                 "fuzzy matches": fuzzy_percentage_weighted_average,
                 "total matches": total_percentage_weighted_average,
+                "assignment time": assignment_time_weighted_average,
             }
         )
 
@@ -672,7 +860,19 @@ def evaluate_network(network, checkpoint_path, complete=False):
     logger.info(comparison_statistics_string)
 
     aggregated_statistics = pd.DataFrame(aggregated_statistics)
-    logger.info(f"\n\n{aggregated_statistics.to_string(index=False)}")
+    logger.info(
+        "\nclade weighted averages:\n{}".format(
+            aggregated_statistics.to_string(
+                index=False,
+                formatters={
+                    "exact matches": "{:.2f}%".format,
+                    "fuzzy matches": "{:.2f}%".format,
+                    "total matches": "{:.2f}%".format,
+                    "assignment time": "{:.1f}".format,
+                },
+            )
+        )
+    )
 
 
 def read_fasta_in_chunks(fasta_file_path, num_chunk_entries=1024):
@@ -920,7 +1120,6 @@ def get_assemblies_metadata():
 
     # download the `species_EnsemblVertebrates.txt` file
     species_data_url = f"http://ftp.ensembl.org/pub/release-{ensembl_release}/species_EnsemblVertebrates.txt"
-    data_directory.mkdir(exist_ok=True)
     species_data_path = data_directory / "species_EnsemblVertebrates.txt"
     if not species_data_path.exists():
         download_file(species_data_url, species_data_path)
@@ -948,7 +1147,20 @@ def get_assemblies_metadata():
 
         # retrieve additional information for the assembly from the REST API
         # https://ensemblrest.readthedocs.io/en/latest/#ensembl_rest.EnsemblClient.info_genomes_assembly
-        response = ensembl_rest.info_genomes_assembly(assembly.assembly_accession)
+        try:
+            response = ensembl_rest.info_genomes_assembly(assembly.assembly_accession)
+        # handle missing genome assembly accessions in REST
+        except ensembl_rest.HTTPError as ex:
+            error_code = ex.response.status_code
+            error_message = ex.response.json()["error"]
+            if (error_code == 400) and ("not found" in error_message):
+                logger.error(
+                    f"Error: assembly with accession {assembly.assembly_accession} missing from the REST API"
+                )
+                continue
+            else:
+                raise
+
         rest_assembly = SimpleNamespace(**response)
 
         assembly_metadata.assembly_accession = assembly.assembly_accession
@@ -1031,8 +1243,8 @@ def get_xref_canonical_translations(
 
     canonical_translations_list = []
     with connection:
-        for sql_query in sql_queries:
-            with connection.cursor() as cursor:
+        with connection.cursor() as cursor:
+            for sql_query in sql_queries:
                 cursor.execute(sql_query)
                 response = cursor.fetchall()
             canonical_translations_list.extend(response)
@@ -1124,7 +1336,7 @@ class SuppressSettingWithCopyWarning:
         pd.options.mode.chained_assignment = self.original_setting
 
 
-def generate_dataloaders(configuration, get_item):
+def generate_dataloaders(configuration):
     """
     Generate training, validation, and test dataloaders from the dataset files.
 
@@ -1133,7 +1345,7 @@ def generate_dataloaders(configuration, get_item):
     Returns:
         tuple containing the training, validation, and test dataloaders
     """
-    dataset = SequenceDataset(configuration, get_item)
+    dataset = TrainingDataset(configuration)
 
     configuration.symbol_mapper = dataset.symbol_mapper
     configuration.protein_sequence_mapper = dataset.protein_sequence_mapper
