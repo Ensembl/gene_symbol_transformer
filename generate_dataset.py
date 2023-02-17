@@ -330,7 +330,7 @@ def main():
     """
     main function
     """
-    log_file_path = data_directory / "dataset_generation.log"
+    log_file_path = data_directory / "nonvert_dataset_generation.log"
     add_log_file_handler(logger, log_file_path)
 
     generate_datasets()
