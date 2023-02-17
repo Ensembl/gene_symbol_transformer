@@ -968,6 +968,7 @@ def generate_canonical_protein_sequences_fasta(assembly, ensembl_release):
     Download and extract the archived protein sequences FASTA file for the species
     described in the assembly object.
     """
+    # todo: add option for metazoa and add the path as done in rapid-release
     if ensembl_release == "rapid_release":
         base_url = "http://ftp.ensembl.org/pub/rapid-release/species/"
         sequences_directory = rapid_release_sequences_directory
@@ -976,6 +977,7 @@ def generate_canonical_protein_sequences_fasta(assembly, ensembl_release):
         sequences_directory = main_release_sequences_directory
 
     # download and extract archived protein sequences FASTA file
+    # todo: test that structure is the same
     archived_fasta_filename = f"{assembly.fasta_filename}.gz"
     if ensembl_release == "rapid_release":
         archived_fasta_url = "{}{}/{}/geneset/{}/{}".format(
@@ -1021,7 +1023,7 @@ def generate_canonical_protein_sequences_fasta(assembly, ensembl_release):
         # save FASTA file with just protein coding canonical translations
         translations_dict = fasta_to_dict(fasta_path)
         num_translations = len(translations_dict)
-
+# todo: add option for metazoa (see before)
         if ensembl_release == "rapid_release":
             canonical_translations = get_canonical_translations(
                 ensembl_core_database=assembly.core_db,
@@ -1119,6 +1121,7 @@ def get_assemblies_metadata():
     ensembl_release = get_ensembl_release()
 
     # download the `species_EnsemblVertebrates.txt` file
+    # todo: we can use http://ftp.ensemblgenomes.org/pub/metazoa/current/ instead of a version, but we should have some version control so we stilll need to get the version somehow
     species_data_url = f"http://ftp.ensembl.org/pub/release-{ensembl_release}/species_EnsemblVertebrates.txt"
     species_data_path = data_directory / "species_EnsemblVertebrates.txt"
     if not species_data_path.exists():
