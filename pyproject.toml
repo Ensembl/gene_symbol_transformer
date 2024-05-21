@@ -14,7 +14,7 @@ PyYAML = "^5.4.1"
 tensorboard = "^2.9.0"
 ensembl-rest = "^0.3.3"
 torchmetrics = "^0.5.1"
-PyMySQL = "^1.0.2"
+PyMySQL = "^1.1.1"
 pytorch-lightning = "^1.6.3"
 networkx = {extras = ["default"], version = "^2.8.5"}
 
