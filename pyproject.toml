@@ -7,7 +7,8 @@ license = "Apache-2.0"
 
 [tool.poetry.dependencies]
 python = ">=3.9,<3.10"
-torch = "^1.10.2"
+torch = "1.11.0"
+numpy = "<2.0.0"
 pandas = "^1.4.0"
 biopython = "^1.79"
 PyYAML = "^5.4.1"
@@ -17,7 +18,7 @@ torchmetrics = "^0.5.1"
 PyMySQL = "^1.0.2"
 pytorch-lightning = "^1.5.9"
 
-[tool.poetry.dev-dependencies]
+[tool.poetry.group.dev.dependencies]
 pudb = "^2021.2.2"
 jupyterlab = "^3.2.8"
 jupytext = "^1.13.6"
