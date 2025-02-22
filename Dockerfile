@@ -10,7 +10,7 @@ ENV \
 # Poetry installation environment variables
 ENV \
     POETRY_HOME="/opt/poetry" \
-    POETRY_VERSION=1.1.13 \
+    POETRY_VERSION=2.1.1 \
     POETRY_VIRTUALENVS_CREATE=false
 
 # add Poetry bin directory to PATH
@@ -29,7 +29,7 @@ COPY \
     /app/
 
 # install project dependencies
-RUN poetry install --no-dev
+RUN poetry install --no-root
 
 # create /app/data directory
 RUN mkdir --verbose /app/data
