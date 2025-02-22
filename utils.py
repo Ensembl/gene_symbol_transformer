@@ -472,7 +472,8 @@ def assign_symbols(
     network,
     sequences_fasta,
     scientific_name=None,
-    taxonomy_id=None,
+    taxon_id=None,
+    genus_taxon_id=None,
     output_directory=None,
 ):
     """
@@ -482,10 +483,9 @@ def assign_symbols(
 
     symbols_metadata = network.hparams.symbols_metadata
 
-    if scientific_name is not None:
-        taxonomy_id = get_species_taxonomy_id(scientific_name)
-    clade = get_taxonomy_id_clade(taxonomy_id)
-    # logger.info(f"got clade {clade} for {scientific_name}")
+    taxonomy_id = get_species_taxonomy_id(scientific_name, taxon_id )
+    clade = get_taxonomy_id_clade(taxonomy_id, genus_taxon_id)
+    logger.info(f"got clade {clade} for {scientific_name}")
 
     if output_directory is None:
         output_directory = sequences_fasta_path.parent
@@ -1289,7 +1289,7 @@ def sizeof_fmt(num, suffix="B"):
     return f"{num:.1f} Yi{suffix}"
 
 
-def get_taxonomy_id_clade(taxonomy_id):
+def get_taxonomy_id_clade(taxonomy_id, genus_taxon_id=None):
     """
     Get the Genebuild-defined clade for the species with taxonomy_id taxonomy ID.
 
@@ -1310,7 +1310,15 @@ def get_taxonomy_id_clade(taxonomy_id):
 
     # get taxonomy classification from the REST API
     # https://ensemblrest.readthedocs.io/en/latest/#ensembl_rest.EnsemblClient.taxonomy_classification
-    taxonomy_classification = ensembl_rest.taxonomy_classification(taxonomy_id)
+    try:
+        taxonomy_classification = ensembl_rest.taxonomy_classification(taxonomy_id)
+    except Exception as e:
+        logger.info("Using genus taxon id to get taxonomy classification")
+        taxonomy_classification = ensembl_rest.taxonomy_classification(genus_taxon_id)
+    
+    if not taxonomy_classification:
+        raise ValueError(f"No response found for {taxonomy_id} or {genus_taxon_id}")
+    
     for taxon in taxonomy_classification:
         taxon_name = taxon["name"]
         if taxon_name in genebuild_clades:
@@ -1320,7 +1328,7 @@ def get_taxonomy_id_clade(taxonomy_id):
     return clade
 
 
-def get_species_taxonomy_id(scientific_name):
+def get_species_taxonomy_id(scientific_name, taxon_id=None):
     """
     Get the taxonomy ID for the `scientific_name` species.
 
@@ -1330,10 +1338,19 @@ def get_species_taxonomy_id(scientific_name):
         string containing the taxonomy ID of the species
     """
     # https://ensemblrest.readthedocs.io/en/latest/#ensembl_rest.EnsemblClient.taxonomy_name
-    response = ensembl_rest.taxonomy_name(scientific_name)
-    assert len(response) == 1
-
-    taxonomy_id = response[0]["id"]
+    try: 
+        response = ensembl_rest.taxonomy_name(scientific_name)
+        if len(response) == 1:
+            taxonomy_id = response[0]["id"]
+            #assert len(response) == 1
+        else:
+            raise ValueError(f"Multiple taxonomy ids found for {scientific_name}")
+    except (Exception, AssertionError) as e:
+        if taxon_id:
+            taxonomy_id = taxon_id
+            logger.info(f"Using taxon id provided by user")
+        else:
+            raise ValueError(f"No response found for {scientific_name} and not taxon id provided by user")
 
     return taxonomy_id
 

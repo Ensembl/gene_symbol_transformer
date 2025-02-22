@@ -408,6 +408,14 @@ def main():
         help="scientific name of the species the protein sequences belong to",
     )
     argument_parser.add_argument(
+        "--taxon_id",
+        help="taxon ID of the species the protein sequences belong to",
+    )
+    argument_parser.add_argument(
+        "--genus_taxon_id",
+        help="gene symbol to assign to the protein sequences",
+    )
+    argument_parser.add_argument(
         "--evaluate", action="store_true", help="evaluate a classifier"
     )
     argument_parser.add_argument(
@@ -585,6 +593,8 @@ def main():
             network,
             args.sequences_fasta,
             scientific_name=args.scientific_name,
+            taxon_id=args.taxon_id,
+            genus_taxon_id=args.genus_taxon_id,
         )
 
     # compare assignments with the ones on the latest Ensembl release
